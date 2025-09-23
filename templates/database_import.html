@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Import/Export Database{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <h2><i class="fas fa-database me-2"></i>Gestione Database</h2>
+        <p class="text-muted">Importa o esporta i dati del bilancio familiare</p>
+
+        <!-- Export Section -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-download me-2"></i>Esporta Database</h5>
+            </div>
+            <div class="card-body">
+                <p>Scarica una copia completa di tutti i dati del database in formato JSON.</p>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    L'export include: categorie, transazioni, piani PayPal, rate, saldo iniziale, conti personali, garage auto, PostePay Evolution e appunti.
+                </div>
+                <a href="{{ url_for('export_database') }}" class="btn btn-success">
+                    <i class="fas fa-download me-1"></i>Scarica Export
+                </a>
+            </div>
+        </div>
+
+        <!-- Import Section -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Importa Database</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Seleziona file JSON di backup</label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".json" required>
+                        <div class="form-text">Seleziona un file JSON esportato precedentemente.</div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h6>Opzioni di Importazione</h6>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="import_categories" name="import_categories" checked>
+                                <label class="form-check-label" for="import_categories">
+                                    Importa Categorie
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="import_transactions" name="import_transactions" checked>
+                                <label class="form-check-label" for="import_transactions">
+                                    Importa Transazioni
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="import_paypal" name="import_paypal" checked>
+                                <label class="form-check-label" for="import_paypal">
+                                    Importa Piani PayPal
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="import_saldo" name="import_saldo" checked>
+                                <label class="form-check-label" for="import_saldo">
+                                    Importa Saldo Iniziale
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="import_conti_personali" name="import_conti_personali" checked>
+                                <label class="form-check-label" for="import_conti_personali">
+                                    Importa Conti Personali (Maurizio/Antonietta)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="import_auto" name="import_auto" checked>
+                                <label class="form-check-label" for="import_auto">
+                                    Importa Garage Auto (Veicoli, Bolli, Manutenzioni)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="import_postepay" name="import_postepay" checked>
+                                <label class="form-check-label" for="import_postepay">
+                                    Importa PostePay Evolution (Saldo, Abbonamenti, Movimenti)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Opzioni Avanzate</h6>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="clear_existing" name="clear_existing">
+                                <label class="form-check-label" for="clear_existing">
+                                    <span class="text-danger">Cancella dati esistenti</span>
+                                </label>
+                                <div class="form-text text-muted">
+                                    Attenzione: questa opzione eliminerà tutti i dati attuali prima dell'importazione.
+                                </div>
+                            </div>
+                            <div class="form-check mt-2" id="confirm_clear_div" style="display: none;">
+                                <input class="form-check-input" type="checkbox" id="confirm_clear" name="confirm_clear">
+                                <label class="form-check-label" for="confirm_clear">
+                                    <span class="text-danger">Confermo la cancellazione</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Attenzione:</strong> L'importazione modificherà i dati del database. 
+                        Si consiglia di fare sempre un backup prima di importare.
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-1"></i>Importa Dati
+                        </button>
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i>Annulla
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('clear_existing').addEventListener('change', function() {
+    const confirmDiv = document.getElementById('confirm_clear_div');
+    const confirmCheck = document.getElementById('confirm_clear');
+    
+    if (this.checked) {
+        confirmDiv.style.display = 'block';
+        confirmCheck.required = true;
+    } else {
+        confirmDiv.style.display = 'none';
+        confirmCheck.required = false;
+        confirmCheck.checked = false;
+    }
+});
+</script>
+{% endblock %}

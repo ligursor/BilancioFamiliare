@@ -1,0 +1,647 @@
+{% extends "base.html" %}
+
+{% block title %}Dettaglio {{ nome_mese }} - Gestione Bilancio{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Dettaglio {{ nome_mese }}</h4>
+                <div class="d-flex align-items-center">
+                    <!-- Frecce navigazione mesi -->
+                    <div class="btn-group me-2" role="group">
+                        <button onclick="navigateMonth(-1)" class="btn btn-primary btn-sm nav-arrow" title="Mese precedente">
+                            <i class="fas fa-chevron-left text-white"></i>
+                        </button>
+                        <button onclick="navigateMonth(1)" class="btn btn-primary btn-sm nav-arrow" title="Mese successivo">
+                            <i class="fas fa-chevron-right text-white"></i>
+                        </button>
+                    </div>
+                    <!-- Pulsante nuova transazione -->
+                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addTransactionModal">
+                        <i class="fas fa-plus me-1"></i>Nuova Transazione
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Riepilogo mensile -->
+                <div class="row mb-4">
+                    <div class="col-md-2">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body text-center">
+                                <h6>Saldo Iniziale</h6>
+                                <h4>€ {{ "%.2f"|format(saldo_iniziale_mese) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center">
+                                <h6>Entrate Previste</h6>
+                                <h4>€ {{ "%.2f"|format(entrate) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-orange text-white" style="background-color: #fd7e14 !important;">
+                            <div class="card-body text-center">
+                                <h6>Uscite Previste</h6>
+                                <h4>€ {{ "%.2f"|format(uscite) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card {% if bilancio >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                            <div class="card-body text-center">
+                                <h6>Bilancio Previsto</h6>
+                                <h4>{% if bilancio >= 0 %}+{% endif %}€ {{ "%.2f"|format(bilancio) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    {% if not mese_futuro %}
+                    <div class="col-md-2">
+                        <div class="card {% if saldo_attuale_mese >= 0 %}bg-info{% else %}bg-warning{% endif %} text-white">
+                            <div class="card-body text-center">
+                                <h6><i class="fas fa-calendar-day me-1"></i>Saldo Attuale</h6>
+                                <h4>€ {{ "%.2f"|format(saldo_attuale_mese) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card {% if saldo_finale_mese >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
+                            <div class="card-body text-center">
+                                <h6>Saldo Finale</h6>
+                                <h4>€ {{ "%.2f"|format(saldo_finale_mese) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Per mesi futuri, mostra un box con la previsione -->
+                    <div class="col-md-4">
+                        <div class="card {% if saldo_previsto_fine_mese >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
+                            <div class="card-body text-center">
+                                <h6><i class="fas fa-crystal-ball me-1"></i>Saldo Previsto Fine Mese</h6>
+                                <h4>€ {{ "%.2f"|format(saldo_previsto_fine_mese) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Lista transazioni -->
+                {% if transazioni and not mese_futuro %}
+                <div class="table-responsive" id="tabella-transazioni">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th style="cursor: pointer; user-select: none;">
+                                    Data 
+                                    <span onclick="ordinaDettaglio('data_asc')" class="text-primary me-1" title="Ordina per data crescente" style="cursor: pointer;" id="sort-data-asc">
+                                        <i class="fas fa-chevron-up"></i>
+                                    </span>
+                                    <span onclick="ordinaDettaglio('data_desc')" class="text-primary" title="Ordina per data decrescente" style="cursor: pointer;" id="sort-data-desc">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </span>
+                                </th>
+                                <th>Descrizione</th>
+                                <th>Categoria</th>
+                                <th>
+                                    Tipo 
+                                    <button id="filtroTipo" class="btn btn-success btn-sm ms-2" 
+                                            style="width: 28px; height: 28px; font-size: 12px; font-weight: bold; border-radius: 4px;" 
+                                            onclick="ciclicaFiltroTipo()" 
+                                            title="Clicca per filtrare: Tutte → Entrate → Uscite"
+                                            data-filtro="">
+                                        T
+                                    </button>
+                                </th>
+                                <th style="cursor: pointer; user-select: none;">
+                                    Importo 
+                                    <span onclick="ordinaDettaglio('importo_asc')" class="text-success me-1" title="Ordina per importo crescente" style="cursor: pointer;" id="sort-importo-asc">
+                                        <i class="fas fa-chevron-up"></i>
+                                    </span>
+                                    <span onclick="ordinaDettaglio('importo_desc')" class="text-success" title="Ordina per importo decrescente" style="cursor: pointer;" id="sort-importo-desc">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </span>
+                                </th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transazione in transazioni %}
+                            <tr>
+                                <td>{{ transazione.data.strftime('%d/%m/%Y') }}</td>
+                                <td>{{ transazione.descrizione }}</td>
+                                <td>
+                                    <span class="badge {% if transazione.categoria.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ transazione.categoria.nome }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if transazione.tipo == 'entrata' %}
+                                        <span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>
+                                    {% else %}
+                                        <span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>
+                                    {% endif %}
+                                </td>
+                                <td class="{% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
+                                    {% if transazione.tipo == 'entrata' %}+{% else %}-{% endif %}€ {{ "%.2f"|format(transazione.importo) }}
+                                </td>
+                                <td>
+                                    <button class="btn btn-warning btn-sm me-1" 
+                                            onclick="modificaTransazione({{ transazione.id }}, '{{ transazione.descrizione }}', {{ transazione.importo }}, '{{ transazione.data.strftime('%Y-%m-%d') }}', {{ transazione.categoria_id }})"
+                                            title="Modifica transazione">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <a href="{{ url_for('elimina_transazione', id=transazione.id, redirect_to='dettaglio_periodo', start_date=start_date, end_date=end_date) }}" 
+                                       class="btn btn-danger btn-sm"
+                                       onclick="return confirm('Sei sicuro di voler eliminare questa transazione?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% elif not mese_futuro %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Nessuna transazione effettuata in questo mese</h5>
+                </div>
+                {% endif %}
+
+                <!-- Transazioni in attesa -->
+                {% if transazioni_in_attesa %}
+                <div class="mt-5">
+                    <h5 class="mb-3">
+                        <i class="fas fa-clock text-warning me-2"></i>
+                        Transazioni in Attesa
+                        <small class="text-muted">(Non incluse nei calcoli)</small>
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Data Programmata</th>
+                                    <th>Descrizione</th>
+                                    <th>Categoria</th>
+                                    <th>Tipo</th>
+                                    <th>Importo</th>
+                                    <th>Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transazione in transazioni_in_attesa %}
+                                <tr>
+                                    <td>{{ transazione.data.strftime('%d/%m/%Y') }}</td>
+                                    <td>{{ transazione.descrizione }}</td>
+                                    <td>
+                                        <span class="badge {% if transazione.categoria.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ transazione.categoria.nome }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if transazione.tipo == 'entrata' %}
+                                            <span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>
+                                        {% else %}
+                                            <span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="{% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
+                                        {% if transazione.tipo == 'entrata' %}+{% else %}-{% endif %}€ {{ "%.2f"|format(transazione.importo) }}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-warning btn-sm me-1" 
+                                                onclick="modificaTransazione({{ transazione.id }}, '{{ transazione.descrizione }}', {{ transazione.importo }}, '{{ transazione.data.strftime('%Y-%m-%d') }}', {{ transazione.categoria_id }})"
+                                                title="Modifica transazione">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <a href="{{ url_for('elimina_transazione', id=transazione.id, redirect_to='dettaglio_periodo', start_date=start_date, end_date=end_date) }}" 
+                                           class="btn btn-danger btn-sm"
+                                           onclick="return confirm('Sei sicuro di voler eliminare questa transazione?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal per aggiungere nuova transazione -->
+<div class="modal fade" id="addTransactionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Nuova Transazione</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('aggiungi_transazione') }}" id="addTransactionForm">
+                <input type="hidden" name="redirect_to" value="dettaglio_periodo:{{ start_date }}:{{ end_date }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="add_data" class="form-label">Data</label>
+                        <input type="date" class="form-control" id="add_data" name="data" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="add_descrizione" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" id="add_descrizione" name="descrizione" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="add_tipo" class="form-label">Tipo</label>
+                        <select class="form-control" id="add_tipo" name="tipo" required>
+                            <option value="">Seleziona tipo...</option>
+                            <option value="entrata">Entrata</option>
+                            <option value="uscita" selected>Uscita</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="add_categoria_id" class="form-label">Categoria</label>
+                        <select class="form-control" id="add_categoria_id" name="categoria_id" required>
+                            <option value="">Seleziona categoria...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="add_importo" class="form-label">Importo (€)</label>
+                        <input type="number" class="form-control" id="add_importo" name="importo" 
+                               step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="add_ricorrente" name="ricorrente">
+                            <label class="form-check-label" for="add_ricorrente">
+                                Transazione ricorrente
+                            </label>
+                        </div>
+                        <div class="form-text">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Le transazioni con data odierna o passata sono automaticamente effettuate. 
+                                Quelle future restano in attesa.
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3" id="add_frequenza_container" style="display: none;">
+                        <label for="add_frequenza_giorni" class="form-label">Frequenza</label>
+                        <select class="form-control" id="add_frequenza_giorni" name="frequenza_giorni">
+                            <option value="30">Mensile (30 giorni)</option>
+                            <option value="365">Annuale (365 giorni)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Aggiungi Transazione</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal per modificare transazione -->
+<div class="modal fade" id="editTransactionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Modifica Transazione</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="editTransactionForm">
+                <!-- Campo nascosto per identificare la provenienza -->
+                <input type="hidden" name="redirect_to" value="dettaglio_periodo">
+                <input type="hidden" name="start_date" value="{{ start_date }}">
+                <input type="hidden" name="end_date" value="{{ end_date }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_data" class="form-label">Data</label>
+                        <input type="date" class="form-control" id="edit_data" name="data" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_descrizione" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" id="edit_descrizione" name="descrizione" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_categoria_id" class="form-label">Categoria</label>
+                        <select class="form-control" id="edit_categoria_id" name="categoria_id" required></select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_importo" class="form-label">Importo (€)</label>
+                        <input type="number" class="form-control" id="edit_importo" name="importo" 
+                               step="0.01" min="0" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Salva Modifiche</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const categorie = {{ categorie | tojson }};
+let transazioniOriginali = [];
+let transazioniFiltrate = [];
+
+// Carica le transazioni originali all'avvio
+document.addEventListener('DOMContentLoaded', function() {
+    const righe = document.querySelectorAll('#tabella-transazioni tbody tr');
+    transazioniOriginali = Array.from(righe).map(riga => {
+        const celle = riga.querySelectorAll('td');
+        return {
+            elemento: riga,
+            data: celle[0].textContent.trim(),
+            descrizione: celle[1].textContent.trim(),
+            categoria: celle[2].textContent.trim(),
+            tipo: celle[3].textContent.includes('Entrata') ? 'entrata' : 'uscita',
+            importo: parseFloat(celle[4].textContent.replace(/[€+\-\s]/g, '').replace(',', '.'))
+        };
+    });
+    transazioniFiltrate = [...transazioniOriginali];
+    
+    // Configura il pulsante filtro tipo con stato iniziale
+    const btnFiltroTipo = document.getElementById('filtroTipo');
+    btnFiltroTipo.textContent = 'T';
+    btnFiltroTipo.title = 'Mostrando: Tutte (clicca per Entrate)';
+    btnFiltroTipo.dataset.filtro = '';
+    
+    // Popola le categorie nel modal di aggiunta
+    popolaCategorieSelect('add_categoria_id');
+    
+    // Gestisci il checkbox ricorrente
+    document.getElementById('add_ricorrente').addEventListener('change', function() {
+        const frequenzaContainer = document.getElementById('add_frequenza_container');
+        frequenzaContainer.style.display = this.checked ? 'block' : 'none';
+    });
+    
+    // Filtra categorie per tipo
+    document.getElementById('add_tipo').addEventListener('change', function() {
+        popolaCategorieSelect('add_categoria_id', this.value);
+    });
+    
+    // Gestione apertura modal nuova transazione
+    const addModal = document.getElementById('addTransactionModal');
+    addModal.addEventListener('show.bs.modal', function() {
+        precompilaDataPeriodo();
+    });
+});
+
+function popolaCategorieSelect(selectId, tipoFiltro = '') {
+    const select = document.getElementById(selectId);
+    select.innerHTML = '<option value="">Seleziona categoria...</option>';
+    
+    const categorieFiltrate = tipoFiltro ? 
+        categorie.filter(c => c.tipo === tipoFiltro) : 
+        categorie;
+    
+    categorieFiltrate.forEach(categoria => {
+        const option = document.createElement('option');
+        option.value = categoria.id;
+        option.textContent = categoria.nome;
+        select.appendChild(option);
+    });
+}
+
+function precompilaDataPeriodo() {
+    const startDate = new Date('{{ start_date }}');
+    const endDate = new Date('{{ end_date }}');
+    const oggi = new Date();
+    
+    // Se oggi è nel periodo, usa oggi, altrimenti usa la data di inizio del periodo
+    let dataDefault;
+    if (oggi >= startDate && oggi <= endDate) {
+        dataDefault = oggi;
+    } else {
+        dataDefault = startDate;
+    }
+    
+    // Formatta la data per l'input date (YYYY-MM-DD)
+    const anno = dataDefault.getFullYear();
+    const mese = String(dataDefault.getMonth() + 1).padStart(2, '0');
+    const giorno = String(dataDefault.getDate()).padStart(2, '0');
+    const dataFormattata = `${anno}-${mese}-${giorno}`;
+    
+    document.getElementById('add_data').value = dataFormattata;
+}
+
+function ciclicaFiltroTipo() {
+    const btn = document.getElementById('filtroTipo');
+    const filtroAttuale = btn.dataset.filtro;
+    
+    let nuovoFiltro, nuovoTesto, nuovoTooltip;
+    
+    switch(filtroAttuale) {
+        case '':
+            nuovoFiltro = 'entrata';
+            nuovoTesto = 'E';
+            nuovoTooltip = 'Filtrando per: Entrate (clicca per Uscite)';
+            break;
+        case 'entrata':
+            nuovoFiltro = 'uscita';
+            nuovoTesto = 'U';
+            nuovoTooltip = 'Filtrando per: Uscite (clicca per Tutte)';
+            break;
+        case 'uscita':
+            nuovoFiltro = '';
+            nuovoTesto = 'T';
+            nuovoTooltip = 'Mostrando: Tutte (clicca per Entrate)';
+            break;
+        default:
+            nuovoFiltro = '';
+            nuovoTesto = 'T';
+            nuovoTooltip = 'Mostrando: Tutte (clicca per Entrate)';
+    }
+    
+    btn.dataset.filtro = nuovoFiltro;
+    btn.textContent = nuovoTesto;
+    btn.title = nuovoTooltip;
+    
+    applicaFiltriDettaglio();
+}
+
+function applicaFiltriDettaglio() {
+    const btn = document.getElementById('filtroTipo');
+    const filtroTipo = btn.dataset.filtro;
+    
+    // Filtra le transazioni
+    if (filtroTipo) {
+        transazioniFiltrate = transazioniOriginali.filter(t => t.tipo === filtroTipo);
+    } else {
+        transazioniFiltrate = [...transazioniOriginali];
+    }
+    
+    aggiornaTabella();
+}
+
+function ordinaDettaglio(ordine) {
+    // Rimuovi evidenziazione da tutte le frecce
+    document.querySelectorAll('#sort-data-asc, #sort-data-desc, #sort-importo-asc, #sort-importo-desc').forEach(el => {
+        el.classList.remove('text-warning');
+        el.classList.add(el.id.includes('data') ? 'text-primary' : 'text-success');
+    });
+    
+    // Evidenzia la freccia selezionata
+    const sortId = 'sort-' + ordine.replace('_', '-');
+    const sortElement = document.getElementById(sortId);
+    if (sortElement) {
+        sortElement.classList.remove('text-primary', 'text-success');
+        sortElement.classList.add('text-warning');
+    }
+    
+    // Ordina le transazioni
+    transazioniFiltrate.sort((a, b) => {
+        switch(ordine) {
+            case 'data_asc':
+                return convertDataPerOrdinamento(a.data) - convertDataPerOrdinamento(b.data);
+            case 'data_desc':
+                return convertDataPerOrdinamento(b.data) - convertDataPerOrdinamento(a.data);
+            case 'importo_asc':
+                return a.importo - b.importo;
+            case 'importo_desc':
+                return b.importo - a.importo;
+            default:
+                return 0;
+        }
+    });
+    
+    aggiornaTabella();
+}
+
+function convertDataPerOrdinamento(dataStr) {
+    // Converte da dd/mm/yyyy a yyyymmdd per ordinamento
+    const parti = dataStr.split('/');
+    return parseInt(parti[2] + parti[1].padStart(2, '0') + parti[0].padStart(2, '0'));
+}
+
+function aggiornaTabella() {
+    const tbody = document.querySelector('#tabella-transazioni tbody');
+    tbody.innerHTML = '';
+    
+    transazioniFiltrate.forEach(transazione => {
+        tbody.appendChild(transazione.elemento);
+    });
+}
+
+function modificaTransazione(id, descrizione, importo, data, categoriaId) {
+    // Popola il form di modifica
+    document.getElementById('edit_descrizione').value = descrizione;
+    document.getElementById('edit_importo').value = importo;
+    document.getElementById('edit_data').value = data;
+    
+    // Popola le categorie nel select di modifica
+    const editCategoriaSelect = document.getElementById('edit_categoria_id');
+    editCategoriaSelect.innerHTML = '';
+    categorie.forEach(categoria => {
+        const option = document.createElement('option');
+        option.value = categoria.id;
+        option.textContent = categoria.nome;
+        option.selected = categoria.id == categoriaId;
+        editCategoriaSelect.appendChild(option);
+    });
+    
+    // Imposta l'action del form
+    document.getElementById('editTransactionForm').action = '/modifica_transazione/' + id;
+    
+    // Mostra il modal
+    new bootstrap.Modal(document.getElementById('editTransactionModal')).show();
+}
+
+// Inizializza i tooltip
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Carica automaticamente le categorie di uscita per il form di aggiunta rapida
+    setTimeout(function() {
+        popolaCategorieSelect('add_categoria_id', 'uscita');
+    }, 100);
+});
+
+// Backup: richiama anche quando la finestra è completamente caricata
+window.addEventListener('load', function() {
+    popolaCategorieSelect('add_categoria_id', 'uscita');
+});
+
+// Funzione per navigare tra i mesi
+function navigateMonth(direction) {
+    // Prendi le date correnti dal template e parsale
+    const currentStartStr = '{{ start_date }}'; // formato YYYY-MM-DD
+    const currentEndStr = '{{ end_date }}';
+    
+    // Parsa la data di inizio corrente per estrarre anno/mese/giorno
+    const [startYear, startMonth, startDay] = currentStartStr.split('-').map(Number);
+    
+    // Calcola il nuovo anno e mese per la data di inizio
+    let newStartYear = startYear;
+    let newStartMonth = startMonth + direction; // JavaScript usa mesi 1-based nelle stringhe, 0-based nelle Date
+    
+    // Gestisci il cambio di anno
+    if (newStartMonth > 12) {
+        newStartYear++;
+        newStartMonth = 1;
+    } else if (newStartMonth < 1) {
+        newStartYear--;
+        newStartMonth = 12;
+    }
+    
+    // Calcola anno e mese per la data di fine (sempre il mese successivo alla data di inizio)
+    let newEndYear = newStartYear;
+    let newEndMonth = newStartMonth + 1;
+    if (newEndMonth > 12) {
+        newEndYear++;
+        newEndMonth = 1;
+    }
+    
+    // Formato le date come stringhe YYYY-MM-DD
+    const startDateStr = `${newStartYear}-${String(newStartMonth).padStart(2, '0')}-27`;
+    const endDateStr = `${newEndYear}-${String(newEndMonth).padStart(2, '0')}-26`;
+    
+    console.log('Navigazione:', direction > 0 ? 'Avanti' : 'Indietro');
+    console.log('Da:', currentStartStr, '-', currentEndStr);
+    console.log('A:', startDateStr, '-', endDateStr);
+    console.log('Calcoli: Start Year:', newStartYear, 'Start Month:', newStartMonth);
+    console.log('Calcoli: End Year:', newEndYear, 'End Month:', newEndMonth);
+    
+    // Naviga alla nuova pagina
+    window.location.href = `/dettaglio_periodo/${startDateStr}/${endDateStr}`;
+}
+</script>
+
+<style>
+.nav-arrow {
+    transition: all 0.3s ease;
+}
+
+.nav-arrow:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    background-color: #0d6efd !important;
+}
+
+.nav-arrow:hover i {
+    text-shadow: 0 0 5px rgba(255,255,255,0.8);
+}
+</style>
+{% endblock %}

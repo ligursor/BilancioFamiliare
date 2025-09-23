@@ -1,0 +1,468 @@
+{% extends "base.html" %}
+
+{% block title %}PostePay Evolution{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-credit-card me-2"></i>PostePay Evolution</h2>
+        <div>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuovoAbbonamento">
+                <i class="fas fa-plus me-1"></i>Nuovo Abbonamento
+            </button>
+            <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuovoMovimento">
+                <i class="fas fa-exchange-alt me-1"></i>Nuovo Movimento
+            </button>
+            <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#modalModificaSaldo">
+                <i class="fas fa-edit me-1"></i>Modifica Saldo
+            </button>
+            <button class="btn btn-warning btn-sm" onclick="if(confirm('Sei sicuro di voler resettare tutto il sistema PostePay?')) { document.getElementById('resetForm').submit(); }">
+                <i class="fas fa-redo me-1"></i>Reset
+            </button>
+        </div>
+    </div>
+
+    <!-- Alert Saldo Insufficiente -->
+    {% if addebiti_problematici %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Saldo Insufficiente per Prossimi Addebiti</h5>
+                </div>
+                <div class="card-body">
+                    {% for addebito in addebiti_problematici %}
+                    <div class="alert alert-permanent {% if addebito.giorni <= 0 %}alert-danger{% elif addebito.giorni <= 7 %}alert-warning{% else %}alert-info{% endif %} mb-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>{{ addebito.abbonamento.nome }}</strong> - {{ config.POSTEPAY_FORMATO_VALUTA.format(addebito.abbonamento.importo) }}
+                                <br>
+                                <small>{{ addebito.abbonamento.descrizione or "Nessuna descrizione" }}</small>
+                                <br>
+                                <small class="text-muted">Data addebito: {{ addebito.data.strftime('%d/%m/%Y') }}</small>
+                            </div>
+                            <div class="text-end">
+                                {% if addebito.giorni <= 0 %}
+                                    <span class="badge bg-danger">OGGI</span>
+                                {% elif addebito.giorni <= 7 %}
+                                    <span class="badge bg-warning">{{ addebito.giorni }} GIORNI</span>
+                                {% else %}
+                                    <span class="badge bg-info">{{ addebito.giorni }} GIORNI</span>
+                                {% endif %}
+                                <br>
+                                <small class="text-danger">
+                                    <strong>Mancano: {{ config.POSTEPAY_FORMATO_VALUTA.format(addebito.importo_mancante) }}</strong>
+                                </small>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-wallet me-1"></i>Saldo attuale: {{ config.POSTEPAY_FORMATO_VALUTA.format(addebito.saldo_attuale) }}
+                            </small>
+                            <button class="btn btn-sm btn-success ms-2" data-bs-toggle="modal" data-bs-target="#modalModificaSaldo">
+                                <i class="fas fa-plus me-1"></i>Ricarica
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Cards delle statistiche -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">
+                                <a href="#" class="text-white text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalModificaSaldo" title="Clicca per modificare">
+                                    {{ config.POSTEPAY_FORMATO_VALUTA.format(postepay.saldo_attuale if postepay else 0) }}
+                                    <i class="fas fa-edit ms-1" style="font-size: 0.8rem;"></i>
+                                </a>
+                            </h4>
+                            <p class="card-text">Saldo Attuale</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-wallet fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ abbonamenti_attivi|length }}</h4>
+                            <p class="card-text">Abbonamenti Attivi</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-sync-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ config.POSTEPAY_FORMATO_VALUTA.format(spesa_mensile) }}</h4>
+                            <p class="card-text">Spesa Mensile</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-chart-line fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ prossimi_addebiti|length }}</h4>
+                            <p class="card-text">Prossimi Addebiti</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabelle -->
+    <div class="row">
+        <!-- Abbonamenti -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-sync-alt me-2"></i>Abbonamenti</h5>
+                </div>
+                <div class="card-body">
+                    {% if abbonamenti %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Importo</th>
+                                    <th>Giorno</th>
+                                    <th>Prossimo</th>
+                                    <th>Stato</th>
+                                    <th>Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for abbonamento in abbonamenti %}
+                                <tr class="{% if not abbonamento.attivo %}table-secondary{% endif %}">
+                                    <td>
+                                        <strong>{{ abbonamento.nome }}</strong>
+                                        {% if abbonamento.descrizione %}
+                                        <br><small class="text-muted">{{ abbonamento.descrizione }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ config.POSTEPAY_FORMATO_VALUTA.format(abbonamento.importo) }}</td>
+                                    <td>{{ abbonamento.giorno_addebito }}</td>
+                                    <td>
+                                        {% if abbonamento.attivo %}
+                                        {{ abbonamento.prossimo_addebito.strftime('%d/%m/%Y') }}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if abbonamento.attivo %}
+                                        <span class="badge bg-success">Attivo</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Disattivo</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" onclick="modificaAbbonamento({{ abbonamento.id }}, '{{ abbonamento.nome }}', '{{ abbonamento.descrizione }}', {{ abbonamento.importo }}, {{ abbonamento.giorno_addebito }})" data-bs-toggle="modal" data-bs-target="#modalModificaAbbonamento">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <form method="POST" action="{{ url_for('toggle_abbonamento_postepay', abbonamento_id=abbonamento.id) }}" style="display: inline;">
+                                                <button type="submit" class="btn {% if abbonamento.attivo %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
+                                                    <i class="fas fa-{% if abbonamento.attivo %}pause{% else %}play{% endif %}"></i>
+                                                </button>
+                                            </form>
+                                            <form method="POST" action="{{ url_for('elimina_abbonamento_postepay', abbonamento_id=abbonamento.id) }}" style="display: inline;" onsubmit="return confirm('Sei sicuro di voler eliminare questo abbonamento?')">
+                                                <button type="submit" class="btn btn-outline-danger">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Nessun abbonamento configurato.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Prossimi addebiti -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-clock me-2"></i>Prossimi Addebiti</h5>
+                </div>
+                <div class="card-body">
+                    {% if prossimi_addebiti %}
+                    {% for addebito in prossimi_addebiti[:5] %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                        <div>
+                            <strong>{{ addebito.abbonamento.nome }}</strong><br>
+                            <small class="text-muted">{{ addebito.data.strftime('%d/%m/%Y') }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-warning">{{ addebito.giorni }} giorni</span><br>
+                            <small>{{ config.POSTEPAY_FORMATO_VALUTA.format(addebito.abbonamento.importo) }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">Nessun addebito in programma.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Movimenti recenti -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-history me-2"></i>Movimenti Recenti</h5>
+                </div>
+                <div class="card-body">
+                    {% if movimenti %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Descrizione</th>
+                                    <th>Tipo</th>
+                                    <th>Importo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for movimento in movimenti %}
+                                <tr>
+                                    <td>{{ movimento.data.strftime('%d/%m/%Y') }}</td>
+                                    <td>{{ movimento.descrizione }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if movimento.tipo == 'ricarica' %}success{% elif movimento.tipo == 'abbonamento' %}info{% else %}secondary{% endif %}">
+                                            {{ movimento.tipo.title() }}
+                                        </span>
+                                    </td>
+                                    <td class="{% if movimento.importo > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ config.POSTEPAY_FORMATO_VALUTA.format(movimento.importo) }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Nessun movimento registrato.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Modifica Saldo -->
+<div class="modal fade" id="modalModificaSaldo" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modifica Saldo PostePay Evolution</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('modifica_saldo_postepay') }}">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Saldo attuale:</strong> {{ config.POSTEPAY_FORMATO_VALUTA.format(postepay.saldo_attuale if postepay else 0) }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="nuovo_saldo" class="form-label">Nuovo Saldo (€)</label>
+                        <input type="number" step="0.01" class="form-control" id="nuovo_saldo" name="nuovo_saldo" 
+                               value="{{ postepay.saldo_attuale if postepay else 0 }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="motivo" class="form-label">Motivo della modifica</label>
+                        <input type="text" class="form-control" id="motivo" name="motivo" 
+                               placeholder="es. Correzione saldo, Ricarica manuale..." required>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <small>Verrà creato automaticamente un movimento per tracciare questa modifica.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Aggiorna Saldo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nuovo Abbonamento -->
+<div class="modal fade" id="modalNuovoAbbonamento" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuovo Abbonamento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('aggiungi_abbonamento_postepay') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nome" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="nome" name="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descrizione" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" id="descrizione" name="descrizione">
+                    </div>
+                    <div class="mb-3">
+                        <label for="importo" class="form-label">Importo (€)</label>
+                        <input type="number" step="0.01" class="form-control" id="importo" name="importo" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="giorno_addebito" class="form-label">Giorno Addebito</label>
+                        <input type="number" min="1" max="31" class="form-control" id="giorno_addebito" name="giorno_addebito" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                    <button type="submit" class="btn btn-primary">Salva</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Modifica Abbonamento -->
+<div class="modal fade" id="modalModificaAbbonamento" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modifica Abbonamento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="formModificaAbbonamento">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="mod_nome" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="mod_nome" name="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mod_descrizione" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" id="mod_descrizione" name="descrizione">
+                    </div>
+                    <div class="mb-3">
+                        <label for="mod_importo" class="form-label">Importo (€)</label>
+                        <input type="number" step="0.01" class="form-control" id="mod_importo" name="importo" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mod_giorno_addebito" class="form-label">Giorno Addebito</label>
+                        <input type="number" min="1" max="31" class="form-control" id="mod_giorno_addebito" name="giorno_addebito" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                    <button type="submit" class="btn btn-primary">Salva Modifiche</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nuovo Movimento -->
+<div class="modal fade" id="modalNuovoMovimento" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuovo Movimento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('aggiungi_movimento_postepay') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="mov_data" class="form-label">Data</label>
+                        <input type="date" class="form-control" id="mov_data" name="data" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mov_descrizione" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" id="mov_descrizione" name="descrizione" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mov_tipo" class="form-label">Tipo</label>
+                        <select class="form-control" id="mov_tipo" name="tipo" required>
+                            <option value="entrata">Entrata (+)</option>
+                            <option value="uscita">Uscita (-)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mov_importo" class="form-label">Importo (€)</label>
+                        <input type="number" step="0.01" class="form-control" id="mov_importo" name="importo" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mov_tipo_movimento" class="form-label">Categoria</label>
+                        <select class="form-control" id="mov_tipo_movimento" name="tipo_movimento">
+                            <option value="ricarica">Ricarica</option>
+                            <option value="pagamento">Pagamento</option>
+                            <option value="altro">Altro</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                    <button type="submit" class="btn btn-success">Aggiungi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Form nascosto per reset -->
+<form id="resetForm" method="POST" action="{{ url_for('reset_postepay') }}" style="display: none;"></form>
+
+<script>
+function modificaAbbonamento(id, nome, descrizione, importo, giorno) {
+    document.getElementById('formModificaAbbonamento').action = '/modifica_abbonamento_postepay/' + id;
+    document.getElementById('mod_nome').value = nome;
+    document.getElementById('mod_descrizione').value = descrizione;
+    document.getElementById('mod_importo').value = importo;
+    document.getElementById('mod_giorno_addebito').value = giorno;
+}
+
+// Imposta data odierna nei form
+document.addEventListener('DOMContentLoaded', function() {
+    const oggi = new Date().toISOString().split('T')[0];
+    document.getElementById('mov_data').value = oggi;
+});
+</script>
+{% endblock %}

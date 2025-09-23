@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}Appunti - Gestione Bilancio Familiare{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-sticky-note me-3"></i>Appunti</h1>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuovoAppuntoModal">
+            <i class="fas fa-plus me-2"></i>Nuovo Appunto
+        </button>
+    </div>
+    
+    {% if appunti %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Descrizione</th>
+                        <th>Tipo</th>
+                        <th>Importo</th>
+                        <th>Categoria</th>
+                        <th>Note</th>
+                        <th>Creato</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appunto in appunti %}
+                    <tr>
+                        <td><strong>{{ appunto.titolo }}</strong></td>
+                        <td>
+                            <span class="badge {% if appunto.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ appunto.tipo|title }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="{% if appunto.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
+                                {% if appunto.tipo == 'entrata' %}+{% else %}-{% endif %}€{{ "%.2f"|format(appunto.importo_stimato) if appunto.importo_stimato else "0.00" }}
+                            </span>
+                        </td>
+                        <td>{{ appunto.categoria.nome if appunto.categoria else "-" }}</td>
+                        <td>{{ appunto.note if appunto.note else "-" }}</td>
+                        <td><small>{{ appunto.data_creazione.strftime('%d/%m/%Y %H:%M') }}</small></td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-primary" onclick="modificaAppunto({{ appunto.id }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-success" onclick="trasferisciAppunto({{ appunto.id }});">
+                                    <i class="fas fa-arrow-right"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" 
+                                        data-id="{{ appunto.id }}" 
+                                        data-titolo="{{ appunto.titolo }}"
+                                        onclick="eliminaAppuntoFromData(this)">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            Nessun appunto trovato nel database.
+        </div>
+    {% endif %}
+</div>
+
+<!-- Modal Nuovo Appunto -->
+<div class="modal fade" id="nuovoAppuntoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuovo Appunto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/appunti/nuovo" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="titolo" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" id="titolo" name="titolo" 
+                               placeholder="Es. Spesa alimentari" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tipo" class="form-label">Tipo</label>
+                        <select class="form-control" id="tipo" name="tipo" required onchange="filtraCategorie('categoria_id', this.value)">
+                            <option value="">Seleziona tipo</option>
+                            <option value="entrata">Entrata</option>
+                            <option value="uscita" selected>Uscita</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="categoria_id" class="form-label">Categoria</label>
+                        <select class="form-control" id="categoria_id" name="categoria_id">
+                            <option value="">Seleziona prima il tipo</option>
+                            {% for categoria in categorie %}
+                            <option value="{{ categoria.id }}" data-tipo="{{ categoria.tipo }}">{{ categoria.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="importo_stimato" class="form-label">Importo (€)</label>
+                        <input type="number" class="form-control" id="importo_stimato" name="importo_stimato" 
+                               step="0.01" min="0" placeholder="0.00" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="note" class="form-label">Note</label>
+                        <input type="text" class="form-control" id="note" name="note" 
+                               placeholder="Note aggiuntive (opzionale)">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Salva Appunto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Trasferisci Appunto -->
+<div class="modal fade" id="trasferisciModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Trasferisci a Transazioni</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/appunti/trasferisci" method="POST">
+                <input type="hidden" id="trasferisci_id" name="appunto_id">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Stai per trasferire l'appunto "<span id="trasferisci_titolo"></span>" nelle transazioni mensili.
+                    </div>
+                    <div class="mb-3">
+                        <label for="data_transazione" class="form-label">Data transazione *</label>
+                        <input type="date" class="form-control" id="data_transazione" name="data_transazione" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-success">Trasferisci e Elimina Appunto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Modifica Appunto -->
+<div class="modal fade" id="modificaAppuntoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modifica Appunto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/appunti/modifica" method="POST">
+                <input type="hidden" id="modifica_id" name="appunto_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="modifica_titolo" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" id="modifica_titolo" name="titolo" 
+                               placeholder="Es. Spesa alimentari" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="modifica_tipo" class="form-label">Tipo</label>
+                        <select class="form-control" id="modifica_tipo" name="tipo" required onchange="filtraCategorie('modifica_categoria_id', this.value)">
+                            <option value="">Seleziona tipo</option>
+                            <option value="entrata">Entrata</option>
+                            <option value="uscita">Uscita</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="modifica_categoria_id" class="form-label">Categoria</label>
+                        <select class="form-control" id="modifica_categoria_id" name="categoria_id">
+                            <option value="">Nessuna categoria</option>
+                            {% for categoria in categorie %}
+                            <option value="{{ categoria.id }}" data-tipo="{{ categoria.tipo }}">{{ categoria.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="modifica_importo_stimato" class="form-label">Importo (€)</label>
+                        <input type="number" class="form-control" id="modifica_importo_stimato" name="importo_stimato" 
+                               step="0.01" min="0" placeholder="0.00" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="modifica_note" class="form-label">Note</label>
+                        <input type="text" class="form-control" id="modifica_note" name="note" 
+                               placeholder="Note aggiuntive (opzionale)">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Salva Modifiche</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function modificaAppunto(id) {
+    // Recupera i dati dell'appunto tramite AJAX
+    fetch('/appunti/' + id + '/dati')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const appunto = data.appunto;
+                document.getElementById('modifica_id').value = appunto.id;
+                document.getElementById('modifica_titolo').value = appunto.titolo;
+                document.getElementById('modifica_tipo').value = appunto.tipo || 'uscita';
+                document.getElementById('modifica_importo_stimato').value = appunto.importo_stimato || '';
+                document.getElementById('modifica_categoria_id').value = appunto.categoria_id || '';
+                document.getElementById('modifica_note').value = appunto.note || '';
+                
+                // Filtra categorie in base al tipo
+                filtraCategorie('modifica_categoria_id', appunto.tipo || 'uscita');
+                
+                new bootstrap.Modal(document.getElementById('modificaAppuntoModal')).show();
+            } else {
+                alert('Errore nel caricamento dei dati: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Errore durante il caricamento dei dati dell\'appunto');
+        });
+}
+
+function trasferisciAppunto(id) {
+    // Recupera i dati dell'appunto tramite AJAX
+    fetch('/appunti/' + id + '/dati')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const appunto = data.appunto;
+                
+                // Popola il modal trasferimento
+                const trasferisciIdEl = document.getElementById('trasferisci_id');
+                const trasferisciTitoloEl = document.getElementById('trasferisci_titolo');
+                const dataTransazioneEl = document.getElementById('data_transazione');
+                
+                if (trasferisciIdEl && trasferisciTitoloEl && dataTransazioneEl) {
+                    trasferisciIdEl.value = appunto.id;
+                    trasferisciTitoloEl.textContent = appunto.titolo;
+                    
+                    // Imposta data odierna come default
+                    const oggi = new Date().toISOString().split('T')[0];
+                    dataTransazioneEl.value = oggi;
+                    
+                    // Mostra il modal
+                    const modal = new bootstrap.Modal(document.getElementById('trasferisciModal'));
+                    modal.show();
+                } else {
+                    console.error('Elementi del modal non trovati');
+                    alert('Errore: elementi del modal non trovati');
+                }
+            } else {
+                alert('Errore nel caricamento dei dati: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento dei dati:', error);
+            alert('Errore nel caricamento dei dati: ' + error.message);
+        });
+}
+
+// Funzione per filtrare le categorie in base al tipo
+function filtraCategorie(selectId, tipo) {
+    const select = document.getElementById(selectId);
+    const options = select.querySelectorAll('option');
+    
+    options.forEach(option => {
+        if (option.value === '') {
+            option.style.display = 'block'; // Mostra sempre "Nessuna categoria"
+        } else {
+            const categoriaType = option.getAttribute('data-tipo');
+            option.style.display = (categoriaType === tipo) ? 'block' : 'none';
+        }
+    });
+}
+
+// Event listener per filtro categorie in nuovo appunto
+document.addEventListener('DOMContentLoaded', function() {
+    const tipoSelect = document.getElementById('tipo');
+    const tipoModificaSelect = document.getElementById('modifica_tipo');
+    
+    if (tipoSelect) {
+        // Imposta filtro iniziale per uscite
+        setTimeout(() => {
+            tipoSelect.value = 'uscita';
+            filtraCategorie('categoria_id', 'uscita');
+        }, 100);
+    }
+    
+    if (tipoModificaSelect) {
+        tipoModificaSelect.addEventListener('change', function() {
+            filtraCategorie('modifica_categoria_id', this.value);
+        });
+    }
+});
+
+function eliminaAppunto(id, titolo) {
+    if (confirm('Sei sicuro di voler eliminare l\'appunto "' + titolo + '"?')) {
+        fetch('/appunti/elimina/' + id, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Errore: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Errore durante l\'eliminazione');
+        });
+    }
+}
+
+function eliminaAppuntoFromData(button) {
+    const id = button.getAttribute('data-id');
+    const titolo = button.getAttribute('data-titolo');
+    eliminaAppunto(id, titolo);
+}
+</script>
+
+{% endblock %}

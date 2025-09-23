@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Categorie - Gestione Bilancio{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="fas fa-tags me-2"></i>Gestione Categorie</h4>
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                    <i class="fas fa-plus me-2"></i>Nuova Categoria
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="text-success"><i class="fas fa-arrow-up me-2"></i>Categorie Entrate</h5>
+                        <div class="list-group">
+                            {% for categoria in categorie %}
+                                {% if categoria.tipo == 'entrata' %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>
+                                        <i class="fas fa-circle text-success me-2"></i>
+                                        {{ categoria.nome }}
+                                    </span>
+                                    <a href="{{ url_for('elimina_categoria', id=categoria.id) }}" 
+                                       class="btn btn-danger btn-sm"
+                                       onclick="return confirm('Sei sicuro di voler eliminare questa categoria?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h5 class="text-danger"><i class="fas fa-arrow-down me-2"></i>Categorie Uscite</h5>
+                        <div class="list-group">
+                            {% for categoria in categorie %}
+                                {% if categoria.tipo == 'uscita' %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>
+                                        <i class="fas fa-circle text-danger me-2"></i>
+                                        {{ categoria.nome }}
+                                    </span>
+                                    <a href="{{ url_for('elimina_categoria', id=categoria.id) }}" 
+                                       class="btn btn-danger btn-sm"
+                                       onclick="return confirm('Sei sicuro di voler eliminare questa categoria?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                {% if not categorie %}
+                <div class="text-center py-5">
+                    <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Nessuna categoria trovata</h5>
+                    <p class="text-muted">Aggiungi delle categorie per organizzare meglio le tue transazioni!</p>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                        <i class="fas fa-plus me-2"></i>Aggiungi Categoria
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal per aggiungere categoria -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Nuova Categoria</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('aggiungi_categoria') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nome" class="form-label">Nome Categoria</label>
+                        <input type="text" class="form-control" id="nome" name="nome" 
+                               placeholder="Es. Spese mediche" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tipo" class="form-label">Tipo</label>
+                        <select class="form-control" id="tipo" name="tipo" required>
+                            <option value="">Seleziona tipo</option>
+                            <option value="entrata">Entrata</option>
+                            <option value="uscita">Uscita</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Aggiungi Categoria</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
