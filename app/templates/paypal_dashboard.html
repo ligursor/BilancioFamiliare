@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}PayPal - Gestione Piani{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fab fa-paypal me-2"></i>Gestione Piani PayPal</h2>
+        <p class="text-muted">Monitora e gestisci i tuoi piani di pagamento PayPal a 3 rate</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('paypal.nuovo') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>Nuovo Piano
+        </a>
+    </div>
+</div>
+
+<!-- Statistiche -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Piani Totali</h5>
+                        <h3>{{ totale_piani }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-list fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Piani Attivi</h5>
+                        <h3>{{ piani_attivi }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-play fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Importo Rimanente</h5>
+                        <h3>€{{ "%.2f"|format(importo_rimanente_totale) }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-euro-sign fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Rate Non Pagate</h5>
+                        <h3>{{ rate_non_pagate_totali }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rate in scadenza -->
+{% if rate_in_scadenza %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Rate in Scadenza (Prossimi 30 giorni)</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Piano</th>
+                        <th>Rata</th>
+                        <th>Importo</th>
+                        <th>Scadenza</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rata in rate_in_scadenza %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('paypal.dettaglio', piano_id=rata.piano.id) }}" class="text-decoration-none">
+                                {{ rata.piano.descrizione }}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge bg-success">{{ rata.numero_rata }}/3</span>
+                        </td>
+                        <td>€{{ "%.2f"|format(rata.importo) }}</td>
+                        <td>
+                            <span class="{% if rata.data_scadenza <= datetime.now().date() %}text-danger{% elif (rata.data_scadenza - datetime.now().date()).days <= 7 %}text-warning{% endif %}">
+                                {{ rata.data_scadenza.strftime('%d/%m/%Y') }}
+                                {% if rata.data_scadenza <= datetime.now().date() %}
+                                    <i class="fas fa-exclamation-triangle text-danger"></i>
+                                {% elif (rata.data_scadenza - datetime.now().date()).days <= 7 %}
+                                    <i class="fas fa-exclamation-circle text-warning"></i>
+                                {% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Lista piani -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Tutti i Piani PayPal</h5>
+    </div>
+    <div class="card-body">
+        {% if piani %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Descrizione</th>
+                        <th>Importo Totale</th>
+                        <th>Importo Rata</th>
+                        <th>Prima Rata</th>
+                        <th>Stato</th>
+                        <th>Progresso</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for piano in piani %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('paypal.dettaglio', piano_id=piano.id) }}" class="text-decoration-none">
+                                <strong>{{ piano.descrizione }}</strong>
+                            </a>
+                            {% if piano.note %}
+                            <br><small class="text-muted">{{ piano.note[:50] }}{% if piano.note|length > 50 %}...{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td>€{{ "%.2f"|format(piano.importo_totale) }}</td>
+                        <td>€{{ "%.2f"|format(piano.importo_rata) }}</td>
+                        <td>{{ piano.data_prima_rata.strftime('%d/%m/%Y') }}</td>
+                        <td>
+                            {% if piano.stato == 'completato' %}
+                                <span class="badge bg-primary">Completato</span>
+                            {% elif piano.stato == 'in_corso' %}
+                                <span class="badge bg-success">In corso</span>
+                            {% else %}
+                                <span class="badge bg-success">{{ piano.stato|replace('_', ' ')|title }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set rate_totali = piano.rate|length if piano.rate else 3 %}
+                            {% set rate_pagate = piano.rate|selectattr('stato', 'equalto', 'pagata')|list|length if piano.rate else 0 %}
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar" style="width: {{ (rate_pagate / rate_totali * 100) if rate_totali > 0 else 0 }}%">
+                                    {{ rate_pagate }}/{{ rate_totali }}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('paypal.dettaglio', piano_id=piano.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('paypal.modifica', piano_id=piano.id) }}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{{ url_for('paypal.elimina', piano_id=piano.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Sei sicuro di voler eliminare questo piano?')">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">Nessun piano PayPal presente</h5>
+            <p class="text-muted">Inizia creando un nuovo piano o importando da Excel</p>
+            <a href="{{ url_for('paypal.nuovo') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Crea Primo Piano
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

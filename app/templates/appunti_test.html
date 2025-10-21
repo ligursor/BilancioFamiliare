@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Test Appunti{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Test Appunti</h1>
+    
+    <p>Debug: Ci sono {{ appunti|length }} appunti nel database</p>
+    
+    {% if appunti %}
+        <ul>
+        {% for appunto in appunti %}
+            <li>{{ appunto.titolo }} - €{{ appunto.importo_stimato or 0 }}</li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>Nessun appunto trovato.</p>
+    {% endif %}
+    
+    <p>Debug: Ci sono {{ categorie|length }} categorie</p>
+</div>
+{% endblock %}

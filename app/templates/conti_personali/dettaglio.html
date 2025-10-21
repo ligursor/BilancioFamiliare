@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-user me-2"></i>{{ conto.nome_conto }}
+                    <small class="text-muted ms-2">Conto Personale</small>
+                </h4>
+                <div>
+                    <a href="{{ url_for('conti.modifica', conto_id=conto.id) }}" class="btn btn-warning btn-sm me-2">
+                        <i class="fas fa-edit me-1"></i>Modifica
+                    </a>
+                    <a href="{{ url_for('conti.lista') }}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Torna alla Lista
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Statistiche Conto</h5>
+            </div>
+            <div class="card-body">
+                {% if stats %}
+                <div class="row text-center">
+                    <div class="col-12 mb-3">
+                        <h3 class="{% if conto.saldo_corrente >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            €{{ "%.2f"|format(conto.saldo_corrente) }}
+                        </h3>
+                        <p class="text-muted mb-0">Saldo Attuale</p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row text-center">
+                    <div class="col-6 mb-2">
+                        <strong class="text-info">€{{ "%.2f"|format(stats.saldo_iniziale) }}</strong><br>
+                        <small class="text-muted">Saldo Iniziale</small>
+                    </div>
+                    <div class="col-6 mb-2">
+                        <strong class="text-primary">{{ stats.num_versamenti }}</strong><br>
+                        <small class="text-muted">Versamenti</small>
+                    </div>
+                    <div class="col-6 mb-2">
+                        <strong class="text-success">+€{{ "%.2f"|format(stats.versamenti_positivi) }}</strong><br>
+                        <small class="text-muted">Entrate</small>
+                    </div>
+                    <div class="col-6 mb-2">
+                        <strong class="text-danger">-€{{ "%.2f"|format(stats.versamenti_negativi) }}</strong><br>
+                        <small class="text-muted">Uscite</small>
+                    </div>
+                </div>
+                
+                {% if stats.ultimo_versamento %}
+                <hr>
+                <div class="text-center">
+                    <h6 class="text-muted">Ultimo Versamento</h6>
+                    <p class="mb-1"><strong>{{ stats.ultimo_versamento.descrizione }}</strong></p>
+                    <p class="mb-1">
+                        {% if stats.ultimo_versamento.importo >= 0 %}+{% endif %}€{{ "%.2f"|format(stats.ultimo_versamento.importo) }}
+                    </p>
+                    <small class="text-muted">{{ stats.ultimo_versamento.data.strftime('%d/%m/%Y') }}</small>
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Form nuovo versamento -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Nuovo Versamento</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('conti.nuovo_versamento', conto_id=conto.id) }}">
+                    <div class="mb-3">
+                        <label for="data" class="form-label">Data</label>
+                        <input type="date" class="form-control" id="data" name="data" 
+                               value="{{ moment().format('YYYY-MM-DD') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descrizione" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" id="descrizione" name="descrizione" 
+                               placeholder="Descrizione del versamento" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="importo" class="form-label">Importo</label>
+                        <div class="input-group">
+                            <span class="input-group-text">€</span>
+                            <input type="number" class="form-control" id="importo" name="importo" 
+                                   step="0.01" placeholder="0.00" required>
+                        </div>
+                        <div class="form-text">
+                            Usa importi positivi per entrate, negativi per uscite
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-plus me-1"></i>Aggiungi Versamento
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Storico Versamenti</h5>
+                {% if pagination and pagination.total > 0 %}
+                <small class="text-muted">{{ pagination.total }} versamenti totali</small>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if versamenti %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Descrizione</th>
+                                    <th class="text-end">Importo</th>
+                                    <th class="text-end">Saldo Dopo</th>
+                                    <th class="text-center">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for versamento in versamenti %}
+                                <tr>
+                                    <td>{{ versamento.data.strftime('%d/%m/%Y') }}</td>
+                                    <td>{{ versamento.descrizione }}</td>
+                                    <td class="text-end">
+                                        <span class="{% if versamento.importo >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                            {% if versamento.importo >= 0 %}+{% endif %}€{{ "%.2f"|format(versamento.importo) }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="{% if versamento.saldo_dopo_versamento >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                            €{{ "%.2f"|format(versamento.saldo_dopo_versamento) }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <form method="POST" action="{{ url_for('conti.elimina_versamento', versamento_id=versamento.id) }}" 
+                                              class="d-inline"
+                                              onsubmit="return confirm('Sei sicuro di voler eliminare questo versamento?')">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Paginazione -->
+                    {% if pagination and pagination.pages > 1 %}
+                    <nav aria-label="Paginazione versamenti">
+                        <ul class="pagination pagination-sm justify-content-center">
+                            {% if pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('conti.dettaglio', conto_id=conto.id, page=pagination.prev_num) }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in range(1, pagination.pages + 1) %}
+                                {% if page_num == pagination.page %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% elif page_num <= 2 or page_num > pagination.pages - 2 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('conti.dettaglio', conto_id=conto.id, page=page_num) }}">{{ page_num }}</a>
+                                    </li>
+                                {% elif page_num == 3 or page_num == pagination.pages - 2 %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('conti.dettaglio', conto_id=conto.id, page=pagination.next_num) }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Nessun versamento</h5>
+                        <p class="text-muted">Aggiungi il primo versamento per questo conto</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Imposta la data di oggi come default
+document.addEventListener('DOMContentLoaded', function() {
+    const dataInput = document.getElementById('data');
+    if (dataInput && !dataInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dataInput.value = today;
+    }
+});
+</script>
+{% endblock %}

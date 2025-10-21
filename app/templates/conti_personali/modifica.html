@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>Modifica Conto: {{ conto.nome_conto }}
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="nome_conto" class="form-label">Nome del Conto *</label>
+                        <input type="text" class="form-control" id="nome_conto" name="nome_conto" 
+                               value="{{ conto.nome_conto }}" required>
+                        <div class="form-text">Il nome deve essere univoco</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="saldo_iniziale" class="form-label">Saldo Iniziale</label>
+                        <div class="input-group">
+                            <span class="input-group-text">€</span>
+                            <input type="number" class="form-control" id="saldo_iniziale" name="saldo_iniziale" 
+                                   step="0.01" value="{{ conto.saldo_iniziale }}" required>
+                        </div>
+                        <div class="form-text">
+                            <strong>Attenzione:</strong> Modificare il saldo iniziale aggiusterà automaticamente il saldo corrente
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Saldo Corrente:</strong> €{{ "%.2f"|format(conto.saldo_corrente) }}
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('conti.dettaglio', conto_id=conto.id) }}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-times me-1"></i>Annulla
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Salva Modifiche
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

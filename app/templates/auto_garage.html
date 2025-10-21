@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+
+{% block title %}Garage Auto{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-warehouse me-2"></i>Garage Auto</h2>
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuovoVeicolo">
+                    <i class="fas fa-plus me-2"></i>Nuovo Veicolo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiche generali -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-primary">Veicoli Attivi</h5>
+                    <h3 class="text-primary">{{ veicoli|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-info">Costo Totale Finanziamenti</h5>
+                    <h3 class="text-info">{{ formato_valuta.format(totale_costo_finanziamento) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-success">Totale Versato</h5>
+                    <h3 class="text-success">{{ formato_valuta.format(totale_versato) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-warning">Saldo Rimanente</h5>
+                    <h3 class="text-warning">{{ formato_valuta.format(totale_saldo_rimanente) }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bolli in attesa di pagamento -->
+    {% if bolli_in_attesa %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Bolli in Attesa di Pagamento</h5>
+                </div>
+                <div class="card-body">
+                    {% for bollo in bolli_in_attesa %}
+                    <div class="alert alert-permanent {% if bollo.giorni <= 0 %}alert-danger{% elif bollo.giorni <= 30 %}alert-warning{% else %}alert-info{% endif %} mb-2">
+                        <strong>{{ bollo.veicolo.nome_completo }}</strong> - {{ bollo.tipo }}
+                        <br>
+                        <small>{{ bollo.dettaglio }}</small>
+                        <div class="mt-2">
+                        {% if bollo.giorni <= 0 %}
+                            <span class="badge bg-danger">SCADUTO</span>
+                        {% elif bollo.giorni <= 30 %}
+                            <span class="badge bg-warning">IN SCADENZA</span>
+                        {% else %}
+                            <span class="badge bg-info">DA PAGARE</span>
+                        {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Lista veicoli -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-car me-2"></i>I Tuoi Veicoli</h5>
+                </div>
+                <div class="card-body">
+                    {% if veicoli %}
+                    <div class="row">
+                        {% for veicolo in veicoli %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ veicolo.nome_completo }}</h6>
+                                    <p class="card-text">
+                                        <small class="text-muted">
+                                            {% if veicolo.mese_scadenza_bollo %}
+                                                Bollo: {{ ['', 'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'][veicolo.mese_scadenza_bollo] }}
+                                                {% if veicolo.bollo_scaduto %}
+                                                    <span class="badge bg-danger ms-1">SCADUTO</span>
+                                                {% endif %}
+                                                <br>
+                                            {% endif %}
+                                            {% if veicolo.prima_rata %}
+                                                Prima rata: {{ veicolo.prima_rata.strftime('%d/%m/%Y') }}<br>
+                                            {% endif %}
+                                        </small>
+                                    </p>
+                                    {% if veicolo.costo_finanziamento %}
+                                    <div class="mb-2">
+                                        <strong>Costo: {{ formato_valuta.format(veicolo.costo_finanziamento) }}</strong><br>
+                                        <small>Versato: {{ formato_valuta.format(veicolo.totale_versato) }}</small><br>
+                                        {% if veicolo.saldo_rimanente > 0 %}
+                                        <small class="text-warning">Rimanente: {{ formato_valuta.format(veicolo.saldo_rimanente) }}</small><br>
+                                        <small class="text-info">Rate rimanenti: {{ veicolo.rate_rimanenti }}</small>
+                                        {% else %}
+                                        <small class="text-success">✓ Pagato completamente</small>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="card-footer">
+                                    <div class="btn-group w-100" role="group">
+                                        <a href="{{ url_for('auto.dettaglio', veicolo_id=veicolo.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye"></i> Dettagli
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalNuovoBollo" onclick="setVeicoloId({{ veicolo.id }})">
+                                            <i class="fas fa-receipt"></i> Bollo
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalNuovaManutenzione" onclick="setVeicoloId({{ veicolo.id }})">
+                                            <i class="fas fa-wrench"></i> Manut.
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-car fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Nessun veicolo nel garage</h5>
+                        <p class="text-muted">Aggiungi il primo veicolo per iniziare!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attività recenti -->
+    <div class="row">
+        <!-- Ultimi bolli -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Ultimi Bolli Pagati</h5>
+                </div>
+                <div class="card-body">
+                    {% if ultimi_bolli %}
+                    <div class="list-group list-group-flush">
+                        {% for bollo in ultimi_bolli %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ bollo.veicolo.nome_completo }}</h6>
+                                <small>{{ bollo.data_pagamento.strftime('%d/%m/%Y') }}</small>
+                            </div>
+                            <p class="mb-1">Anno {{ bollo.anno_riferimento }} - {{ formato_valuta.format(bollo.importo) }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">Nessun bollo registrato</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Ultime manutenzioni -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-wrench me-2"></i>Ultime Manutenzioni</h5>
+                </div>
+                <div class="card-body">
+                    {% if ultime_manutenzioni %}
+                    <div class="list-group list-group-flush">
+                        {% for manutenzione in ultime_manutenzioni %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ manutenzione.veicolo.nome_completo }}</h6>
+                                <small>{{ manutenzione.data_intervento.strftime('%d/%m/%Y') }}</small>
+                            </div>
+                            <p class="mb-1">{{ manutenzione.tipo_intervento }} - {{ formato_valuta.format(manutenzione.costo) }}</p>
+                            <small class="text-muted">{{ manutenzione.officina }} - KM {{ "{:,}".format(manutenzione.km_intervento).replace(',', '.') }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">Nessuna manutenzione registrata</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nuovo Veicolo -->
+<div class="modal fade" id="modalNuovoVeicolo" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Nuovo Veicolo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('auto.aggiungi_veicolo') }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="marca" class="form-label">Marca *</label>
+                                <input type="text" class="form-control" id="marca" name="marca" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="modello" class="form-label">Modello *</label>
+                                <input type="text" class="form-control" id="modello" name="modello" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="mese_scadenza_bollo" class="form-label">Mese Scadenza Bollo</label>
+                                <select class="form-control" id="mese_scadenza_bollo" name="mese_scadenza_bollo">
+                                    <option value="">-- Seleziona mese --</option>
+                                    <option value="1">Gennaio</option>
+                                    <option value="2">Febbraio</option>
+                                    <option value="3">Marzo</option>
+                                    <option value="4">Aprile</option>
+                                    <option value="5">Maggio</option>
+                                    <option value="6">Giugno</option>
+                                    <option value="7">Luglio</option>
+                                    <option value="8">Agosto</option>
+                                    <option value="9">Settembre</option>
+                                    <option value="10">Ottobre</option>
+                                    <option value="11">Novembre</option>
+                                    <option value="12">Dicembre</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="costo_finanziamento" class="form-label">Costo Finanziamento (€)</label>
+                                <input type="number" class="form-control" id="costo_finanziamento" name="costo_finanziamento" step="0.01" min="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="prima_rata" class="form-label">Prima Rata</label>
+                                <input type="date" class="form-control" id="prima_rata" name="prima_rata">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="numero_rate" class="form-label">Numero Rate</label>
+                                <input type="number" class="form-control" id="numero_rate" name="numero_rate" min="1">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="rata_mensile" class="form-label">Rata Mensile (€)</label>
+                                <input type="number" class="form-control" id="rata_mensile" name="rata_mensile" step="0.01" min="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        I calcoli del totale versato, saldo rimanente e rate rimanenti verranno effettuati automaticamente in base alla data di sistema.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-success">Aggiungi Veicolo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nuovo Bollo -->
+<div class="modal fade" id="modalNuovoBollo" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Nuovo Bollo Auto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('auto.aggiungi_bollo') }}">
+                <input type="hidden" id="bollo_veicolo_id" name="veicolo_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="anno_riferimento" class="form-label">Anno di Riferimento *</label>
+                        <input type="number" class="form-control" id="anno_riferimento" name="anno_riferimento" min="2000" max="2030" value="{{ datetime.now().year }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="data_pagamento" class="form-label">Data Pagamento *</label>
+                        <input type="date" class="form-control" id="data_pagamento" name="data_pagamento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="importo" class="form-label">Importo (€) *</label>
+                        <input type="number" class="form-control" id="importo" name="importo" step="0.01" min="0" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-success">Aggiungi Bollo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nuova Manutenzione -->
+<div class="modal fade" id="modalNuovaManutenzione" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-wrench me-2"></i>Nuova Manutenzione</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('auto.aggiungi_manutenzione') }}">
+                <input type="hidden" id="manutenzione_veicolo_id" name="veicolo_id">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="data_intervento" class="form-label">Data Intervento *</label>
+                                <input type="date" class="form-control" id="data_intervento" name="data_intervento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="km_intervento" class="form-label">KM Intervento *</label>
+                                <input type="number" class="form-control" id="km_intervento" name="km_intervento" min="0" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="officina" class="form-label">Officina *</label>
+                                <input type="text" class="form-control" id="officina" name="officina" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tipo_intervento" class="form-label">Tipo Intervento *</label>
+                                <input type="text" class="form-control" id="tipo_intervento" name="tipo_intervento" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="costo" class="form-label">Costo (€) *</label>
+                        <input type="number" class="form-control" id="costo" name="costo" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="dettaglio" class="form-label">Dettaglio Intervento</label>
+                        <textarea class="form-control" id="dettaglio" name="dettaglio" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="prossimo_controllo_km" class="form-label">Prossimo Controllo KM</label>
+                                <input type="number" class="form-control" id="prossimo_controllo_km" name="prossimo_controllo_km" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="prossimo_controllo_data" class="form-label">Prossimo Controllo Data</label>
+                                <input type="date" class="form-control" id="prossimo_controllo_data" name="prossimo_controllo_data">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-success">Aggiungi Manutenzione</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function setVeicoloId(veicoloId) {
+    document.getElementById('bollo_veicolo_id').value = veicoloId;
+    document.getElementById('manutenzione_veicolo_id').value = veicoloId;
+}
+
+// Auto-calcolo rata mensile se inseriti costo e numero rate
+document.getElementById('costo_finanziamento').addEventListener('input', calcolaRataMensile);
+document.getElementById('numero_rate').addEventListener('input', calcolaRataMensile);
+
+function calcolaRataMensile() {
+    const costo = parseFloat(document.getElementById('costo_finanziamento').value) || 0;
+    const rate = parseInt(document.getElementById('numero_rate').value) || 1;
+    
+    if (costo > 0 && rate > 0) {
+        const rataMensile = costo / rate;
+        document.getElementById('rata_mensile').value = rataMensile.toFixed(2);
+    }
+}
+</script>
+
+{% endblock %}

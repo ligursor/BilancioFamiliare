@@ -1,0 +1,664 @@
+{% extends "base.html" %}
+
+{% block title %}Dettaglio {{ nome_mese }} - Gestione Bilancio{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Dettaglio {{ nome_mese }}</h4>
+                <div class="d-flex align-items-center">
+                    <!-- Frecce navigazione mesi -->
+                    <div class="btn-group me-2" role="group">
+                        <a href="{{ url_for('dettaglio_periodo.mese', anno=anno_prec, mese=mese_prec) }}" 
+                           class="btn btn-primary btn-sm nav-arrow" title="Mese precedente">
+                            <i class="fas fa-chevron-left text-white"></i>
+                        </a>
+                        <a href="{{ url_for('dettaglio_periodo.mese', anno=anno_succ, mese=mese_succ) }}" 
+                           class="btn btn-primary btn-sm nav-arrow" title="Mese successivo">
+                            <i class="fas fa-chevron-right text-white"></i>
+                        </a>
+                    </div>
+                    <!-- Pulsante nuova transazione -->
+                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addTransactionModal">
+                        <i class="fas fa-plus me-1"></i>Nuova Transazione
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Riepilogo mensile - Box originali -->
+                <div class="row mb-4">
+                    <div class="col-md-2">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body text-center">
+                                <h6>Saldo Iniziale</h6>
+                                <h4>€ {{ "%.2f"|format(saldo_iniziale_mese) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center">
+                                <h6>Entrate Previste</h6>
+                                <h4>€ {{ "%.2f"|format(entrate) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-orange text-white" style="background-color: #fd7e14 !important;">
+                            <div class="card-body text-center">
+                                <h6>Uscite Previste</h6>
+                                <h4>€ {{ "%.2f"|format(uscite) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card {% if bilancio >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                            <div class="card-body text-center">
+                                <h6>Bilancio Previsto</h6>
+                                <h4>{% if bilancio >= 0 %}+{% endif %}€ {{ "%.2f"|format(bilancio) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    {% if not mese_futuro %}
+                    <div class="col-md-2">
+                        <div class="card {% if saldo_attuale_mese >= 0 %}bg-info{% else %}bg-warning{% endif %} text-white">
+                            <div class="card-body text-center">
+                                <h6><i class="fas fa-calendar-day me-1"></i>Saldo Attuale</h6>
+                                <h4>€ {{ "%.2f"|format(saldo_attuale_mese) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card {% if saldo_finale_mese >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
+                            <div class="card-body text-center">
+                                <h6>Saldo Finale</h6>
+                                <h4>€ {{ "%.2f"|format(saldo_finale_mese) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Per mesi futuri, mostra un box con la previsione -->
+                    <div class="col-md-4">
+                        <div class="card {% if saldo_previsto_fine_mese >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
+                            <div class="card-body text-center">
+                                <h6><i class="fas fa-crystal-ball me-1"></i>Saldo Previsto Fine Mese</h6>
+                                <h4>€ {{ "%.2f"|format(saldo_previsto_fine_mese) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Statistiche per categoria - MANTIENI -->
+                {% if stats_categorie %}
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Statistiche per Categoria</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Categoria</th>
+                                                <th>Tipo</th>
+                                                <th>Totale</th>
+                                                <th>Transazioni</th>
+                                                <th>Media</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for stat in stats_categorie %}
+                                            <tr>
+                                                <td>{{ stat.nome }}</td>
+                                                <td>
+                                                    {% if stat.tipo == 'entrata' %}
+                                                        <span class="badge bg-success">Entrata</span>
+                                                    {% else %}
+                                                        <span class="badge bg-danger">Uscita</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="{% if stat.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
+                                                    {% if stat.tipo == 'entrata' %}+{% else %}-{% endif %}€ {{ "%.2f"|format(stat.totale) }}
+                                                </td>
+                                                <td>{{ stat.num_transazioni }}</td>
+                                                <td>
+                                                    {% if stat.num_transazioni > 0 %}
+                                                        € {{ "%.2f"|format(stat.totale / stat.num_transazioni) }}
+                                                    {% else %}
+                                                        -
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Lista transazioni - SENZA FILTRI ricorrenti -->
+                {% if transazioni and not mese_futuro %}
+                <div class="table-responsive" id="tabella-transazioni">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th style="cursor: pointer; user-select: none;">
+                                    Data 
+                                    <span onclick="ordinaDettaglio('data_asc')" class="text-primary me-1" title="Ordina per data crescente" style="cursor: pointer;" id="sort-data-asc">
+                                        <i class="fas fa-chevron-up"></i>
+                                    </span>
+                                    <span onclick="ordinaDettaglio('data_desc')" class="text-primary" title="Ordina per data decrescente" style="cursor: pointer;" id="sort-data-desc">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </span>
+                                </th>
+                                <th>Descrizione</th>
+                                <th>Categoria</th>
+                                <th>
+                                    Tipo 
+                                    <button id="filtroTipo" class="btn btn-success btn-sm ms-2" 
+                                            style="width: 28px; height: 28px; font-size: 12px; font-weight: bold; border-radius: 4px;" 
+                                            onclick="ciclicaFiltroTipo()" 
+                                            title="Clicca per filtrare: Tutte → Entrate → Uscite"
+                                            data-filtro="">
+                                        T
+                                    </button>
+                                </th>
+                                <th style="cursor: pointer; user-select: none;">
+                                    Importo 
+                                    <span onclick="ordinaDettaglio('importo_asc')" class="text-success me-1" title="Ordina per importo crescente" style="cursor: pointer;" id="sort-importo-asc">
+                                        <i class="fas fa-chevron-up"></i>
+                                    </span>
+                                    <span onclick="ordinaDettaglio('importo_desc')" class="text-success" title="Ordina per importo decrescente" style="cursor: pointer;" id="sort-importo-desc">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </span>
+                                </th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transazione in transazioni %}
+                            <tr>
+                                <td>{{ transazione.data.strftime('%d/%m/%Y') }}</td>
+                                <td>{{ transazione.descrizione }}</td>
+                                <td>
+                                    <span class="badge {% if transazione.categoria.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ transazione.categoria.nome }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if transazione.tipo == 'entrata' %}
+                                        <span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>
+                                    {% else %}
+                                        <span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>
+                                    {% endif %}
+                                </td>
+                                <td class="{% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
+                                    {% if transazione.tipo == 'entrata' %}+{% else %}-{% endif %}€ {{ "%.2f"|format(transazione.importo) }}
+                                </td>
+                                <td>
+                                    <a href="#" class="btn btn-warning btn-sm me-1" title="Modifica transazione">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{{ url_for('transazioni.elimina', id=transazione.id, redirect_to='dettaglio_periodo', start_date=start_date, end_date=end_date) }}" 
+                                       class="btn btn-danger btn-sm"
+                                       onclick="return confirm('Sei sicuro di voler eliminare questa transazione?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% elif not mese_futuro %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Nessuna transazione effettuata in questo mese</h5>
+                </div>
+                {% endif %}
+
+                <!-- Transazioni in attesa -->
+                {% if transazioni_in_attesa %}
+                <div class="mt-5">
+                    <h5 class="mb-3">
+                        <i class="fas fa-clock text-warning me-2"></i>
+                        Transazioni in Attesa
+                        <small class="text-muted">(Non incluse nei calcoli)</small>
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Data Programmata</th>
+                                    <th>Descrizione</th>
+                                    <th>Categoria</th>
+                                    <th>Tipo</th>
+                                    <th>Importo</th>
+                                    <th>Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transazione in transazioni_in_attesa %}
+                                <tr>
+                                    <td>{{ transazione.data.strftime('%d/%m/%Y') }}</td>
+                                    <td>{{ transazione.descrizione }}</td>
+                                    <td>
+                                        <span class="badge {% if transazione.categoria.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ transazione.categoria.nome }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if transazione.tipo == 'entrata' %}
+                                            <span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>
+                                        {% else %}
+                                            <span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="{% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
+                                        {% if transazione.tipo == 'entrata' %}+{% else %}-{% endif %}€ {{ "%.2f"|format(transazione.importo) }}
+                                    </td>
+                                    <td>
+                                        <a href="#" class="btn btn-warning btn-sm me-1" title="Modifica transazione">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{{ url_for('transazioni.elimina', id=transazione.id, redirect_to='dettaglio_periodo', start_date=start_date, end_date=end_date) }}" 
+                                           class="btn btn-danger btn-sm"
+                                           onclick="return confirm('Sei sicuro di voler eliminare questa transazione?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal per aggiungere transazione -->
+<div class="modal fade" id="addTransactionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Nuova Transazione</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('transazioni.aggiungi') }}" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="data" class="form-label">Data</label>
+                        <input type="date" class="form-control" id="data" name="data" required 
+                               value="{{ start_date.strftime('%Y-%m-%d') }}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="descrizione" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" id="descrizione" name="descrizione" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="importo" class="form-label">Importo (€)</label>
+                        <input type="number" step="0.01" class="form-control" id="importo" name="importo" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="categoria_id" class="form-label">Categoria</label>
+                        <select class="form-control" id="categoria_id" name="categoria_id" required>
+                            <option value="">Seleziona categoria...</option>
+                            {% for categoria in categorie %}
+                            <option value="{{ categoria.id }}">{{ categoria.nome }} ({{ categoria.tipo }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tipo" class="form-label">Tipo</label>
+                        <select class="form-control" id="tipo" name="tipo" required>
+                            <option value="">Seleziona tipo...</option>
+                            <option value="entrata">Entrata</option>
+                            <option value="uscita">Uscita</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="ricorrente" name="ricorrente">
+                        <label class="form-check-label" for="ricorrente">
+                            Transazione ricorrente
+                        </label>
+                    </div>
+                    
+                    <div class="mb-3" id="frequenza-container" style="display: none;">
+                        <label for="frequenza_giorni" class="form-label">Frequenza (giorni)</label>
+                        <select class="form-control" id="frequenza_giorni" name="frequenza_giorni">
+                            <option value="30">Mensile (30 giorni)</option>
+                            <option value="365">Annuale (365 giorni)</option>
+                            <option value="7">Settimanale (7 giorni)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-success">Aggiungi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Script per gestione modal transazione
+document.getElementById('ricorrente').addEventListener('change', function() {
+    const frequenzaContainer = document.getElementById('frequenza-container');
+    if (this.checked) {
+        frequenzaContainer.style.display = 'block';
+    } else {
+        frequenzaContainer.style.display = 'none';
+    }
+});
+
+// Script per ordinamento (da implementare se necessario)
+function ordinaDettaglio(tipo) {
+    // Implementa ordinamento lato client se necessario
+    console.log('Ordinamento:', tipo);
+}
+
+// Script per filtro tipo (da implementare se necessario) 
+function ciclicaFiltroTipo() {
+    // Implementa filtro lato client se necessario
+    console.log('Filtro tipo');
+}
+
+// Script per modifica transazione
+function modificaTransazione(id, descrizione, importo, data, categoria_id) {
+    // Implementa modifica se necessario
+    console.log('Modifica transazione:', id);
+}
+</script>
+
+{% endblock %}
+                            <div>
+                                <h6 class="card-title">Saldo Rimanente</h6>
+                                <h4 class="mb-0">€ {{ "%.2f"|format(statistiche.saldo_rimanente) }}</h4>
+                                <small>Saldo iniziale: € {{ "%.2f"|format(statistiche.saldo_iniziale) }}</small>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-wallet fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-secondary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Media per Transazione</h6>
+                                <h4 class="mb-0">
+                                    {% if statistiche.num_transazioni > 0 %}
+                                        € {{ "%.2f"|format((statistiche.entrate + statistiche.uscite) / statistiche.num_transazioni) }}
+                                    {% else %}
+                                        € 0.00
+                                    {% endif %}
+                                </h4>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-calculator fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-dark text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Rapporto Entrate/Uscite</h6>
+                                <h4 class="mb-0">
+                                    {% if statistiche.uscite > 0 %}
+                                        {{ "%.1f"|format((statistiche.entrate / statistiche.uscite) * 100) }}%
+                                    {% else %}
+                                        ∞
+                                    {% endif %}
+                                </h4>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-chart-pie fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtri -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtri</h5>
+            </div>
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="categoria_id" class="form-label">Categoria</label>
+                        <select class="form-select" id="categoria_id" name="categoria_id">
+                            <option value="">Tutte le categorie</option>
+                            {% for categoria in categorie %}
+                            <option value="{{ categoria.id }}" 
+                                    {% if categoria_id == categoria.id %}selected{% endif %}>
+                                {{ categoria.nome }} ({{ categoria.tipo }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="tipo" class="form-label">Tipo</label>
+                        <select class="form-select" id="tipo" name="tipo">
+                            <option value="">Entrate e Uscite</option>
+                            <option value="entrata" {% if tipo == 'entrata' %}selected{% endif %}>Solo Entrate</option>
+                            <option value="uscita" {% if tipo == 'uscita' %}selected{% endif %}>Solo Uscite</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="fas fa-search"></i> Filtra
+                        </button>
+                        <a href="{{ url_for('dettaglio_periodo.mese', anno=anno, mese=mese) }}" 
+                           class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Reset
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Lista transazioni -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Transazioni del Mese</h5>
+                <div>
+                    <a href="{{ url_for('dettaglio_periodo.ricorrenti', anno=anno, mese=mese) }}" 
+                       class="btn btn-sm btn-outline-info">
+                        <i class="fas fa-redo"></i> Solo Ricorrenti
+                    </a>
+                    <a href="{{ url_for('transazioni.nuova') }}" class="btn btn-sm btn-success">
+                        <i class="fas fa-plus"></i> Nuova Transazione
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if transazioni %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Descrizione</th>
+                                <th>Categoria</th>
+                                <th>Importo</th>
+                                <th>Ricorrente</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transazione in transazioni %}
+                            <tr>
+                                <td>{{ transazione.data.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    {{ transazione.descrizione }}
+                                    {% if transazione.note %}
+                                    <small class="text-muted d-block">{{ transazione.note[:50] }}{% if transazione.note|length > 50 %}...{% endif %}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if transazione.categoria.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ transazione.categoria.nome }}
+                                    </span>
+                                </td>
+                                <td class="{% if transazione.categoria.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
+                                    {% if transazione.categoria.tipo == 'entrata' %}+{% else %}-{% endif %}€ {{ "%.2f"|format(transazione.importo|abs) }}
+                                </td>
+                                <td>
+                                    {% if transazione.ricorrente %}
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-redo"></i> Sì
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('transazioni.modifica', transazione_id=transazione.id) }}" 
+                                           class="btn btn-outline-primary" title="Modifica">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{{ url_for('transazioni.elimina', transazione_id=transazione.id) }}" 
+                                           class="btn btn-outline-danger" title="Elimina"
+                                           onclick="return confirm('Sei sicuro di voler eliminare questa transazione?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Paginazione -->
+                {% if pagination and pagination.pages > 1 %}
+                <nav aria-label="Paginazione transazioni">
+                    <ul class="pagination justify-content-center">
+                        {% if pagination.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('dettaglio_periodo.mese', 
+                                                                 anno=anno, mese=mese, 
+                                                                 page=pagination.prev_num,
+                                                                 categoria_id=categoria_id,
+                                                                 tipo=tipo) }}">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                        {% if page_num != pagination.page %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('dettaglio_periodo.mese',
+                                                                 anno=anno, mese=mese,
+                                                                 page=page_num,
+                                                                 categoria_id=categoria_id,
+                                                                 tipo=tipo) }}">
+                                {{ page_num }}
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% if pagination.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('dettaglio_periodo.mese',
+                                                                 anno=anno, mese=mese,
+                                                                 page=pagination.next_num,
+                                                                 categoria_id=categoria_id,
+                                                                 tipo=tipo) }}">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Nessuna transazione trovata</h5>
+                    <p class="text-muted">Non ci sono transazioni per questo periodo con i filtri selezionati.</p>
+                    <a href="{{ url_for('transazioni.nuova') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Aggiungi Transazione
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Statistiche per categoria -->
+        {% if stats_categorie %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Statistiche per Categoria</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for stat in stats_categorie %}
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <span class="badge {% if stat.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %} me-2">
+                                        {{ stat.nome }}
+                                    </span>
+                                </h6>
+                                <p class="card-text">
+                                    <strong>Totale:</strong> €{{ "%.2f"|format(stat.totale) }}<br>
+                                    <strong>Transazioni:</strong> {{ stat.num_transazioni }}
+                                </p>
+                                <a href="{{ url_for('dettaglio_periodo.mese', 
+                                                  anno=anno, mese=mese, 
+                                                  categoria_id=stat.categoria_id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    Visualizza
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
