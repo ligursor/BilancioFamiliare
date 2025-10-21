@@ -9,9 +9,7 @@ __pycache__/
 *.pyo
 
 # Databases
-*.db
-db/*.db
-*.sqlite3
+# Nota: i file .db vengono tracciati nel repository per questo progetto
 
 # Backups and exports
 _backup/
