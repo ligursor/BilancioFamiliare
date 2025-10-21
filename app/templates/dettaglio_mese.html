@@ -1,0 +1,1125 @@
+{% extends "base.html" %}
+
+{% block title %}Dettaglio {{ nome_mese }} - Gestione Bilancio{% endblock %}
+
+{% block content %}
+<script>
+    
+function modificaTransazione(id, descrizione, importo, data, categoriaId) {
+    document.getElementById('edit_descrizione').value = descrizione;
+    document.getElementById('edit_importo').value = parseFloat(importo) || 0;
+    document.getElementById('edit_data').value = data;
+    const editCategoriaSelect = document.getElementById('edit_categoria_id');
+    editCategoriaSelect.innerHTML = '';
+    categorie.forEach(categoria => {
+        const option = document.createElement('option');
+        option.value = categoria.id;
+        option.textContent = categoria.nome;
+        option.selected = categoria.id == categoriaId;
+        editCategoriaSelect.appendChild(option);
+    });
+    const form = document.getElementById('editTransactionForm');
+    // Prendi start_date e end_date direttamente dal template
+    const startDate = '{{ start_date }}';
+    const endDate = '{{ end_date }}';
+    form.action = `/dettaglio/${startDate}/${endDate}/modifica_transazione/${id}`;
+    new bootstrap.Modal(document.getElementById('editTransactionModal')).show();
+}
+function modificaTransazioneAttr(btn) {
+    modificaTransazione(
+        btn.getAttribute('data-id'),
+        JSON.parse(btn.getAttribute('data-descrizione')),
+        btn.getAttribute('data-importo'),
+        JSON.parse(btn.getAttribute('data-data')),
+        btn.getAttribute('data-categoria')
+    );
+}
+</script>
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Dettaglio {{ nome_mese }}</h4>
+                <div class="d-flex align-items-center">
+                    <!-- Frecce navigazione mesi -->
+                    <div class="btn-group me-2" role="group">
+                        <button onclick="navigateMonth(-1)" class="btn btn-primary btn-sm nav-arrow" title="Mese precedente">
+                            <i class="fas fa-chevron-left text-white"></i>
+                        </button>
+                        <button onclick="navigateMonth(1)" class="btn btn-primary btn-sm nav-arrow" title="Mese successivo">
+                            <i class="fas fa-chevron-right text-white"></i>
+                        </button>
+                    </div>
+                    <!-- Pulsante nuova transazione -->
+                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addTransactionModal">
+                        <i class="fas fa-plus me-1"></i>Nuova Transazione
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Riepilogo mensile -->
+                <div class="row mb-4">
+                    <div class="col-md-2">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body text-center">
+                                <h6>Saldo Iniziale</h6>
+                                <h4>€ {{ "%.2f"|format(saldo_iniziale_mese) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center">
+                                <h6>Entrate Previste</h6>
+                                <h4>€ {{ "%.2f"|format(entrate) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-orange text-white" style="background-color: #fd7e14 !important;">
+                            <div class="card-body text-center">
+                                <h6>Uscite Previste</h6>
+                                <h4>€ {{ "%.2f"|format(uscite) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card {% if bilancio >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                            <div class="card-body text-center">
+                                <h6>Bilancio Previsto</h6>
+                                <h4>{% if bilancio >= 0 %}+{% endif %}€ {{ "%.2f"|format(bilancio) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Budget breakdown verrà mostrato in una tabella più sotto -->
+                    {% if not mese_futuro %}
+                    <div class="col-md-2">
+                        <div class="card {% if saldo_attuale_mese >= 0 %}bg-info{% else %}bg-warning{% endif %} text-white">
+                            <div class="card-body text-center">
+                                <h6><i class="fas fa-calendar-day me-1"></i>Saldo Attuale</h6>
+                                <h4>€ {{ "%.2f"|format(saldo_attuale_mese) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card {% if saldo_finale_mese >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
+                            <div class="card-body text-center">
+                                <h6>Saldo Finale</h6>
+                                <h4>€ {{ "%.2f"|format(saldo_finale_mese) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Per mesi futuri, mostra un box con la previsione -->
+                    <div class="col-md-4">
+                        <div class="card {% if saldo_previsto_fine_mese >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
+                            <div class="card-body text-center">
+                                <h6><i class="fas fa-crystal-ball me-1"></i>Saldo Previsto Fine Mese</h6>
+                                <h4>€ {{ "%.2f"|format(saldo_previsto_fine_mese) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <!-- Budget breakdown and Pie Chart -->
+                {% if budget_items %}
+                <div class="row mb-4">
+                    <div class="col-md-8">
+                        <h5 class="mb-3"><i class="fas fa-piggy-bank me-2"></i>Budget Mensili</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Categoria</th>
+                                        <th>Iniziale (€)</th>
+                                        <th>Effettuate (€)</th>
+                                        <th>Pianificate (€)</th>
+                                        <th>Residuo (€)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for b in budget_items %}
+                                    <tr>
+                                        <td>{{ b.categoria_nome }}</td>
+                                        <td>
+                                            <span class="iniziale-val">€ {{ "%.2f"|format(b.iniziale) }}</span>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary ms-2 btn-edit-budget" data-categoria="{{ b.categoria_id }}" data-iniziale="{{ '%.2f'|format(b.iniziale) }}" title="Modifica importo mensile">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                        </td>
+                                        <td class="text-danger">€ {{ "%.2f"|format(b.spese_effettuate) }}</td>
+                                        <td class="text-warning">€ {{ "%.2f"|format(b.spese_pianificate) }}</td>
+                                        <td class="{% if b.residuo < 0 %}text-danger{% else %}text-success{% endif %}">€ {{ "%.2f"|format(b.residuo) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h5 class="mb-3"><i class="fas fa-chart-pie me-2"></i>Uscite per Categoria</h5>
+                        <div class="card">
+                            <div class="card-body">
+                                <canvas id="uscitePieChart" width="400" height="300" data-anno="{{ anno|default(0)|tojson }}" data-mese="{{ mese|default(0)|tojson }}"></canvas>
+                                <div id="uscitePieNoData" class="text-muted mt-2" style="display:none;">Nessuna uscita disponibile per questo mese.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Lista transazioni -->
+                {% if transazioni and not mese_futuro %}
+                <div class="table-responsive" id="tabella-transazioni">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th style="cursor: pointer; user-select: none;">
+                                    Data 
+                                    <span onclick="ordinaDettaglio('data_asc')" class="text-primary me-1" title="Ordina per data crescente" style="cursor: pointer;" id="sort-data-asc">
+                                        <i class="fas fa-chevron-up"></i>
+                                    </span>
+                                    <span onclick="ordinaDettaglio('data_desc')" class="text-primary" title="Ordina per data decrescente" style="cursor: pointer;" id="sort-data-desc">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </span>
+                                </th>
+                                <th>Descrizione</th>
+                                <th>Categoria</th>
+                                <th>
+                                    Tipo 
+                                    <button id="filtroTipo" class="btn btn-success btn-sm ms-2" 
+                                            style="width: 28px; height: 28px; font-size: 12px; font-weight: bold; border-radius: 4px;" 
+                                            onclick="ciclicaFiltroTipo()" 
+                                            title="Clicca per filtrare: Tutte → Entrate → Uscite"
+                                            data-filtro="">
+                                        T
+                                    </button>
+                                </th>
+                                <th style="cursor: pointer; user-select: none;">
+                                    Importo 
+                                    <span onclick="ordinaDettaglio('importo_asc')" class="text-success me-1" title="Ordina per importo crescente" style="cursor: pointer;" id="sort-importo-asc">
+                                        <i class="fas fa-chevron-up"></i>
+                                    </span>
+                                    <span onclick="ordinaDettaglio('importo_desc')" class="text-success" title="Ordina per importo decrescente" style="cursor: pointer;" id="sort-importo-desc">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </span>
+                                </th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transazione in transazioni %}
+                            {% set descrizione = transazione.descrizione if transazione.descrizione is not none else '' %}
+                            <tr>
+                                <td>{{ transazione.data.strftime('%d/%m/%Y') }}</td>
+                                <td>{{ transazione.descrizione }}</td>
+                                <td>
+                                    <span class="badge {% if transazione.categoria.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ transazione.categoria.nome }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if transazione.tipo == 'entrata' %}
+                                        <span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>
+                                    {% else %}
+                                        <span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>
+                                    {% endif %}
+                                </td>
+                                <td class="{% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
+                                    {% if transazione.tipo == 'entrata' %}+{% else %}-{% endif %}€ {{ "%.2f"|format(transazione.importo) }}
+                                </td>
+                                <td>
+                                    <button class="btn btn-warning btn-sm me-1"
+    title="Modifica transazione"
+    data-id="{{ transazione.id }}"
+    data-descrizione='{{ descrizione|tojson }}'
+    data-importo="{{ transazione.importo if transazione.importo is not none else 0 }}"
+    data-data='{{ transazione.data.strftime('%Y-%m-%d')|tojson }}'
+    data-categoria="{{ transazione.categoria.id }}"
+    onclick="modificaTransazioneAttr(this)">
+    <i class="fas fa-edit"></i>
+</button>
+                                    <!-- Pulsante elimina transazione -->
+                                    <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" style="display:inline;" onsubmit="return confirm('Sei sicuro di voler eliminare questa transazione?');">
+                                        <button type="submit" class="btn btn-danger btn-sm" title="Elimina transazione">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% elif not mese_futuro %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Nessuna transazione effettuata in questo mese</h5>
+                </div>
+                {% endif %}
+
+                <!-- Transazioni in attesa -->
+                {% if transazioni_in_attesa %}
+                <div class="mt-5">
+                    <h5 class="mb-3">
+                        <i class="fas fa-clock text-warning me-2"></i>
+                        Transazioni in Attesa
+                        <small class="text-muted">(Non incluse nei calcoli)</small>
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Data Programmata</th>
+                                    <th>Descrizione</th>
+                                    <th>Categoria</th>
+                                    <th>Tipo</th>
+                                    <th>Importo</th>
+                                    <th>Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transazione in transazioni_in_attesa %}
+                                <tr>
+                                    <td>{{ transazione.data.strftime('%d/%m/%Y') }}</td>
+                                    <td>{{ transazione.descrizione }}</td>
+                                    <td>
+                                        <span class="badge {% if transazione.categoria.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ transazione.categoria.nome }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if transazione.tipo == 'entrata' %}
+                                            <span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>
+                                        {% else %}
+                                            <span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="{% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
+                                        {% if transazione.tipo == 'entrata' %}+{% else %}-{% endif %}€ {{ "%.2f"|format(transazione.importo) }}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-warning btn-sm me-1"
+            title="Modifica transazione"
+            data-id="{{ transazione.id }}"
+            data-descrizione='{{ transazione.descrizione|tojson }}'
+            data-importo="{{ transazione.importo if transazione.importo is not none else 0 }}"
+            data-data='{{ transazione.data.strftime('%Y-%m-%d')|tojson }}'
+            data-categoria="{{ transazione.categoria.id }}"
+            onclick="modificaTransazioneAttr(this)">
+            <i class="fas fa-edit"></i>
+        </button>
+                                        <!-- Pulsante elimina transazione in attesa -->
+                                        <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" style="display:inline;" onsubmit="return confirm('Sei sicuro di voler eliminare questa transazione?');">
+                                            <button type="submit" class="btn btn-danger btn-sm" title="Elimina transazione">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Inline editor script moved to the scripts block to avoid accidental rendering inside content -->
+
+<!-- Modal per aggiungere nuova transazione -->
+<div class="modal fade" id="addTransactionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Nuova Transazione</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('dettaglio_periodo.aggiungi_transazione_periodo', start_date=start_date, end_date=end_date) }}" id="addTransactionForm">
+                <input type="hidden" name="redirect_to" value="dettaglio_periodo">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="add_data" class="form-label">Data</label>
+                        <input type="date" class="form-control" id="add_data" name="data" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="add_descrizione" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" id="add_descrizione" name="descrizione" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="add_tipo" class="form-label">Tipo</label>
+                        <select class="form-control" id="add_tipo" name="tipo" required>
+                            <option value="">Seleziona tipo...</option>
+                            <option value="entrata">Entrata</option>
+                            <option value="uscita" selected>Uscita</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="add_categoria_id" class="form-label">Categoria</label>
+                        <select class="form-control" id="add_categoria_id" name="categoria_id" required>
+                            <option value="">Seleziona categoria...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="add_importo" class="form-label">Importo (€)</label>
+                        <input type="number" class="form-control" id="add_importo" name="importo" 
+                               step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="add_ricorrente" name="ricorrente">
+                            <label class="form-check-label" for="add_ricorrente">
+                                Transazione ricorrente
+                            </label>
+                        </div>
+                        <div class="form-text">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Le transazioni con data odierna o passata sono automaticamente effettuate. 
+                                Quelle future restano in attesa.
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3" id="add_frequenza_container" style="display: none;">
+                        <label for="add_frequenza_giorni" class="form-label">Frequenza</label>
+                        <select class="form-control" id="add_frequenza_giorni" name="frequenza_giorni">
+                            <option value="30">Mensile (30 giorni)</option>
+                            <option value="365">Annuale (365 giorni)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Aggiungi Transazione</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal per modifica importo budget mensile -->
+<div class="modal fade" id="editBudgetModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modifica Budget Mensile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="modal_importo" class="form-label">Importo (€)</label>
+                    <input type="number" step="0.01" min="0" class="form-control" id="modal_importo" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" class="btn btn-primary" id="modal_save_btn">Salva</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal per modificare transazione -->
+<div class="modal fade" id="editTransactionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Modifica Transazione</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="editTransactionForm">
+                <!-- Campo nascosto per identificare la provenienza -->
+                <input type="hidden" name="redirect_to" value="dettaglio_periodo">
+                <input type="hidden" name="start_date" value="{{ start_date }}">
+                <input type="hidden" name="end_date" value="{{ end_date }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_data" class="form-label">Data</label>
+                        <input type="date" class="form-control" id="edit_data" name="data" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_descrizione" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" id="edit_descrizione" name="descrizione" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_categoria_id" class="form-label">Categoria</label>
+                        <select class="form-control" id="edit_categoria_id" name="categoria_id" required></select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_importo" class="form-label">Importo (€)</label>
+                        <input type="number" class="form-control" id="edit_importo" name="importo" 
+                               step="0.01" min="0" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Salva Modifiche</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% if not start_date or not end_date %}
+<div class="alert alert-danger mt-3">
+    Errore: le date del periodo non sono valorizzate correttamente. Controlla la logica backend.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<!-- Serializzazione categorie in JSON per JS -->
+<script type="application/json" id="categorie-data">
+    {{ categorie | tojson }}
+</script>
+
+<script type="application/json" id="stats-categorie-data">
+    {{ stats_categorie | default([]) | tojson }}
+</script>
+
+<script>
+// Parsing robusto della variabile categorie
+var categorie = JSON.parse(document.getElementById('categorie-data').textContent);
+
+let transazioniOriginali = [];
+let transazioniFiltrate = [];
+
+// Carica le transazioni originali all'avvio
+document.addEventListener('DOMContentLoaded', function() {
+    const righe = document.querySelectorAll('#tabella-transazioni tbody tr');
+    transazioniOriginali = Array.from(righe).map(riga => {
+        const celle = riga.querySelectorAll('td');
+        return {
+            elemento: riga,
+            data: celle[0].textContent.trim(),
+            descrizione: celle[1].textContent.trim(),
+            categoria: celle[2].textContent.trim(),
+            tipo: celle[3].textContent.includes('Entrata') ? 'entrata' : 'uscita',
+            importo: parseFloat(celle[4].textContent.replace(/[€+\-\s]/g, '').replace(',', '.'))
+        };
+    });
+    transazioniFiltrate = [...transazioniOriginali];
+    
+    // Configura il pulsante filtro tipo con stato iniziale
+    const btnFiltroTipo = document.getElementById('filtroTipo');
+    if (btnFiltroTipo) {
+        btnFiltroTipo.textContent = 'T';
+        btnFiltroTipo.title = 'Mostrando: Tutte (clicca per Entrate)';
+        btnFiltroTipo.dataset.filtro = '';
+    }
+    // Popola le categorie nel modal di aggiunta
+    popolaCategorieSelect('add_categoria_id');
+    
+    // Gestisci il checkbox ricorrente
+    document.getElementById('add_ricorrente').addEventListener('change', function() {
+        const frequenzaContainer = document.getElementById('add_frequenza_container');
+        frequenzaContainer.style.display = this.checked ? 'block' : 'none';
+    });
+    
+    // Filtra categorie per tipo
+    document.getElementById('add_tipo').addEventListener('change', function() {
+        popolaCategorieSelect('add_categoria_id', this.value);
+    });
+    
+    // Gestione apertura modal nuova transazione
+    const addModal = document.getElementById('addTransactionModal');
+    addModal.addEventListener('show.bs.modal', function() {
+        precompilaDataPeriodo();
+    });
+});
+
+// Listener per il modal di modifica
+document.addEventListener('DOMContentLoaded', function() {
+    var editModal = document.getElementById('editTransactionModal');
+    if (editModal) {
+        editModal.addEventListener('show.bs.modal', function() {
+            setTimeout(function() {
+                // RIMOSSO: setUppercaseListener('edit_descrizione');
+            }, 100); // attende che il campo sia popolato
+        });
+    }
+    // Reload automatico dopo modifica transazione
+    var editForm = document.getElementById('editTransactionForm');
+    if (editForm) {
+        editForm.addEventListener('submit', function() {
+            setTimeout(function() {
+                window.location.reload();
+            }, 500);
+        });
+    }
+});
+
+function popolaCategorieSelect(selectId, tipoFiltro = '') {
+    const select = document.getElementById(selectId);
+    select.innerHTML = '<option value="">Seleziona categoria...</option>';
+    
+    const categorieFiltrate = tipoFiltro ? 
+        categorie.filter(c => c.tipo === tipoFiltro) : 
+        categorie;
+    
+    categorieFiltrate.forEach(categoria => {
+        const option = document.createElement('option');
+        option.value = categoria.id;
+        option.textContent = categoria.nome;
+        select.appendChild(option);
+    });
+}
+
+function precompilaDataPeriodo() {
+    const startDate = new Date('{{ start_date }}');
+    const endDate = new Date('{{ end_date }}');
+    const oggi = new Date();
+    
+    // Se oggi è nel periodo, usa oggi, altrimenti usa la data di inizio del periodo
+    let dataDefault;
+    if (oggi >= startDate && oggi <= endDate) {
+        dataDefault = oggi;
+    } else {
+        dataDefault = startDate;
+    }
+    
+    // Formatta la data per l'input date (YYYY-MM-DD)
+    const anno = dataDefault.getFullYear();
+    const mese = String(dataDefault.getMonth() + 1).padStart(2, '0');
+    const giorno = String(dataDefault.getDate()).padStart(2, '0');
+    const dataFormattata = `${anno}-${mese}-${giorno}`;
+    
+    document.getElementById('add_data').value = dataFormattata;
+}
+
+function ciclicaFiltroTipo() {
+    const btn = document.getElementById('filtroTipo');
+    const filtroAttuale = btn.dataset.filtro;
+    
+    let nuovoFiltro, nuovoTesto, nuovoTooltip;
+    
+    switch(filtroAttuale) {
+        case '':
+            nuovoFiltro = 'entrata';
+            nuovoTesto = 'E';
+            nuovoTooltip = 'Filtrando per: Entrate (clicca per Uscite)';
+            break;
+        case 'entrata':
+            nuovoFiltro = 'uscita';
+            nuovoTesto = 'U';
+            nuovoTooltip = 'Filtrando per: Uscite (clicca per Tutte)';
+            break;
+        case 'uscita':
+            nuovoFiltro = '';
+            nuovoTesto = 'T';
+            nuovoTooltip = 'Mostrando: Tutte (clicca per Entrate)';
+            break;
+        default:
+            nuovoFiltro = '';
+            nuovoTesto = 'T';
+            nuovoTooltip = 'Mostrando: Tutte (clicca per Entrate)';
+    }
+    
+    btn.dataset.filtro = nuovoFiltro;
+    btn.textContent = nuovoTesto;
+    btn.title = nuovoTooltip;
+    
+    applicaFiltriDettaglio();
+}
+
+function applicaFiltriDettaglio() {
+    const btn = document.getElementById('filtroTipo');
+    const filtroTipo = btn.dataset.filtro;
+    
+    // Filtra le transazioni
+    if (filtroTipo) {
+        transazioniFiltrate = transazioniOriginali.filter(t => t.tipo === filtroTipo);
+    } else {
+        transazioniFiltrate = [...transazioniOriginali];
+    }
+    
+    aggiornaTabella();
+}
+
+function ordinaDettaglio(ordine) {
+    // Rimuovi evidenziazione da tutte le frecce
+    document.querySelectorAll('#sort-data-asc, #sort-data-desc, #sort-importo-asc, #sort-importo-desc').forEach(el => {
+        el.classList.remove('text-warning');
+        el.classList.add(el.id.includes('data') ? 'text-primary' : 'text-success');
+    });
+    
+    // Evidenzia la freccia selezionata
+    const sortId = 'sort-' + ordine.replace('_', '-');
+    const sortElement = document.getElementById(sortId);
+    if (sortElement) {
+        sortElement.classList.remove('text-primary', 'text-success');
+        sortElement.classList.add('text-warning');
+    }
+    
+    // Ordina le transazioni
+    transazioniFiltrate.sort((a, b) => {
+        switch(ordine) {
+            case 'data_asc':
+                return convertDataPerOrdinamento(a.data) - convertDataPerOrdinamento(b.data);
+            case 'data_desc':
+                return convertDataPerOrdinamento(b.data) - convertDataPerOrdinamento(a.data);
+            case 'importo_asc':
+                return a.importo - b.importo;
+            case 'importo_desc':
+                return b.importo - a.importo;
+            default:
+                return 0;
+        }
+    });
+    
+    aggiornaTabella();
+}
+
+function convertDataPerOrdinamento(dataStr) {
+    // Converte da dd/mm/yyyy a yyyymmdd per ordinamento
+    const parti = dataStr.split('/');
+    return parseInt(parti[2] + parti[1].padStart(2, '0') + parti[0].padStart(2, '0'));
+}
+
+function aggiornaTabella() {
+    const tbody = document.querySelector('#tabella-transazioni tbody');
+    tbody.innerHTML = '';
+    transazioniFiltrate.forEach(transazione => {
+        // Ricrea la riga HTML da zero
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${transazione.data}</td>
+            <td>${transazione.descrizione}</td>
+            <td><span class="badge ${transazione.tipo === 'entrata' ? 'bg-success' : 'bg-danger'}">${transazione.categoria}</span></td>
+            <td>${transazione.tipo === 'entrata' ? '<span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>' : '<span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>'}</td>
+            <td class="${transazione.tipo === 'entrata' ? 'text-success' : 'text-danger'}">${transazione.tipo === 'entrata' ? '+' : '-'}€ ${transazione.importo.toFixed(2)}</td>
+            <td>
+                <button class="btn btn-warning btn-sm me-1"
+                    title="Modifica transazione"
+                    data-id="${transazione.id || ''}"
+                    data-descrizione='${JSON.stringify(transazione.descrizione)}'
+                    data-importo="${transazione.importo}"
+                    data-data='${JSON.stringify(transazione.data)}'
+                    data-categoria="${transazione.categoriaId || ''}"
+                    onclick="modificaTransazioneAttr(this)">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// Inizializza i tooltip
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Carica automaticamente le categorie di uscita per il form di aggiunta rapida
+    setTimeout(function() {
+        popolaCategorieSelect('add_categoria_id', 'uscita');
+    }, 100);
+});
+
+// Backup: richiama anche quando la finestra è completamente caricata
+window.addEventListener('load', function() {
+    popolaCategorieSelect('add_categoria_id', 'uscita');
+});
+
+// Funzione per navigare tra i mesi
+function navigateMonth(direction) {
+    let currentStartStr = '{{ start_date }}'; // formato YYYY-MM-DD
+    let year, month;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(currentStartStr)) {
+        [year, month] = currentStartStr.split('-').map(Number);
+    } else {
+        // Fallback: usa la data corrente
+        const now = new Date();
+        year = now.getFullYear();
+        month = now.getMonth() + 1;
+    }
+    let newYear = year;
+    let newMonth = month + direction;
+    if (newMonth > 12) {
+        newMonth = 1;
+        newYear++;
+    } else if (newMonth < 1) {
+        newMonth = 12;
+        newYear--;
+    }
+    // Calcola mese/anno per end_date (mese successivo)
+    let endMonth = newMonth + 1;
+    let endYear = newYear;
+    if (endMonth > 12) {
+        endMonth = 1;
+        endYear++;
+    }
+    // Limiti periodo: dal 27 del mese corrente al 26 del mese successivo
+    const startDateStr = `${newYear}-${String(newMonth).padStart(2, '0')}-27`;
+    const endDateStr = `${endYear}-${String(endMonth).padStart(2, '0')}-26`;
+    window.location.href = `/dettaglio/${startDateStr}/${endDateStr}`;
+}
+</script>
+
+<!-- Chart.js datalabels plugin (for showing percentages inside segments)
+     Load defensively to avoid triggering lockdown/install extensions that modify intrinsics.
+     Prefer a local copy at /static/vendor/chartjs-plugin-datalabels.min.js if available. If not,
+     attempt CDN but only register the plugin when no SES/lockdown-like globals are detected. -->
+<script>
+// Helper to inject a script tag and await load/error
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = (e) => reject(e);
+        document.head.appendChild(s);
+    });
+}
+
+// Try to load local copy first, then CDN as fallback. But registration of the plugin is
+// always guarded by SES/lockdown detection below to avoid noisy console logs from extensions.
+ (async function() {
+    const localPath = '/static/vendor/chartjs-plugin-datalabels.min.js';
+    const cdnPath = 'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js';
+    try {
+        // Detect SES/lockdown-like globals early and skip loading plugins if present
+        const sesActive = (typeof window.lockdown === 'function') || (typeof window.harden === 'function') || (typeof window.SES !== 'undefined') || !!window.__SES__;
+        if (sesActive) {
+            console.warn('Detected SES/lockdown-like environment - skipping loading of ChartDataLabels script to avoid noisy extension logs.');
+            return;
+        }
+
+        // Attempt local load; if it fails, attempt CDN
+        await loadScript(localPath).catch(async () => {
+            await loadScript(cdnPath).catch(() => {/* ignore - plugin optional */});
+        });
+    } catch (e) {
+        // Any error during plugin load should not break the page; plugin is optional.
+        console.debug('ChartDataLabels script load skipped or failed:', e);
+    }
+})();
+</script>
+<script>
+// Chart utilities for uscite per categoria
+let _usciteChartInstance = null;
+const generateDistinctColors = (n) => {
+    const colors = [];
+    const goldenAngle = 137.508; // golden angle, buona per distribuire i colori
+    for (let i = 0; i < n; i++) {
+        const hue = (i * goldenAngle) % 360;
+        const sat = 62 + (i % 3 === 0 ? 6 : (i % 2 === 0 ? 0 : -4));
+        const light = 48 + (i % 4 === 0 ? -3 : (i % 2 === 0 ? 0 : 3));
+        colors.push(`hsl(${hue.toFixed(1)}, ${sat}%, ${light}%)`);
+    }
+    return colors;
+};
+
+function buildUsciteChart(labels, data) {
+    const canvas = document.getElementById('uscitePieChart');
+    const noDataElem = document.getElementById('uscitePieNoData');
+    if (!canvas) return null;
+
+    if (!labels || labels.length === 0) {
+        canvas.style.display = 'none';
+        if (noDataElem) noDataElem.style.display = '';
+        return null;
+    }
+
+    canvas.style.display = '';
+    if (noDataElem) noDataElem.style.display = 'none';
+
+    const bgColors = generateDistinctColors(labels.length);
+    const ctx = canvas.getContext('2d');
+
+    if (_usciteChartInstance) {
+        try { _usciteChartInstance.destroy(); } catch (e) {}
+        _usciteChartInstance = null;
+    }
+
+    // Register datalabels plugin if available -- but avoid registering when SES/lockdown-like intrinsics are present
+    try {
+        const sesActive = (typeof window.lockdown === 'function') || (typeof window.harden === 'function') || (typeof window.SES !== 'undefined') || !!window.__SES__;
+        if (sesActive) {
+            // Some browser extensions inject SES/lockdown and then modify intrinsics, which causes noisy logs.
+            // Skip registering plugins to avoid triggering those messages.
+            console.warn('Detected SES/lockdown environment - skipping ChartDataLabels registration to avoid intrinsics modifications.');
+        } else if (window.Chart && typeof window.ChartDataLabels !== 'undefined') {
+            try {
+                Chart.register(window.ChartDataLabels);
+            } catch (regErr) {
+                console.debug('ChartDataLabels present but registration failed:', regErr);
+            }
+        }
+    } catch(e) {
+        console.debug('ChartDataLabels registration skipped due to error', e);
+    }
+
+    const total = data.reduce((s, v) => s + (Number(v) || 0), 0);
+
+    // Prepare labels: if DataLabels plugin is not available, append percentuale to labels as a fallback
+    let labelsToUse = labels;
+    try {
+        const datalabelsAvailable = (typeof window.ChartDataLabels !== 'undefined');
+        if (!datalabelsAvailable && total > 0) {
+            labelsToUse = labels.map((lab, idx) => {
+                const v = Number(data[idx]) || 0;
+                const pct = total ? (v / total) * 100 : 0;
+                return `${lab} (${pct.toFixed(1)}%)`;
+            });
+        }
+    } catch (e) {
+        // ignore and fall back to original labels
+        labelsToUse = labels;
+    }
+
+    _usciteChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labelsToUse,
+            datasets: [{
+                data: data,
+                backgroundColor: bgColors,
+                borderColor: '#fff',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                // Data labels inside segments
+                datalabels: {
+                    color: '#ffffff',
+                    formatter: function(value, ctx) {
+                        if (!total || total === 0) return '';
+                        const pct = (value / total) * 100;
+                        // Hide very small slices to avoid overlapping labels
+                        return pct >= 2 ? pct.toFixed(1) + '%' : '';
+                    },
+                    font: { weight: '600', size: 12 },
+                    clamp: true,
+                    anchor: 'center',
+                    align: 'center'
+                },
+                tooltip: { callbacks: {
+                    label: function(context) {
+                        const v = context.parsed || 0;
+                        return `${context.label}: € ${v.toFixed(2)}`;
+                    }
+                }}
+            }
+        }
+    });
+
+    return _usciteChartInstance;
+}
+
+function updateUsciteChartFromStats(stats) {
+    const uscitaStats = stats.filter(s => s.tipo === 'uscita' && (s.totale || 0) > 0);
+    const labels = uscitaStats.map(s => s.nome);
+    const data = uscitaStats.map(s => Math.abs(parseFloat(s.totale) || 0));
+    buildUsciteChart(labels, data);
+}
+
+async function refreshUsciteChart(year, month) {
+    try {
+        const resp = await fetch(`/dettaglio/api/statistiche/${year}/${month}`);
+        const payload = await resp.json();
+        if (payload && payload.success && payload.stats_categorie) {
+            updateUsciteChartFromStats(payload.stats_categorie);
+        }
+    } catch (err) {
+        console.error('Errore ricaricamento statistiche per grafico:', err);
+    }
+}
+
+// Init chart on page load from embedded stats_categorie when available, otherwise fetch via API
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const raw = document.getElementById('stats-categorie-data');
+        const canvasEl = document.getElementById('uscitePieChart');
+        if (canvasEl) {
+            // ensure visible area
+            canvasEl.style.display = '';
+            canvasEl.style.minHeight = '220px';
+        }
+        if (!raw) {
+            // try to fetch via API using dataset
+            if (canvasEl) {
+                const year = parseInt(canvasEl.dataset.anno || '0', 10);
+                const month = parseInt(canvasEl.dataset.mese || '0', 10);
+                if (year && month) refreshUsciteChart(year, month);
+            }
+            return;
+        }
+        const stats = JSON.parse(raw.textContent || '[]');
+        try {
+            console.debug('Chart debug: Chart available?', typeof Chart !== 'undefined');
+            console.debug('Chart debug: raw stats length', (stats && stats.length) ? stats.length : 0);
+        } catch(e) { /* ignore */ }
+        if (stats && stats.length > 0) {
+            try {
+                updateUsciteChartFromStats(stats);
+            } catch (err) {
+                console.error('Errore durante updateUsciteChartFromStats:', err);
+            }
+        } else {
+            // fallback to API if no embedded stats
+            if (canvasEl) {
+                const year = parseInt(canvasEl.dataset.anno || '0', 10);
+                const month = parseInt(canvasEl.dataset.mese || '0', 10);
+                if (year && month) refreshUsciteChart(year, month);
+            }
+        }
+    } catch (err) {
+        console.error('Errore inizializzazione grafico uscite:', err);
+    }
+});
+</script>
+
+<script>
+// Inline editor for monthly budget (moved here to scripts block)
+document.addEventListener('DOMContentLoaded', function(){
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest && e.target.closest('.btn-edit-budget');
+        if (!btn) return;
+        const categoria = btn.getAttribute('data-categoria');
+        const iniz = btn.getAttribute('data-iniziale') || '0.00';
+
+        const td = btn.closest('td');
+        if (!td) return;
+        const initSpan = td.querySelector('.iniziale-val');
+        if (!initSpan) return;
+        if (td.querySelector('.inline-budget-editor')) return;
+
+        const editor = document.createElement('div');
+        editor.className = 'inline-budget-editor d-flex align-items-center';
+        editor.style.gap = '8px';
+        editor.style.transition = 'opacity 180ms ease, transform 180ms ease';
+        editor.style.opacity = '0';
+        editor.style.transform = 'translateY(-4px)';
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.step = '0.01';
+        input.min = '0';
+        input.value = iniz.replace(',', '.');
+        input.className = 'form-control form-control-sm';
+        input.style.width = '120px';
+
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'btn btn-success btn-sm d-flex align-items-center justify-content-center';
+        saveBtn.innerHTML = '<i class="fas fa-check"></i>';
+        saveBtn.title = 'Salva';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center';
+        cancelBtn.innerHTML = '<i class="fas fa-times"></i>';
+        cancelBtn.title = 'Annulla';
+
+        editor.appendChild(input);
+        editor.appendChild(saveBtn);
+        editor.appendChild(cancelBtn);
+
+        initSpan.style.display = 'none';
+        td.appendChild(editor);
+        requestAnimationFrame(() => {
+            editor.style.opacity = '1';
+            editor.style.transform = 'translateY(0)';
+        });
+
+        const cleanup = () => {
+            editor.style.opacity = '0';
+            editor.style.transform = 'translateY(-4px)';
+            setTimeout(() => {
+                editor.remove();
+                initSpan.style.display = '';
+            }, 200);
+        };
+
+        cancelBtn.addEventListener('click', cleanup);
+
+        saveBtn.addEventListener('click', async function() {
+            try {
+                const val = parseFloat(input.value);
+                if (isNaN(val)) { alert('Valore non valido'); return; }
+
+                const canvasEl = document.getElementById('uscitePieChart');
+                const year = canvasEl ? parseInt(canvasEl.dataset.anno || '0', 10) : 0;
+                const month = canvasEl ? parseInt(canvasEl.dataset.mese || '0', 10) : 0;
+
+                const resp = await fetch('{{ url_for("dettaglio_periodo.monthly_budget_update") }}', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({categoria_id: categoria, year: year, month: month, importo: val})
+                });
+                const data = await resp.json();
+                if (!data || !data.success) {
+                    alert('Errore durante l\'aggiornamento: ' + (data && data.error ? data.error : 'unknown'));
+                    return;
+                }
+
+                initSpan.textContent = '€ ' + (data.importo || 0).toFixed(2);
+                const row = td.parentElement;
+                if (data.budget_item && row) {
+                    const residuoCell = row.querySelectorAll('td')[4];
+                    if (residuoCell) {
+                        residuoCell.textContent = '€ ' + ((data.budget_item.residuo || 0).toFixed ? data.budget_item.residuo.toFixed(2) : (data.budget_item.residuo || 0));
+                        residuoCell.className = (data.budget_item.residuo < 0) ? 'text-danger' : 'text-success';
+                    }
+                }
+                const usciteElem = document.querySelectorAll('.card-body h4')[2];
+                const bilancioElem = document.querySelectorAll('.card-body h4')[3];
+                if(usciteElem && typeof data.uscite !== 'undefined') usciteElem.textContent = '€ ' + (data.uscite || 0).toFixed(2);
+                if(bilancioElem && typeof data.bilancio !== 'undefined') bilancioElem.textContent = (data.bilancio >=0 ? '+' : '') + '€ ' + (data.bilancio || 0).toFixed(2);
+
+                // Aggiorna il grafico delle uscite per il mese corrente
+                try {
+                    const canvasEl = document.getElementById('uscitePieChart');
+                    const year = canvasEl ? parseInt(canvasEl.dataset.anno || '0', 10) : 0;
+                    const month = canvasEl ? parseInt(canvasEl.dataset.mese || '0', 10) : 0;
+                    if (typeof refreshUsciteChart === 'function' && year && month) refreshUsciteChart(year, month);
+                } catch(e) {
+                    // ignore
+                }
+
+                cleanup();
+            } catch (err) {
+                console.error('Errore aggiornamento budget inline:', err);
+                alert('Errore durante l\'aggiornamento. Controlla la console.');
+            }
+        });
+    });
+});
+</script>
+
+<style>
+.nav-arrow {
+    transition: all 0.3s ease;
+}
+
+.nav-arrow:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    background-color: #0d6efd !important;
+}
+
+.nav-arrow:hover i {
+    text-shadow: 0 0 5px rgba(255,255,255,0.8);
+}
+</style>
+{% endblock %}

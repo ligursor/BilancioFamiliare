@@ -1,0 +1,42 @@
+# Virtualenv
+venv/
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Databases
+*.db
+db/*.db
+*.sqlite3
+
+# Backups and exports
+_backup/
+_backup/**
+backup/
+backup/**
+
+# Instance
+instance/
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs
+*.log
+
+# Node modules (if any)
+node_modules/
+
+# Build/dist
+dist/
+build/
+
+# Misc
+*.pyc
