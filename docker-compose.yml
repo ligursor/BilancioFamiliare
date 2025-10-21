@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   bilancio-app:
     build: .
@@ -6,8 +8,8 @@ services:
     volumes:
       # Mount the application package so templates/static changes are visible live
       - ./app:/app/app:rw
-  # Expose config so edits are visible without rebuild
-  - ./app/config.py:/app/config.py:rw
+      # Expose config so edits are visible without rebuild
+      - ./app/config.py:/app/config.py:rw
       # Keep backup and db directories mounted
       - ./backup:/app/backup:rw
       - ./db:/app/db:rw
