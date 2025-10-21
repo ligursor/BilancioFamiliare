@@ -13,7 +13,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
-from config import config
+from app.config import config
 
 # Istanze globali
 db = SQLAlchemy()
