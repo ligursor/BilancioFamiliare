@@ -1,0 +1,46 @@
+(# BilancioFamiliare - quick dev setup)
+
+Questo repository contiene l'app Flask per la gestione del bilancio familiare.
+
+## Dev setup (con Docker Compose)
+
+Per eseguire l'app in ambiente di sviluppo usando Docker Compose (con mount per hot-reload dei template/static):
+
+1. Assicurati di avere Docker e Docker Compose installati.
+2. Avvia i servizi:
+
+```
+docker-compose up --build -d
+```
+
+3. L'app è esposta sulla porta 5001 nel container per l'ambiente di sviluppo. Apri nel browser:
+
+```
+http://127.0.0.1:5001/
+```
+
+Nota:
+- I sorgenti `app/` sono montati nel container per permettere modifiche rapide ai template e agli script statici senza ricostruire l'immagine.
+- Non committare il file `db/bilancio.db` con dati locali. Il file `db/*.db` è incluso in `.gitignore`.
+- Se hai bisogno di cambiare la porta, modifica `docker-compose.yml` (service `bilancio-app`) e riavvia il container.
+
+## Avvio locale senza Docker
+
+Se preferisci eseguire localmente (virtualenv):
+
+1. Crea e attiva un virtualenv Python 3.11/3.12:
+
+```
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+2. Avvia l'app (se il progetto ha script di avvio):
+
+```
+python run.py
+```
+
+Questo README può essere esteso con dipendenze, testing e note sul DB.
+
