@@ -6,6 +6,7 @@ Aggiornato: Settembre 2025
 - Ottimizzazioni UI e caricamento automatico categorie
 - Sistema backup migliorato con rotazione automatica
 - Configurazione Docker ottimizzata (solo volumi necessari)
+- Architettura modulare e object-oriented
 """
 import os
 from dotenv import load_dotenv
@@ -17,7 +18,9 @@ class Config:
     """Configurazione principale dell'applicazione"""
     
     # Database
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:////app/db/bilancio.db'
+    # Usa un path assoluto per il database in sviluppo
+    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or f'sqlite:///{os.path.join(BASE_DIR, "db", "bilancio.db")}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Flask
@@ -97,6 +100,12 @@ class Config:
     # Configurazione per gestione abbonamenti PostePay Evolution
     POSTEPAY_SALDO_INIZIALE = 0  # Saldo iniziale PostePay Evolution
     POSTEPAY_FORMATO_VALUTA = "€ {:.2f}"  # Formato valuta per PostePay
+    
+    # Configurazioni PayPal predefinite
+    PIANI_PAYPAL_DEFAULT = []  # Configurabile via environment o database
+    
+    # Configurazioni abbonamenti PostePay predefiniti
+    POSTEPAY_ABBONAMENTI_DEFAULT = []  # Configurabile via environment o database
 
 class DevelopmentConfig(Config):
     """Configurazione per l'ambiente di sviluppo"""

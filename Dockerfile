@@ -13,4 +13,5 @@ COPY . .
 EXPOSE 5001
 
 # Comando per avviare l'applicazione
-CMD ["python", "app.py"]
+# Usa run.py che inizializza il DB e avvia l'app
+CMD ["python", "run.py"]
