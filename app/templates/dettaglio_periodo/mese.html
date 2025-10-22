@@ -6,6 +6,9 @@
 <div class="row">
     <div class="col-12">
         <div class="card">
+                <div id="filtri-test-badge" style="position:fixed;top:12px;right:12px;z-index:3000;display:none;">
+                    <span class="badge bg-warning text-dark">TEST MODE: filtri disabilitati</span>
+                </div>
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h4 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Dettaglio {{ nome_mese }}</h4>
                 <div class="d-flex align-items-center">
@@ -146,6 +149,14 @@
 
                 <!-- Lista transazioni - SENZA FILTRI ricorrenti -->
                 {% if transazioni and not mese_futuro %}
+                <!-- Serializzazione transazioni per uso JS (prima fonte affidabile) -->
+                <script type="application/json" id="transazioni-data">
+                    [
+                    {% for t in transazioni %}
+                    {{ { 'id': t.id, 'data': t.data.strftime('%Y-%m-%d'), 'descrizione': (t.descrizione or ''), 'categoria': (t.categoria.nome if t.categoria else ''), 'categoriaId': (t.categoria.id if t.categoria else None), 'tipo': t.tipo, 'importo': (t.importo or 0) } | tojson }}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                    ]
+                </script>
                 <div class="table-responsive" id="tabella-transazioni">
                     <table class="table table-striped">
                         <thead>
@@ -163,13 +174,14 @@
                                 <th>Categoria</th>
                                 <th>
                                     Tipo 
-                                    <button id="filtroTipo" class="btn btn-success btn-sm ms-2" 
-                                            style="width: 28px; height: 28px; font-size: 12px; font-weight: bold; border-radius: 4px;" 
-                                            onclick="ciclicaFiltroTipo()" 
-                                            title="Clicca per filtrare: Tutte → Entrate → Uscite"
-                                            data-filtro="">
-                                        T
-                                    </button>
+                                        <div class="dropdown d-inline-block ms-2">
+                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="filterTipoDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="fas fa-filter"></i>
+                                            </button>
+                                            <ul class="dropdown-menu" aria-labelledby="filterTipoDropdown" id="filter_tipo_menu">
+                                                <!-- items injected by JS -->
+                                            </ul>
+                                        </div>
                                 </th>
                                 <th style="cursor: pointer; user-select: none;">
                                     Importo 
@@ -218,6 +230,133 @@
                         </tbody>
                     </table>
                 </div>
+                </div>
+
+                <script>
+                // Setup transaction model for client-side filters (dettaglio_periodo)
+                function initTransazioniPeriodo(attempt = 0) {
+                    try {
+                        // Save initial server-rendered tbody HTML for recovery
+                        try { const __tb2 = document.querySelector('#tabella-transazioni tbody'); if (__tb2) window.__tabella_initial_html = __tb2.innerHTML; } catch(e){}
+
+                        // Prefer JSON block if present
+                        try {
+                            const raw = document.getElementById('transazioni-data');
+                            if (raw && raw.textContent && raw.textContent.trim().length > 0) {
+                                const parsed = JSON.parse(raw.textContent) || [];
+                                const mapped = (parsed || []).map(p => ({
+                                    elemento: null,
+                                    id: p.id || null,
+                                    data: p.data || '',
+                                    descrizione: p.descrizione || '',
+                                    categoria: p.categoria || '',
+                                    categoriaId: p.categoriaId || null,
+                                    tipo: p.tipo || 'uscita',
+                                    importo: Number(p.importo) || 0
+                                }));
+                                // Use the centralized model to store original and filtered transactions.
+                                // The model exposes proxies for legacy globals when needed.
+                                if (window.BilancioTransazioni && typeof window.BilancioTransazioni.setOriginali === 'function') {
+                                    window.BilancioTransazioni.setOriginali(mapped);
+                                } else {
+                                    try { window.__serialized_transazioni_originali = mapped; } catch(e) {}
+                                }
+                                // Define aggiornaTabella to map rows to elementos when possible
+                                window.aggiornaTabella = function() {
+                                    try {
+                                        const righe = document.querySelectorAll('#tabella-transazioni tbody tr');
+                                        const origs = window.BilancioTransazioni.getOriginali() || [];
+                                                if (righe && righe.length && origs.length === righe.length) {
+                                                    origs.forEach((t, idx) => { try{ t.elemento = righe[idx]; }catch(e){} });
+                                                }
+                                                const filtrate = window.BilancioTransazioni.getFiltrate() || [];
+                                        const visibleSet = new Set(filtrate.map(t => t.elemento));
+                                        origs.forEach(orig => { try{ orig.elemento && (orig.elemento.style.display = visibleSet.has(orig.elemento) ? '' : 'none'); }catch(e){} });
+                                        try { if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoBadge === 'function') window.__categoriaFilter.updateTipoBadge((filtrate && filtrate.length) || 0); } catch(e){}
+                                    } catch(e) { console.warn('[FILTRO] dettaglio_periodo aggiornaTabella error', e); }
+                                };
+                                return;
+                            }
+                        } catch(e) { console.warn('[FILTRO] dettaglio_periodo init - JSON parse failed', e); }
+
+                        // If no JSON available, try to map from DOM rows (fallback)
+                        const righe = document.querySelectorAll('#tabella-transazioni tbody tr');
+                        const MAX_ATTEMPTS = 6;
+                        if (righe.length === 0 && attempt < MAX_ATTEMPTS) {
+                            const delays = [30, 80, 180, 400, 800, 1200];
+                            const d = delays[Math.min(attempt, delays.length - 1)];
+                            setTimeout(() => initTransazioniPeriodo(attempt + 1), d);
+                            return;
+                        }
+                        const built = Array.from(righe).map(riga => {
+                            const celle = riga.querySelectorAll('td');
+                            const categoriaText = celle[2] ? celle[2].textContent.trim() : '';
+                            const tipoText = celle[3] ? celle[3].textContent.trim() : '';
+                            const importoText = celle[4] ? celle[4].textContent.replace(/[€+\\-\\s]/g,'').replace(',','.') : '0';
+                            return {
+                                elemento: riga,
+                                id: null,
+                                data: celle[0] ? celle[0].textContent.trim() : '',
+                                descrizione: celle[1] ? celle[1].textContent.trim() : '',
+                                categoria: categoriaText,
+                                categoriaId: null,
+                                tipo: tipoText.includes('Entrata') ? 'entrata' : 'uscita',
+                                importo: parseFloat(importoText) || 0
+                            };
+                        });
+                        if (window.BilancioTransazioni && typeof window.BilancioTransazioni.setOriginali === 'function') {
+                            window.BilancioTransazioni.setOriginali(built);
+                        } else {
+                            try { window.__serialized_transazioni_originali = built; } catch(e) {}
+                        }
+
+                        // Reset filters to default (Tutte) on page load for monthly detail: clear saved selections
+                        try {
+                            sessionStorage.removeItem('dettaglio_selected_categoria_id');
+                            sessionStorage.removeItem('dettaglio_selected_tipo');
+                            try { window.selectedCategoriaId = null; } catch(e){}
+                            try { window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoIcon === 'function' && window.__categoriaFilter.updateTipoIcon(false, ''); } catch(e){}
+                            try { window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoBadge === 'function' && window.__categoriaFilter.updateTipoBadge((window.BilancioTransazioni ? window.BilancioTransazioni.getFiltrate().length : 0) || 0); } catch(e){}
+                        } catch(e){}
+
+                        // ensure table shows all rows for default view
+                        try { if (typeof aggiornaTabella === 'function') aggiornaTabella(); } catch(e){}
+
+                        // Ensure default view (all transactions visible) by retrying a few times in case other scripts hide rows
+                        (function ensureDefaultView(attempt){
+                            try {
+                                sessionStorage.removeItem('dettaglio_selected_categoria_id');
+                                sessionStorage.removeItem('dettaglio_selected_tipo');
+                                try { window.selectedCategoriaId = null; } catch(e){}
+                                if (typeof aggiornaTabella === 'function') aggiornaTabella();
+                                if (typeof runApplyFilters === 'function') runApplyFilters();
+                            } catch(e){}
+                            if (attempt < 4) {
+                                const delays = [50, 200, 600, 1200];
+                                try { setTimeout(function(){ ensureDefaultView(attempt + 1); }, delays[attempt]); } catch(e){}
+                            }
+                        })(0);
+
+                        // Define aggiornaTabella that shows/hides rows based on model or legacy transazioniFiltrate
+                        window.aggiornaTabella = function() {
+                            try {
+                                const origs = window.BilancioTransazioni.getOriginali() || [];
+                                const filtrate = window.BilancioTransazioni.getFiltrate() || [];
+                                const visibleSet = new Set(filtrate.map(t => t.elemento));
+                                origs.forEach(orig => { try{ orig.elemento && (orig.elemento.style.display = visibleSet.has(orig.elemento) ? '' : 'none'); }catch(e){} });
+                                try { const cnt = (window.BilancioTransazioni && typeof window.BilancioTransazioni.getFiltrate === 'function') ? (window.BilancioTransazioni.getFiltrate().length || 0) : ((filtrate && filtrate.length) || 0); if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoBadge === 'function') window.__categoriaFilter.updateTipoBadge(cnt); } catch(e){}
+                            } catch(e) {
+                                console.warn('[FILTRO] dettaglio_periodo aggiornaTabella error', e);
+                                try { const tb = document.querySelector('#tabella-transazioni tbody'); if (tb && window.__tabella_initial_html) tb.innerHTML = window.__tabella_initial_html; } catch(e2){}
+                            }
+                        };
+                        // Ensure initial render if possible
+                        try { if (typeof window.aggiornaTabella === 'function') window.aggiornaTabella(); } catch(e){}
+                    } catch(e) { console.warn('[FILTRO] dettaglio_periodo init error', e); }
+                }
+                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => initTransazioniPeriodo()); else initTransazioniPeriodo();
+                </script>
+
                 {% elif not mese_futuro %}
                 <div class="text-center py-5">
                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
@@ -375,16 +514,47 @@ function ordinaDettaglio(tipo) {
 }
 
 // Script per filtro tipo (da implementare se necessario) 
-function ciclicaFiltroTipo() {
-    // Implementa filtro lato client se necessario
-    console.log('Filtro tipo');
-}
-
+// Legacy ciclicaFiltroTipo removed from this template - use common dropdown-based filter
 // Script per modifica transazione
 function modificaTransazione(id, descrizione, importo, data, categoria_id) {
     // Implementa modifica se necessario
     console.log('Modifica transazione:', id);
 }
+</script>
+
+<!-- Debug and test-mode removed -->
+
+<!-- Include centralized model and categoria-filter to enable client-side filters like dettaglio_mese -->
+<script src="{{ url_for('static', filename='js/transazioni-model.js') }}"></script>
+<script src="{{ url_for('static', filename='js/categoria-filter.js') }}"></script>
+
+<script>
+// Wire server-side filter select (categoria_id) to client-side filter flow
+document.addEventListener('DOMContentLoaded', function(){
+    const sel = document.getElementById('categoria_id');
+    if (!sel) return;
+    // initialize from session storage if present
+    try {
+        const stored = sessionStorage.getItem('dettaglio_selected_categoria_id');
+        if (stored) {
+            try { sel.value = stored; } catch(e){}
+        }
+    } catch(e){}
+    sel.addEventListener('change', function(){
+        try {
+            const val = this.value || '';
+            const key = 'dettaglio_selected_categoria_id';
+            const tipoKey = 'dettaglio_selected_tipo';
+            if (val) sessionStorage.setItem(key, String(val)); else sessionStorage.removeItem(key);
+            // mutual exclusion: clear tipo when category selected
+            sessionStorage.removeItem(tipoKey);
+            try { if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoIcon === 'function') window.__categoriaFilter.updateTipoIcon(false, ''); } catch(e){}
+            if (typeof runApplyFilters === 'function') runApplyFilters();
+            else if (window.BilancioTransazioni && typeof window.BilancioTransazioni.applyFilters === 'function') window.BilancioTransazioni.applyFilters({categoriaId: val || null, tipo: ''});
+            else if (typeof applyClientSideFilter === 'function') applyClientSideFilter();
+        } catch(e){}
+    });
+});
 </script>
 
 {% endblock %}

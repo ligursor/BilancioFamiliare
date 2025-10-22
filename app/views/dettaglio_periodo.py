@@ -26,19 +26,21 @@ def mese(anno, mese):
         if mese < 1 or mese > 12:
             flash('Mese non valido', 'error')
             return redirect(url_for('dettaglio_periodo.index'))
-        
+        # Leggi eventuale filtro categoria dalla querystring
+        categoria_id = request.args.get('categoria_id', type=int)
+
         # Servizi
         service = DettaglioPeriodoService()
         
-        # Recupera dati usando la nuova implementazione
-        dettaglio = service.get_dettaglio_mese(anno, mese)
+        # Recupera dati usando la nuova implementazione (con filtro opzionale)
+        dettaglio = service.get_dettaglio_mese(anno, mese, categoria_id=categoria_id)
         stats_categorie = service.get_statistiche_per_categoria(anno, mese)
-        
+
         # Prepara categorie per il modal (escludi PayPal)
         from app.models.base import Categoria
         categorie = Categoria.query.filter(Categoria.nome != 'PayPal').all()
         categorie_dict = [{'id': c.id, 'nome': c.nome, 'tipo': c.tipo} for c in categorie]
-        
+
         # Calcola mese precedente e successivo
         if mese == 1:
             mese_prec, anno_prec = 12, anno - 1
@@ -49,19 +51,19 @@ def mese(anno, mese):
             mese_succ, anno_succ = 1, anno + 1
         else:
             mese_succ, anno_succ = mese + 1, anno
-        
+
         # Usa il template originale (già corretto l'endpoint)
         return render_template('dettaglio_mese.html',
-                             # Spacchetta il dizionario dettaglio per compatibilità template
-                             **dettaglio,
-                             stats_categorie=stats_categorie,
-                             categorie=categorie_dict,
-                             anno=anno,
-                             mese=mese,
-                             mese_prec=mese_prec,
-                             anno_prec=anno_prec,
-                             mese_succ=mese_succ,
-                             anno_succ=anno_succ)
+                     # Spacchetta il dizionario dettaglio per compatibilità template
+                     **dettaglio,
+                     stats_categorie=stats_categorie,
+                     categorie=categorie_dict,
+                     anno=anno,
+                     mese=mese,
+                     mese_prec=mese_prec,
+                     anno_prec=anno_prec,
+                     mese_succ=mese_succ,
+                     anno_succ=anno_succ)
         
     except Exception as e:
         flash(f'Errore nel caricamento dettaglio periodo: {str(e)}', 'error')
@@ -76,7 +78,9 @@ def dettaglio_periodo(start_date, end_date):
         end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
 
         service = DettaglioPeriodoService()
-        result = service.dettaglio_periodo_interno(start_date_obj, end_date_obj)
+        # Leggi eventuale filtro categoria dalla querystring
+        categoria_id = request.args.get('categoria_id', type=int)
+        result = service.dettaglio_periodo_interno(start_date_obj, end_date_obj, categoria_id=categoria_id)
 
         # Prepara categorie per il modal (escludi PayPal)
         from app.models.base import Categoria
@@ -87,8 +91,6 @@ def dettaglio_periodo(start_date, end_date):
         result['categorie'] = categorie_dict
 
         # Calcola anno/mese derivati dall'end_date (usati dal template per dataset e navigazione)
-        # Il periodo mostra ad esempio 27/09 - 26/10: vogliamo che il grafico rifletta il mese "visualizzato",
-        # cioè il mese finale del periodo (in questo esempio ottobre -> 10)
         anno = end_date_obj.year
         mese = end_date_obj.month
 
@@ -107,12 +109,11 @@ def dettaglio_periodo(start_date, end_date):
             stats_categorie = service.get_statistiche_per_categoria(anno, mese)
         except Exception:
             stats_categorie = []
-
         return render_template('dettaglio_mese.html', **result,
-                               stats_categorie=stats_categorie,
-                               anno=anno, mese=mese,
-                               mese_prec=mese_prec, anno_prec=anno_prec,
-                               mese_succ=mese_succ, anno_succ=anno_succ)
+                       stats_categorie=stats_categorie,
+                       anno=anno, mese=mese,
+                       mese_prec=mese_prec, anno_prec=anno_prec,
+                       mese_succ=mese_succ, anno_succ=anno_succ)
     except ValueError:
         return "Date non valide", 400
     except Exception as e:
@@ -312,7 +313,12 @@ def elimina_transazione_periodo(start_date, end_date, id):
     db.session.delete(transazione)
     db.session.commit()
     flash(f'Transazione "{descrizione}" eliminata con successo!', 'success')
-    return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
+    # Preserve categoria filter if present
+    categoria_filter = request.args.get('categoria_id') or request.form.get('categoria_id')
+    redirect_url = url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date)
+    if categoria_filter:
+        redirect_url = f"{redirect_url}?categoria_id={int(categoria_filter)}"
+    return redirect(redirect_url)
 
 @dettaglio_periodo_bp.route('/<start_date>/<end_date>/aggiungi_transazione', methods=['POST'])
 def aggiungi_transazione_periodo(start_date, end_date):
@@ -355,7 +361,11 @@ def aggiungi_transazione_periodo(start_date, end_date):
     db.session.add(transazione)
     db.session.commit()
     flash('Transazione aggiunta con successo!', 'success')
-    return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
+    categoria_filter = request.args.get('categoria_id') or request.form.get('categoria_id')
+    redirect_url = url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date)
+    if categoria_filter:
+        redirect_url = f"{redirect_url}?categoria_id={int(categoria_filter)}"
+    return redirect(redirect_url)
 
 @dettaglio_periodo_bp.route('/<start_date>/<end_date>/modifica_transazione/<int:id>', methods=['POST'])
 def modifica_transazione_periodo(start_date, end_date, id):
@@ -427,4 +437,8 @@ def modifica_transazione_periodo(start_date, end_date, id):
         # Persisti modifiche al budget dopo la decurtazione
         # Nessuna modifica al budget da salvare
     flash('Transazione modificata con successo!', 'success')
-    return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
+    categoria_filter = request.args.get('categoria_id') or request.form.get('categoria_id')
+    redirect_url = url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date)
+    if categoria_filter:
+        redirect_url = f"{redirect_url}?categoria_id={int(categoria_filter)}"
+    return redirect(redirect_url)

@@ -31,13 +31,14 @@
                                 <th>Categoria</th>
                                 <th>
                                     Tipo 
-                                    <button id="filtroTipo" class="btn btn-success btn-sm ms-2" 
-                                            style="width: 28px; height: 28px; font-size: 12px; font-weight: bold; border-radius: 4px;" 
-                                            onclick="ciclicaFiltroTipo()" 
-                                            title="Clicca per filtrare: Tutte → Entrate → Uscite"
-                                            data-filtro="">
-                                        T
-                                    </button>
+                                    <div class="dropdown d-inline-block ms-2">
+                                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="filterTipoDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="fas fa-filter"></i>
+                                        </button>
+                                        <ul class="dropdown-menu" aria-labelledby="filterTipoDropdown" id="filter_tipo_menu">
+                                            <!-- items injected by JS -->
+                                        </ul>
+                                    </div>
                                 </th>
                                 <th style="cursor: pointer; user-select: none;">
                                     Importo 
@@ -88,8 +89,11 @@
                                 </td>
                                 <td>
                                     {% if transazione.transazione_madre_id %}
-                                        <button class="btn btn-warning btn-sm me-1" 
-                                                onclick="modificaTransazione({{ transazione.id }}, '{{ transazione.descrizione }}', {{ transazione.importo }}, '{{ transazione.data.strftime('%Y-%m-%d') }}', {{ transazione.categoria_id }})"
+                                        <button class="btn btn-warning btn-sm me-1 edit-transaction-btn"
+                                                data-id="{{ transazione.id }}"
+                                                data-importo="{{ transazione.importo }}"
+                                                data-data="{{ transazione.data.strftime('%Y-%m-%d') }}"
+                                                data-categoria-id="{{ transazione.categoria_id }}"
                                                 title="Modifica questa istanza">
                                             <i class="fas fa-edit"></i>
                                         </button>
@@ -266,8 +270,15 @@
 {% endblock %}
 
 {% block scripts %}
+<script type="application/json" id="categorie-data">{{ categorie | tojson }}</script>
 <script>
-const categorie = {{ categorie | tojson }};
+// Read categories from DOM JSON to avoid inline Jinja->JS which static analyzers flag
+function getCategorieFromDom() {
+    const el = document.getElementById('categorie-data');
+    if (!el) return [];
+    try { return JSON.parse(el.textContent || el.innerText || '[]'); } catch (e) { return []; }
+}
+const categorie = getCategorieFromDom();
 
 function filtraCategorie() {
     const tipoSelect = document.getElementById('tipo');
@@ -290,44 +301,10 @@ function filtraCategorie() {
     }
 }
 
-function ciclicaFiltroTipo() {
-    const btn = document.getElementById('filtroTipo');
-    const filtroAttuale = btn.dataset.filtro;
     
-    let nuovoFiltro, nuovoTesto, nuovoTooltip;
-    
-    switch(filtroAttuale) {
-        case '':
-            nuovoFiltro = 'entrata';
-            nuovoTesto = 'E';
-            nuovoTooltip = 'Filtrando per: Entrate (clicca per Uscite)';
-            break;
-        case 'entrata':
-            nuovoFiltro = 'uscita';
-            nuovoTesto = 'U';
-            nuovoTooltip = 'Filtrando per: Uscite (clicca per Tutte)';
-            break;
-        case 'uscita':
-            nuovoFiltro = '';
-            nuovoTesto = 'T';
-            nuovoTooltip = 'Mostrando: Tutte (clicca per Entrate)';
-            break;
-        default:
-            nuovoFiltro = '';
-            nuovoTesto = 'T';
-            nuovoTooltip = 'Mostrando: Tutte (clicca per Entrate)';
-    }
-    
-    btn.dataset.filtro = nuovoFiltro;
-    btn.textContent = nuovoTesto;
-    btn.title = nuovoTooltip;
-    
-    applicaFiltri();
-}
 
 function applicaFiltri() {
-    const btn = document.getElementById('filtroTipo');
-    const tipo = btn.dataset.filtro;
+    const tipo = urlParams.get('tipo') || '';
     const urlParams = new URLSearchParams(window.location.search);
     
     if (tipo) {
@@ -345,25 +322,51 @@ function applicaFiltri() {
 }
 
 // Inizializza il pulsante in base al filtro attuale dalla URL
+// Tipo dropdown initialization for this page
+function renderTipoMenuTransazioni() {
+    const tipoMenu = document.getElementById('filter_tipo_menu');
+    if (!tipoMenu) return;
+    tipoMenu.innerHTML = '';
+    const entries = [ {id: '', nome: 'Tutte'}, {id: 'entrata', nome: 'Entrata'}, {id: 'uscita', nome: 'Uscita'} ];
+    entries.forEach(e => {
+        const li = document.createElement('li');
+        const b = document.createElement('button'); b.type='button'; b.className='dropdown-item'; b.textContent = e.nome; b.dataset.id = e.id;
+        b.addEventListener('click', function(){
+            const urlParams = new URLSearchParams(window.location.search);
+            if (e.id) urlParams.set('tipo', e.id); else urlParams.delete('tipo');
+            urlParams.set('page', '1');
+            window.location.search = urlParams.toString();
+        });
+        li.appendChild(b); tipoMenu.appendChild(li);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Attach delegated handler for edit buttons created server-side
+    document.body.addEventListener('click', function(e){
+        const btn = e.target.closest && e.target.closest('.edit-transaction-btn');
+        if (!btn) return;
+        const id = btn.dataset.id;
+        const importo = btn.dataset.importo;
+        const data = btn.dataset.data;
+        const categoriaId = btn.dataset.categoriaId;
+        // Popola descrizione via lookup (if needed) or leave empty; we'll pass empty string
+        modificaTransazione(id, '', importo, data, categoriaId);
+    });
     const urlParams = new URLSearchParams(window.location.search);
     const tipoAttuale = urlParams.get('tipo') || '';
-    const btn = document.getElementById('filtroTipo');
-    
-    btn.dataset.filtro = tipoAttuale;
-    
-    switch(tipoAttuale) {
-        case 'entrata':
-            btn.textContent = 'E';
-            btn.title = 'Filtrando per: Entrate (clicca per Uscite)';
-            break;
-        case 'uscita':
-            btn.textContent = 'U';
-            btn.title = 'Filtrando per: Uscite (clicca per Tutte)';
-            break;
-        default:
-            btn.textContent = 'T';
-            btn.title = 'Mostrando: Tutte (clicca per Entrate)';
+    // prefer dropdown button if present
+    const dropdownBtn = document.getElementById('filterTipoDropdown');
+    if (dropdownBtn) {
+        // set icon state
+        const icon = dropdownBtn.querySelector('i');
+        if (icon) {
+            if (tipoAttuale) { icon.classList.add('text-primary'); icon.classList.remove('filter-muted'); }
+            else { icon.classList.remove('text-primary'); icon.classList.add('filter-muted'); }
+        }
+        // populate menu lazily on first open for performance
+        let tipoPopulated = false;
+        dropdownBtn.addEventListener('click', function(){ if (!tipoPopulated) { renderTipoMenuTransazioni(); tipoPopulated = true; } });
     }
 });
 

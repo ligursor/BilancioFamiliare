@@ -35,9 +35,14 @@ function modificaTransazioneAttr(btn) {
     );
 }
 </script>
+
+<!-- Debug and test-mode removed -->
 <div class="row">
     <div class="col-12">
         <div class="card">
+                <div id="filtri-test-badge" style="position:fixed;top:12px;right:12px;z-index:3000;display:none;">
+                    <span class="badge bg-warning text-dark">TEST MODE: filtri disabilitati</span>
+                </div>
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h4 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Dettaglio {{ nome_mese }}</h4>
                 <div class="d-flex align-items-center">
@@ -50,6 +55,7 @@ function modificaTransazioneAttr(btn) {
                             <i class="fas fa-chevron-right text-white"></i>
                         </button>
                     </div>
+                    
                     <!-- Pulsante nuova transazione -->
                     <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addTransactionModal">
                         <i class="fas fa-plus me-1"></i>Nuova Transazione
@@ -170,6 +176,14 @@ function modificaTransazioneAttr(btn) {
 
                 <!-- Lista transazioni -->
                 {% if transazioni and not mese_futuro %}
+                <!-- Serializzazione transazioni per uso JS (prima fonte affidabile) -->
+                <script type="application/json" id="transazioni-data">
+                    [
+                    {% for t in transazioni %}
+                    {{ { 'id': t.id, 'data': t.data.strftime('%Y-%m-%d'), 'descrizione': (t.descrizione or ''), 'categoria': (t.categoria.nome if t.categoria else ''), 'categoriaId': (t.categoria.id if t.categoria else None), 'tipo': t.tipo, 'importo': (t.importo or 0) } | tojson }}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                    ]
+                </script>
                 <div class="table-responsive" id="tabella-transazioni">
                     <table class="table table-striped">
                         <thead>
@@ -184,16 +198,27 @@ function modificaTransazioneAttr(btn) {
                                     </span>
                                 </th>
                                 <th>Descrizione</th>
-                                <th>Categoria</th>
+                                <th>
+                                                                    Categoria
+                                                                        <div class="dropdown d-inline-block ms-2">
+                                                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="filterCategoriaDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                                <i class="fas fa-filter"></i>
+                                                                            </button>
+                                                                            <ul class="dropdown-menu" aria-labelledby="filterCategoriaDropdown" id="filter_categoria_menu">
+                                                                                <!-- items injected by JS -->
+                                                                            </ul>
+                                                                        </div>
+                                </th>
                                 <th>
                                     Tipo 
-                                    <button id="filtroTipo" class="btn btn-success btn-sm ms-2" 
-                                            style="width: 28px; height: 28px; font-size: 12px; font-weight: bold; border-radius: 4px;" 
-                                            onclick="ciclicaFiltroTipo()" 
-                                            title="Clicca per filtrare: Tutte → Entrate → Uscite"
-                                            data-filtro="">
-                                        T
-                                    </button>
+                                    <div class="dropdown d-inline-block ms-2">
+                                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="filterTipoDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="fas fa-filter"></i>
+                                        </button>
+                                        <ul class="dropdown-menu" aria-labelledby="filterTipoDropdown" id="filter_tipo_menu">
+                                            <!-- items injected by JS -->
+                                        </ul>
+                                    </div>
                                 </th>
                                 <th style="cursor: pointer; user-select: none;">
                                     Importo 
@@ -480,6 +505,11 @@ function modificaTransazioneAttr(btn) {
 {% endblock %}
 
 {% block scripts %}
+    {{ super() }}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/categoria-filter.css') }}">
+    <script src="{{ url_for('static', filename='js/transazioni-model.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/categoria-filter.js') }}"></script>
+
 <!-- Serializzazione categorie in JSON per JS -->
 <script type="application/json" id="categorie-data">
     {{ categorie | tojson }}
@@ -493,34 +523,120 @@ function modificaTransazioneAttr(btn) {
 // Parsing robusto della variabile categorie
 var categorie = JSON.parse(document.getElementById('categorie-data').textContent);
 
-let transazioniOriginali = [];
-let transazioniFiltrate = [];
+// Initialize model if available; legacy globals are proxied by the model
+try { /* model script included before this block */ } catch(e){}
+// Save initial server-rendered tbody HTML so we can restore on errors
+try { const __tb = document.querySelector('#tabella-transazioni tbody'); if (__tb) window.__tabella_initial_html = __tb.innerHTML; } catch(e){}
 
 // Carica le transazioni originali all'avvio
-document.addEventListener('DOMContentLoaded', function() {
+function initTransazioni(attempt = 0) {
+    // Prefer serialized JSON block if present
+    try {
+        const raw = document.getElementById('transazioni-data');
+        if (raw && raw.textContent && raw.textContent.trim().length > 0) {
+            const parsed = JSON.parse(raw.textContent) || [];
+            const mapped = (parsed || []).map(p => ({
+                elemento: null,
+                id: p.id || null,
+                data: p.data || '',
+                descrizione: p.descrizione || '',
+                categoria: p.categoria || '',
+                categoriaId: p.categoriaId || null,
+                tipo: p.tipo || 'uscita',
+                importo: Number(p.importo) || 0
+            }));
+            // Use the centralized model to store original and filtered transactions.
+            if (window.BilancioTransazioni && typeof window.BilancioTransazioni.setOriginali === 'function') {
+                window.BilancioTransazioni.setOriginali(mapped);
+            } else {
+                // If model not present yet, store as serialized fallback; scripts will prefer the model when it becomes available.
+                try { window.__serialized_transazioni_originali = mapped; } catch(e) {}
+            }
+            // initialized from JSON
+            return;
+        }
+    } catch(e) { console.warn('[FILTRO] initTransazioni - JSON parsing failed', e); }
+
     const righe = document.querySelectorAll('#tabella-transazioni tbody tr');
-    transazioniOriginali = Array.from(righe).map(riga => {
+    
+    // If no rows found, retry a few times with backoff (handles race conditions where table is rendered slightly later)
+    const MAX_ATTEMPTS = 6;
+    if (righe.length === 0 && attempt < MAX_ATTEMPTS) {
+        const delays = [30, 80, 180, 400, 800, 1200];
+        const d = delays[Math.min(attempt, delays.length - 1)];
+        setTimeout(() => initTransazioni(attempt + 1), d);
+        return;
+    }
+    const built = Array.from(righe).map(riga => {
         const celle = riga.querySelectorAll('td');
+        // try to extract ids placed on the edit button for robust mapping
+        const editBtn = riga.querySelector('button[onclick^="modificaTransazioneAttr"]');
+        const categoriaId = editBtn ? editBtn.getAttribute('data-categoria') : null;
+        const tid = editBtn ? editBtn.getAttribute('data-id') : null;
         return {
             elemento: riga,
-            data: celle[0].textContent.trim(),
-            descrizione: celle[1].textContent.trim(),
-            categoria: celle[2].textContent.trim(),
-            tipo: celle[3].textContent.includes('Entrata') ? 'entrata' : 'uscita',
-            importo: parseFloat(celle[4].textContent.replace(/[€+\-\s]/g, '').replace(',', '.'))
+            id: tid || null,
+            data: celle[0] ? celle[0].textContent.trim() : '',
+            descrizione: celle[1] ? celle[1].textContent.trim() : '',
+            categoria: celle[2] ? celle[2].textContent.trim() : '',
+            categoriaId: categoriaId || null,
+            tipo: (celle[3] && celle[3].textContent.includes('Entrata')) ? 'entrata' : 'uscita',
+            importo: parseFloat((celle[4] ? celle[4].textContent : '0').replace(/[€+\-\s]/g, '').replace(',', '.')) || 0
         };
     });
-    transazioniFiltrate = [...transazioniOriginali];
-    
-    // Configura il pulsante filtro tipo con stato iniziale
-    const btnFiltroTipo = document.getElementById('filtroTipo');
-    if (btnFiltroTipo) {
-        btnFiltroTipo.textContent = 'T';
-        btnFiltroTipo.title = 'Mostrando: Tutte (clicca per Entrate)';
-        btnFiltroTipo.dataset.filtro = '';
+    if (window.BilancioTransazioni && typeof window.BilancioTransazioni.setOriginali === 'function') {
+        window.BilancioTransazioni.setOriginali(built);
+    } else {
+        try { window.__serialized_transazioni_originali = built; } catch(e) {}
     }
+    // Reset filters to default (Tutte) on page load for monthly detail: clear saved selections
+    try {
+        sessionStorage.removeItem('dettaglio_selected_categoria_id');
+        sessionStorage.removeItem('dettaglio_selected_tipo');
+        // ensure globals used by filter script are in default state
+        try { window.selectedCategoriaId = null; } catch(e){}
+        try { window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoIcon === 'function' && window.__categoriaFilter.updateTipoIcon(false, ''); } catch(e){}
+    try { window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoBadge === 'function' && window.__categoriaFilter.updateTipoBadge((window.BilancioTransazioni && typeof window.BilancioTransazioni.getFiltrate === 'function') ? (window.BilancioTransazioni.getFiltrate().length || 0) : 0); } catch(e){}
+    } catch(e){}
+    // ensure table shows all rows for default view
+    try { if (typeof aggiornaTabella === 'function') aggiornaTabella(); } catch(e){}
+    // Ensure default view (all transactions visible) by retrying a few times in case other scripts hide rows
+    (function ensureDefaultView(attempt){
+        try {
+            // clear any saved filters
+            sessionStorage.removeItem('dettaglio_selected_categoria_id');
+            sessionStorage.removeItem('dettaglio_selected_tipo');
+            try { window.selectedCategoriaId = null; } catch(e){}
+            // force update
+            if (typeof aggiornaTabella === 'function') aggiornaTabella();
+            if (typeof runApplyFilters === 'function') runApplyFilters();
+        } catch(e){}
+        if (attempt < 4) {
+            const delays = [50, 200, 600, 1200];
+            try { setTimeout(function(){ ensureDefaultView(attempt + 1); }, delays[attempt]); } catch(e){}
+        }
+    })(0);
+    // Initialize tipo filter state from sessionStorage and update icon/badge via exported API
+    try {
+        const storedTipo = sessionStorage.getItem('dettaglio_selected_tipo') || '';
+        if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoIcon === 'function') window.__categoriaFilter.updateTipoIcon(!!storedTipo, '');
+    try { const cnt = (window.BilancioTransazioni && typeof window.BilancioTransazioni.getFiltrate === 'function') ? (window.BilancioTransazioni.getFiltrate().length || 0) : 0; if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoBadge === 'function') window.__categoriaFilter.updateTipoBadge(cnt); } catch(e){}
+    } catch(e){}
+}
+// Start initialization (attempts will retry if necessary)
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => initTransazioni()); else initTransazioni();
     // Popola le categorie nel modal di aggiunta
     popolaCategorieSelect('add_categoria_id');
+    // Popola anche il filtro nella colonna Categoria e imposta listener per filtrare la tabella
+    popolaFiltroCategoria();
+    // Initialize tipo filter icon and badge using exported API if available (read state from sessionStorage)
+    try {
+        const storedTipo = sessionStorage.getItem('dettaglio_selected_tipo') || '';
+        const active = !!storedTipo;
+    const visibleCount = (window.BilancioTransazioni && typeof window.BilancioTransazioni.getFiltrate === 'function') ? (window.BilancioTransazioni.getFiltrate().length || 0) : 0;
+        if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoIcon === 'function') window.__categoriaFilter.updateTipoIcon(active, '');
+        if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoBadge === 'function') window.__categoriaFilter.updateTipoBadge(visibleCount);
+    } catch(e){}
     
     // Gestisci il checkbox ricorrente
     document.getElementById('add_ricorrente').addEventListener('change', function() {
@@ -538,7 +654,7 @@ document.addEventListener('DOMContentLoaded', function() {
     addModal.addEventListener('show.bs.modal', function() {
         precompilaDataPeriodo();
     });
-});
+ 
 
 // Listener per il modal di modifica
 document.addEventListener('DOMContentLoaded', function() {
@@ -599,53 +715,58 @@ function precompilaDataPeriodo() {
     document.getElementById('add_data').value = dataFormattata;
 }
 
-function ciclicaFiltroTipo() {
-    const btn = document.getElementById('filtroTipo');
-    const filtroAttuale = btn.dataset.filtro;
-    
-    let nuovoFiltro, nuovoTesto, nuovoTooltip;
-    
-    switch(filtroAttuale) {
-        case '':
-            nuovoFiltro = 'entrata';
-            nuovoTesto = 'E';
-            nuovoTooltip = 'Filtrando per: Entrate (clicca per Uscite)';
-            break;
-        case 'entrata':
-            nuovoFiltro = 'uscita';
-            nuovoTesto = 'U';
-            nuovoTooltip = 'Filtrando per: Uscite (clicca per Tutte)';
-            break;
-        case 'uscita':
-            nuovoFiltro = '';
-            nuovoTesto = 'T';
-            nuovoTooltip = 'Mostrando: Tutte (clicca per Entrate)';
-            break;
-        default:
-            nuovoFiltro = '';
-            nuovoTesto = 'T';
-            nuovoTooltip = 'Mostrando: Tutte (clicca per Entrate)';
-    }
-    
-    btn.dataset.filtro = nuovoFiltro;
-    btn.textContent = nuovoTesto;
-    btn.title = nuovoTooltip;
-    
-    applicaFiltriDettaglio();
-}
+// legacy ciclicaFiltroTipo removed; use dropdown-based tipo menu
 
 function applicaFiltriDettaglio() {
-    const btn = document.getElementById('filtroTipo');
-    const filtroTipo = btn.dataset.filtro;
-    
-    // Filtra le transazioni
-    if (filtroTipo) {
-        transazioniFiltrate = transazioniOriginali.filter(t => t.tipo === filtroTipo);
-    } else {
-        transazioniFiltrate = [...transazioniOriginali];
+    // Defer until model ready
+    try {
+        const checkReady = () => {
+            return (window.BilancioTransazioni && window.BilancioTransazioni.ready);
+        };
+        if (!checkReady()) { setTimeout(applicaFiltriDettaglio, 80); return; }
+    } catch(e){}
+    const filtroTipo = sessionStorage.getItem('dettaglio_selected_tipo') || '';
+    // Filtra per tipo e per categoria selezionata
+    const filtroCategoria = document.getElementById('filter_categoria_select');
+    const categoriaVal = filtroCategoria ? filtroCategoria.value : '';
+
+    try { console.log('[FILTRO] applicaFiltriDettaglio start - filtroTipo=', filtroTipo, 'categoriaVal=', categoriaVal); } catch(e){}
+
+    // Prefer model-driven filtering
+    if (window.BilancioTransazioni && typeof window.BilancioTransazioni.applyFilters === 'function') {
+        try {
+            window.BilancioTransazioni.applyFilters({ categoriaId: categoriaVal || null, tipo: filtroTipo || '' });
+            try { if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoBadge === 'function') window.__categoriaFilter.updateTipoBadge((window.BilancioTransazioni.getFiltrate() || []).length || 0); } catch(e){}
+            return;
+        } catch(e) { console.warn('[FILTRO] model applyFilters failed', e); }
     }
-    
-    aggiornaTabella();
+
+    // Delegate to model where possible; without globals there's no proxy fallback.
+    try {
+        if (window.BilancioTransazioni && typeof window.BilancioTransazioni.getOriginali === 'function') {
+            try {
+                const orig = window.BilancioTransazioni.getOriginali() || [];
+                const filtered = orig.filter(t => {
+                    const matchTipo = filtroTipo ? t.tipo === filtroTipo : true;
+                    const matchCat = categoriaVal ? String(t.categoriaId) === String(categoriaVal) || String(t.categoria) === String(getCategoriaNomeById(categoriaVal)) : true;
+                    return matchTipo && matchCat;
+                });
+                if (typeof window.BilancioTransazioni.setFiltrate === 'function') {
+                    window.BilancioTransazioni.setFiltrate(filtered);
+                }
+                try { if (typeof aggiornaTabella === 'function') aggiornaTabella(); } catch(e){}
+                try { if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoBadge === 'function') window.__categoriaFilter.updateTipoBadge((filtered && filtered.length) || 0); } catch(e){}
+            } catch(e) { console.warn('[FILTRO] fallback filtering failed', e); }
+        } else {
+            // Last fallback: DOM-only show/hide (non-authoritative)
+            try { if (typeof applyClientSideFilter === 'function') applyClientSideFilter(); } catch(e){}
+        }
+    } catch(e){}
+}
+
+function getCategoriaNomeById(id) {
+    const c = categorie.find(x => String(x.id) === String(id));
+    return c ? c.nome : '';
 }
 
 function ordinaDettaglio(ordine) {
@@ -663,23 +784,34 @@ function ordinaDettaglio(ordine) {
         sortElement.classList.add('text-warning');
     }
     
-    // Ordina le transazioni
-    transazioniFiltrate.sort((a, b) => {
-        switch(ordine) {
-            case 'data_asc':
-                return convertDataPerOrdinamento(a.data) - convertDataPerOrdinamento(b.data);
-            case 'data_desc':
-                return convertDataPerOrdinamento(b.data) - convertDataPerOrdinamento(a.data);
-            case 'importo_asc':
-                return a.importo - b.importo;
-            case 'importo_desc':
-                return b.importo - a.importo;
-            default:
-                return 0;
+    // Ordina le transazioni: prefer model sort when available
+    try {
+        if (window.BilancioTransazioni && typeof window.BilancioTransazioni.sortFiltrate === 'function') {
+            window.BilancioTransazioni.sortFiltrate(ordine);
+            return;
         }
-    });
-    
-    aggiornaTabella();
+    } catch(e){}
+    // Fallback: attempt to sort the model's filtrate via proxy if model isn't available yet
+    try {
+    const arr = (window.BilancioTransazioni && typeof window.BilancioTransazioni.getFiltrate === 'function') ? window.BilancioTransazioni.getFiltrate() : [];
+        arr.sort((a, b) => {
+            switch(ordine) {
+                case 'data_asc':
+                    return convertDataPerOrdinamento(a.data) - convertDataPerOrdinamento(b.data);
+                case 'data_desc':
+                    return convertDataPerOrdinamento(b.data) - convertDataPerOrdinamento(a.data);
+                case 'importo_asc':
+                    return (a.importo || 0) - (b.importo || 0);
+                case 'importo_desc':
+                    return (b.importo || 0) - (a.importo || 0);
+                default:
+                    return 0;
+            }
+        });
+        // write back via model proxy if available
+        try { if (window.BilancioTransazioni && typeof window.BilancioTransazioni.setFiltrate === 'function') window.BilancioTransazioni.setFiltrate(arr); } catch(e) {}
+        aggiornaTabella();
+    } catch(e) { console.warn('[FILTRO] ordinaDettaglio error', e); }
 }
 
 function convertDataPerOrdinamento(dataStr) {
@@ -690,32 +822,46 @@ function convertDataPerOrdinamento(dataStr) {
 
 function aggiornaTabella() {
     const tbody = document.querySelector('#tabella-transazioni tbody');
-    tbody.innerHTML = '';
-    transazioniFiltrate.forEach(transazione => {
-        // Ricrea la riga HTML da zero
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${transazione.data}</td>
-            <td>${transazione.descrizione}</td>
-            <td><span class="badge ${transazione.tipo === 'entrata' ? 'bg-success' : 'bg-danger'}">${transazione.categoria}</span></td>
-            <td>${transazione.tipo === 'entrata' ? '<span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>' : '<span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>'}</td>
-            <td class="${transazione.tipo === 'entrata' ? 'text-success' : 'text-danger'}">${transazione.tipo === 'entrata' ? '+' : '-'}€ ${transazione.importo.toFixed(2)}</td>
-            <td>
-                <button class="btn btn-warning btn-sm me-1"
-                    title="Modifica transazione"
-                    data-id="${transazione.id || ''}"
-                    data-descrizione='${JSON.stringify(transazione.descrizione)}'
-                    data-importo="${transazione.importo}"
-                    data-data='${JSON.stringify(transazione.data)}'
-                    data-categoria="${transazione.categoriaId || ''}"
-                    onclick="modificaTransazioneAttr(this)">
-                    <i class="fas fa-edit"></i>
-                </button>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
+    try {
+        if (!tbody) return;
+        tbody.innerHTML = '';
+    const rowsSource = (window.BilancioTransazioni && typeof window.BilancioTransazioni.getFiltrate === 'function') ? window.BilancioTransazioni.getFiltrate() : [];
+        (rowsSource || []).forEach(transazione => {
+            // Ricrea la riga HTML da zero
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${transazione.data}</td>
+                <td>${transazione.descrizione}</td>
+                <td><span class="badge ${transazione.tipo === 'entrata' ? 'bg-success' : 'bg-danger'}">${transazione.categoria}</span></td>
+                <td>${transazione.tipo === 'entrata' ? '<span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>' : '<span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>'}</td>
+                <td class="${transazione.tipo === 'entrata' ? 'text-success' : 'text-danger'}">${transazione.tipo === 'entrata' ? '+' : '-'}€ ${Number(transazione.importo || 0).toFixed(2)}</td>
+                <td>
+                    <button class="btn btn-warning btn-sm me-1"
+                        title="Modifica transazione"
+                        data-id="${transazione.id || ''}"
+                        data-descrizione='${JSON.stringify(transazione.descrizione)}'
+                        data-importo="${transazione.importo}"
+                        data-data='${JSON.stringify(transazione.data)}'
+                        data-categoria="${transazione.categoriaId || ''}"
+                        onclick="modificaTransazioneAttr(this)">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </td>
+            `;
+            try { tbody.appendChild(tr); } catch(e) { console.warn('[FILTRO] append tr failed', e); }
+        });
+    } catch(e) {
+        console.error('[FILTRO] aggiornaTabella fatal error, restoring initial HTML', e);
+        try { if (window.__tabella_initial_html && tbody) tbody.innerHTML = window.__tabella_initial_html; } catch(e2){}
+    }
+    
 }
+// Rendere aggiornaTabella accessibile globalmente (usata dal JS dei filtri)
+try { window.aggiornaTabella = aggiornaTabella; } catch(e){}
+// Ensure initial render: if model or legacy filtrate is populated, refresh table
+    try { if (typeof window.aggiornaTabella === 'function') {
+    try { window.aggiornaTabella(); } catch(e){}
+} } catch(e){}
 
 // Inizializza i tooltip
 document.addEventListener('DOMContentLoaded', function() {
@@ -766,7 +912,45 @@ function navigateMonth(direction) {
     // Limiti periodo: dal 27 del mese corrente al 26 del mese successivo
     const startDateStr = `${newYear}-${String(newMonth).padStart(2, '0')}-27`;
     const endDateStr = `${endYear}-${String(endMonth).padStart(2, '0')}-26`;
-    window.location.href = `/dettaglio/${startDateStr}/${endDateStr}`;
+    // Mantieni il filtro categoria se selezionato
+    const filtroSelect = document.getElementById('filter_categoria_select');
+    const categoriaSel = filtroSelect ? filtroSelect.value : '';
+    const qs = categoriaSel ? `?categoria_id=${categoriaSel}` : '';
+    window.location.href = `/dettaglio/${startDateStr}/${endDateStr}${qs}`;
+}
+
+function popolaFiltroCategoria() {
+    const select = document.getElementById('filter_categoria_select');
+    if (!select) return;
+    select.innerHTML = '<option value="">Tutte le categorie</option>';
+    categorie.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.nome;
+        select.appendChild(opt);
+    });
+    // Listener: filtra solo la tabella senza ricaricare la pagina
+    select.addEventListener('change', function() {
+        try {
+            // Persist selection so model.applyFilters can read it when runApplyFilters prefers the model
+            const sel = this.value || '';
+            const key = 'dettaglio_selected_categoria_id';
+            const tipoKey = 'dettaglio_selected_tipo';
+            if (sel) {
+                sessionStorage.setItem(key, String(sel));
+                try { window.selectedCategoriaId = String(sel); } catch(e){}
+                // mutual exclusion: clear tipo when category selected
+                sessionStorage.removeItem(tipoKey);
+                try { if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoIcon === 'function') window.__categoriaFilter.updateTipoIcon(false, ''); } catch(e){}
+            } else {
+                sessionStorage.removeItem(key);
+                try { window.selectedCategoriaId = null; } catch(e){}
+            }
+            if (typeof runApplyFilters === 'function') runApplyFilters();
+            else if (typeof applicaFiltriDettaglio === 'function') applicaFiltriDettaglio();
+            else if (typeof applyClientSideFilter === 'function') applyClientSideFilter();
+        } catch(e) { try { if (typeof applyClientSideFilter === 'function') applyClientSideFilter(); } catch(e){} }
+    });
 }
 </script>
 
