@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 
 # Carica le variabili d'ambiente dal file .env se esiste
 load_dotenv()
+from app import defaults
 
 class Config:
     """Configurazione principale dell'applicazione"""
@@ -54,20 +55,8 @@ class Config:
     STIPENDIO_DICEMBRE_GIORNO = 20  # Accreditato il 20 dicembre
     STIPENDIO_NORMALE_GIORNO = 27   # Accreditato il 27 degli altri mesi
     
-    # Categorie predefinite (aggiornate settembre 2025)
-    CATEGORIE_DEFAULT = [
-        # Entrate
-        ('Stipendio', 'entrata'),
-        ('Extra', 'entrata'),
-        ('Altro', 'entrata'),
-        
-        # Uscite
-        ('Trasporti', 'uscita'),
-        ('Spese Casa', 'uscita'),
-        ('Spese Mensili', 'uscita'),
-        ('Sport', 'uscita'),  # Aggiunta settembre 2025
-        ('Altro', 'uscita')
-    ]
+    # Categorie predefinite (valori non-operativi; delegati a app.defaults)
+    CATEGORIE_DEFAULT = getattr(defaults, 'CATEGORIE_DEFAULT', [])
     
     # Impostazioni UI
     TITOLO_APP = "Gestione Bilancio Familiare"
@@ -101,11 +90,11 @@ class Config:
     POSTEPAY_SALDO_INIZIALE = 0  # Saldo iniziale PostePay Evolution
     POSTEPAY_FORMATO_VALUTA = "€ {:.2f}"  # Formato valuta per PostePay
     
-    # Configurazioni PayPal predefinite
-    PIANI_PAYPAL_DEFAULT = []  # Configurabile via environment o database
-    
-    # Configurazioni abbonamenti PostePay predefiniti
-    POSTEPAY_ABBONAMENTI_DEFAULT = []  # Configurabile via environment o database
+    # Configurazioni PayPal predefinite (delegato a app.defaults)
+    PIANI_PAYPAL_DEFAULT = getattr(defaults, 'PIANI_PAYPAL_DEFAULT', [])
+
+    # Configurazioni abbonamenti PostePay predefiniti (delegato a app.defaults)
+    POSTEPAY_ABBONAMENTI_DEFAULT = getattr(defaults, 'POSTEPAY_ABBONAMENTI_DEFAULT', [])
 
 class DevelopmentConfig(Config):
     """Configurazione per l'ambiente di sviluppo"""
