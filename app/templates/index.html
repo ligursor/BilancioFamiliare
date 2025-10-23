@@ -7,9 +7,7 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h4 class="mb-0"><i class="fas fa-chart-line me-2"></i>Panoramica Bilancio - Prossimi 6 Mesi</h4>
                 <div>
-                    <button class="btn btn-success btn-sm me-2" data-bs-toggle="modal" data-bs-target="#addTransactionModal">
-                        <i class="fas fa-plus me-1"></i>Nuova Transazione
-                    </button>
+                    <!-- Dashboard: inserimento transazioni disabilitato qui. Usa il dettaglio mensile per aggiungere transazioni. -->
                     <!-- Pulsante per test roll-over (nascosto in produzione) -->
                     <a href="{{ url_for('main.forza_rollover') }}" class="btn btn-outline-warning btn-sm" 
                        style="display: none;" id="btnRollover"
@@ -96,77 +94,7 @@
 
 <!-- Grafico e transazioni rimosse dalla dashboard principale per semplificare l'interfaccia -->
 
-<!-- Modal per aggiungere transazione -->
-<div class="modal fade" id="addTransactionModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Nuova Transazione</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ url_for('transazioni.aggiungi') }}">
-                <input type="hidden" name="redirect_to" value="dashboard">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="data" class="form-label">Data</label>
-                        <input type="date" class="form-control" id="data" name="data" required 
-                               value="{{ datetime.now().strftime('%Y-%m-%d') }}">
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="descrizione" class="form-label">Descrizione</label>
-                        <input type="text" class="form-control" id="descrizione" name="descrizione" 
-                               placeholder="Es. Spesa alimentari" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="tipo" class="form-label">Tipo</label>
-                        <select class="form-control" id="tipo" name="tipo" required onchange="filtraCategorie()">
-                            <option value="">Seleziona tipo</option>
-                            <option value="entrata">Entrata</option>
-                            <option value="uscita" selected>Uscita</option>
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="categoria_id" class="form-label">Categoria</label>
-                        <select class="form-control" id="categoria_id" name="categoria_id" required>
-                            <option value="">Seleziona prima il tipo</option>
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="importo" class="form-label">Importo (€)</label>
-                        <input type="number" class="form-control" id="importo" name="importo" 
-                               step="0.01" min="0" placeholder="0.00" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="ricorrente" name="ricorrente" 
-                                   onchange="toggleFrequenza()">
-                            <label class="form-check-label" for="ricorrente">
-                                Transazione ricorrente
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3" id="frequenza-container" style="display: none;">
-                        <label for="frequenza_giorni" class="form-label">Frequenza (giorni)</label>
-                        <select class="form-control" id="frequenza_giorni" name="frequenza_giorni">
-                            <option value="30">Mensile (stesso giorno ogni mese)</option>
-                            <option value="365">Annuale (stesso giorno ogni anno)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="btn btn-primary">Aggiungi Transazione</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+<!-- Inserimento transazioni disabilitato in dashboard: usa il dettaglio mensile -->
 {% endblock %}
 
 <!-- Keep only categorie-data and modal JS; mesi-data and Chart initialization removed -->
