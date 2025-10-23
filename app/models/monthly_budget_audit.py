@@ -1,3 +1,24 @@
+"""
+monthly_budget_audit - STUB
+
+Questa definizione è stata rimossa dal codice attivo su richiesta dell'utente
+e archiviata in `_backup/obsolete/app_models_monthly_budget_audit.py`.
+
+Se è necessario ripristinarla, recuperare il file nell'archivio e ripristinarlo
+nel percorso originale, quindi applicare le migrazioni DB se necessario.
+"""
+
+def _monthly_budget_audit_removed_placeholder(*args, **kwargs):
+    raise RuntimeError(
+        "MonthlyBudgetAudit model è stato rimosso dal codice attivo. "
+        "Vedi `_backup/obsolete/app_models_monthly_budget_audit.py` per l'implementazione originale."
+    )
+
+# Export a placeholder name so imports like `from app.models.monthly_budget_audit import MonthlyBudgetAudit`
+# will still succeed at import-time (module present) but using the model will raise quickly.
+class MonthlyBudgetAudit:
+    def __new__(cls, *args, **kwargs):
+        _monthly_budget_audit_removed_placeholder()
 from app import db
 from datetime import datetime
 
