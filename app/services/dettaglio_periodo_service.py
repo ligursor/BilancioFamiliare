@@ -226,12 +226,20 @@ class DettaglioPeriodoService:
                         db.session.commit()
                         # Audit: creazione automatica mensile
                         try:
-                            from app.models.monthly_budget_audit import MonthlyBudgetAudit
-                            audit = MonthlyBudgetAudit(monthly_budget_id=mb.id, categoria_id=cat_id, year=start_date.year, month=start_date.month, old_importo=None, new_importo=iniziale_month, changed_by='system')
-                            db.session.add(audit)
-                            db.session.commit()
+                            # MonthlyBudgetAudit model rimosso: loggiamo l'evento invece di persistere il record
+                            import logging
+                            logger = logging.getLogger('bilancio.monthly_budget_audit')
+                            logger.info(
+                                "monthly_budget_audit: created by system - monthly_budget_id=%s categoria_id=%s year=%s month=%s new_importo=%s",
+                                mb.id, cat_id, start_date.year, start_date.month, iniziale_month
+                            )
+                            # Manteniamo il commit della creazione del MonthlyBudget (mb) sopra
                         except Exception:
-                            db.session.rollback()
+                            # In caso di problemi con il logging, non vogliamo lasciare la sessione sporca
+                            try:
+                                db.session.rollback()
+                            except Exception:
+                                pass
                     iniziale = float(mb.importo or 0.0)
                 except Exception:
                     # In caso di problemi con MonthlyBudget, ricadi sul default
