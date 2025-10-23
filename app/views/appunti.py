@@ -146,9 +146,7 @@ def trasferisci():
 def dati(id):
     """Restituisce i dati di un appunto in formato JSON"""
     try:
-        print(f"DEBUG: Richiesta dati per appunto ID: {id}")
         appunto = Appunto.query.get_or_404(id)
-        print(f"DEBUG: Appunto trovato: {appunto.titolo}")
         
         result = {
             'success': True,
@@ -161,10 +159,9 @@ def dati(id):
                 'note': appunto.note
             }
         }
-        print(f"DEBUG: Restituendo JSON: {result}")
         return jsonify(result)
     except Exception as e:
-        print(f"DEBUG: Errore in dati appunto: {str(e)}")
+        # errore gestito: restituiamo il messaggio al client
         return jsonify({'success': False, 'message': str(e)}), 500
 
 

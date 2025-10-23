@@ -217,7 +217,7 @@
 function modificaAppunto(id) {
     // Recupera i dati dell'appunto tramite AJAX
     const url = '/appunti/' + id + '/dati';
-    // debug logging removed
+    
     fetch(url)
         .then(response => response.json())
         .then(data => {

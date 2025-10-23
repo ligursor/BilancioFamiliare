@@ -8,18 +8,6 @@ __pycache__/
 *.py[cod]
 *.pyo
 
-# Databases
-# Nota: i file .db vengono tracciati nel repository per questo progetto
-
-# Backups and exports
-_backup/
-_backup/**
-backup/
-backup/**
-
-# Instance
-instance/
-
 # Editor/IDE
 .vscode/
 .idea/

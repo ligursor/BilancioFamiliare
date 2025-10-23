@@ -42,7 +42,8 @@ def main():
             init_database()
 
     # Avvia l'app
-    app.run(host=app.config.get('HOST', '0.0.0.0'), port=app.config.get('PORT', 5001), debug=app.config.get('DEBUG', False))
+    # For security and consistency we run without debug logs by default.
+    app.run(host=app.config.get('HOST', '0.0.0.0'), port=app.config.get('PORT', 5001), debug=False)
 
 
 if __name__ == '__main__':

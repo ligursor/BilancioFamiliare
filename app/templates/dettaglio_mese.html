@@ -710,7 +710,7 @@ function applicaFiltriDettaglio() {
     const filtroTipo = sessionStorage.getItem('dettaglio_selected_tipo') || '';
     // Filtra solo per tipo (categoria filter rimosso)
 
-    // debug logging removed
+    
 
     // Prefer model-driven filtering
     if (window.BilancioTransazioni && typeof window.BilancioTransazioni.applyFilters === 'function') {
@@ -955,7 +955,7 @@ function loadScript(src) {
         });
     } catch (e) {
         // Any error during plugin load should not break the page; plugin is optional.
-    /* console.debug removed */
+    
     }
 })();
 </script>
@@ -1007,11 +1007,11 @@ function buildUsciteChart(labels, data) {
             try {
                 Chart.register(window.ChartDataLabels);
             } catch (regErr) {
-                /* console.debug removed */
+                
             }
         }
     } catch(e) {
-    /* console.debug removed */
+    
     }
 
     const total = data.reduce((s, v) => s + (Number(v) || 0), 0);
@@ -1115,8 +1115,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         const stats = JSON.parse(raw.textContent || '[]');
         try {
-            /* console.debug removed */
-            /* console.debug removed */
+            
+            
         } catch(e) { /* ignore */ }
         if (stats && stats.length > 0) {
             try {

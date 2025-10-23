@@ -12,14 +12,57 @@ paypal_bp = Blueprint('paypal', __name__)
 
 def aggiorna_importi_rimanenti_paypal():
     """Aggiorna gli importi rimanenti per tutti i piani PayPal attivi"""
-    piani = PaypalPiano.query.filter_by(stato='attivo').all()
+    # Include both possible active states ('attivo' legacy and 'in_corso' used elsewhere)
+    piani = PaypalPiano.query.filter(PaypalPiano.stato.in_(['attivo', 'in_corso'])).all()
     
     for piano in piani:
         rate_non_pagate = PaypalRata.query.filter_by(
             piano_id=piano.id,
             stato='in_attesa'
         ).all()
-        
+        # Se alcune rate in_attesa sono in realtà già collegate a una transazione o hanno data_pagamento,
+        # consideriamole pagate e sincronizziamo lo stato per coerenza.
+        for rata in list(rate_non_pagate):
+            try:
+                if rata.data_pagamento is not None or getattr(rata, 'transazione_id', None):
+                    rata.stato = 'pagata'
+                    if rata.data_pagamento is None:
+                        rata.data_pagamento = datetime.now().date()
+                    # Aggiorna importo rimanente del piano
+                    piano.importo_rimanente = (piano.importo_rimanente or 0.0) - (rata.importo or 0.0)
+                    # Rimuovila dalla lista delle non pagate per il calcolo
+                    rate_non_pagate.remove(rata)
+                else:
+                    # Se la rata è scaduta oggi (o prima) e non ha transazione collegata,
+                    # proviamo a trovare una Transazione con importo e data corrispondenti
+                    try:
+                        oggi = datetime.now().date()
+                        if rata.data_scadenza <= oggi and not getattr(rata, 'transazione_id', None):
+                            # Cerca una transazione con stessa data (o data_effettiva) e importo simile
+                            from app.models.transazioni import Transazione
+                            trans = Transazione.query.filter(
+                                ((Transazione.data == rata.data_scadenza) | (Transazione.data_effettiva == rata.data_scadenza)),
+                                ).all()
+                            match = None
+                            for t in trans:
+                                try:
+                                    if abs((t.importo or 0.0) - (rata.importo or 0.0)) < 0.01:
+                                        match = t
+                                        break
+                                except Exception:
+                                    continue
+                            if match:
+                                rata.transazione_id = match.id
+                                rata.stato = 'pagata'
+                                rata.data_pagamento = match.data_effettiva or match.data
+                                piano.importo_rimanente = (piano.importo_rimanente or 0.0) - (rata.importo or 0.0)
+                                rate_non_pagate.remove(rata)
+                    except Exception:
+                        pass
+            except Exception:
+                # Non blocchiamo l'aggiornamento globale per singoli errori
+                pass
+
         importo_rimanente = sum(rata.importo for rata in rate_non_pagate)
         piano.importo_rimanente = importo_rimanente
         

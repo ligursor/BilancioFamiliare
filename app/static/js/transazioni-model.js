@@ -14,7 +14,7 @@
         document.dispatchEvent(new Event('transazioni:ready'));
         this._listeners.forEach(cb => { try{ cb(); }catch(e){} });
         this._listeners = [];
-  } catch(e) { /* console.warn removed */ }
+      } catch(e) { /* ignore errors */ }
     },
     getOriginali(){ return this.originali; },
     getFiltrate(){ return this.filtrate; },
@@ -29,8 +29,8 @@
           return matchTipo;
         });
         if (typeof window.aggiornaTabella === 'function') try { window.aggiornaTabella(); } catch(e){}
-  try { if (window.__tipoFilter && typeof window.__tipoFilter.updateTipoBadge === 'function') window.__tipoFilter.updateTipoBadge(this.filtrate.length || 0); } catch(e){}
-  } catch(e) { /* console.warn removed */ }
+        try { if (window.__tipoFilter && typeof window.__tipoFilter.updateTipoBadge === 'function') window.__tipoFilter.updateTipoBadge(this.filtrate.length || 0); } catch(e){}
+      } catch(e) { /* ignore errors */ }
     },
     // Sort the filtered list in-place using known ordering keys and refresh the table
     sortFiltrate(order){
@@ -66,18 +66,18 @@
             break;
         }
         if (typeof window.aggiornaTabella === 'function') try { window.aggiornaTabella(); } catch(e){}
-  } catch(e) { /* console.warn removed */ }
+      } catch(e) { /* ignore errors */ }
     },
     setFiltrate(arr){
       try {
         this.filtrate = Array.isArray(arr) ? arr : [];
         if (typeof window.aggiornaTabella === 'function') try { window.aggiornaTabella(); } catch(e){}
-  try { if (window.__tipoFilter && typeof window.__tipoFilter.updateTipoBadge === 'function') window.__tipoFilter.updateTipoBadge(this.filtrate.length || 0); } catch(e){}
-  } catch(e) { /* console.warn removed */ }
+        try { if (window.__tipoFilter && typeof window.__tipoFilter.updateTipoBadge === 'function') window.__tipoFilter.updateTipoBadge(this.filtrate.length || 0); } catch(e){}
+      } catch(e) { /* ignore errors */ }
     },
     onReady(cb){ if (this.ready) { try{ cb(); }catch(e){} } else this._listeners.push(cb); }
   };
-  try { window.BilancioTransazioni = Model; } catch(e) { /* console.warn removed */ }
+  try { window.BilancioTransazioni = Model; } catch(e) { /* ignore errors */ }
   // Note: legacy global proxies removed. Consumers should use the model API exposed on
   // window.BilancioTransazioni: setOriginali, getOriginali, getFiltrate, applyFilters, sortFiltrate, setFiltrate, onReady
 })();

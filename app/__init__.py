@@ -18,7 +18,7 @@ from app.config import config
 # Istanze globali
 db = SQLAlchemy()
 
-def create_app(config_name=None):
+def create_app(config_name='default'):
     """Factory pattern per creare l'applicazione Flask"""
     # Calcola i path corretti per template e static
     import os
@@ -31,10 +31,7 @@ def create_app(config_name=None):
                 template_folder=template_dir,
                 static_folder=static_dir)
     
-    # Carica la configurazione
-    if config_name is None:
-        config_name = os.environ.get('FLASK_ENV', 'default')
-    
+    # Carica la configurazione di default (app gira in locale con DEBUG disabilitato)
     app.config.from_object(config[config_name])
     
     # Inizializza le estensioni
@@ -67,5 +64,6 @@ def create_app(config_name=None):
     app.register_blueprint(auto_bp, url_prefix='/auto')
     app.register_blueprint(ppay_bp, url_prefix='/ppay_evolution')
     app.register_blueprint(appunti_bp, url_prefix='/appunti')
+    # database import/export blueprint removed (archived in _backup/obsolete)
     
     return app

@@ -30,7 +30,7 @@ def index():
     saldo_corrente = saldo_iniziale_importo
     
     # Usa il valore di configurazione o default a 6
-    MESI_PROIEZIONE = current_app.config.get('MESI_PROIEZIONE', 6)
+    MESI_PROIEZIONE = 6
     
     for i in range(MESI_PROIEZIONE):
         data_mese = oggi + relativedelta(months=i)

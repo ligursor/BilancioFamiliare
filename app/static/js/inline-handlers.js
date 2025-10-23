@@ -105,7 +105,7 @@
             }
         } catch (e) {
             // swallow errors to avoid breaking other handlers
-            /* console.warn removed */
+                /* ignore inline handler errors */
         }
     }, false);
 })();

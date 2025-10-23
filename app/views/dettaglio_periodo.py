@@ -288,26 +288,24 @@ def elimina_transazione_periodo(start_date, end_date, id):
     data = transazione.data
     tipo = transazione.tipo
 
-    # Logica di ripristino budget (ora usa il modello Budget)
-    if tipo == "uscita" and not transazione.ricorrente:
-        # Sport
-        if transazione.categoria_id == current_app.config.get('CATEGORIA_SPORT_ID', 8):
-            budget = Budget.query.filter_by(categoria_id=current_app.config.get('CATEGORIA_SPORT_ID', 8)).first()
-            if budget:
-                # Non modificare il valore iniziale del budget; il residuo è calcolato dinamicamente
-                flash(f'€{importo:.2f} ripristinati (residuo ricalcolato dinamicamente) per il budget "Sport".', 'info')
-            else:
-                flash(f'Attenzione: Budget "Sport" non trovato', 'warning')
-        # Altre spese (escludi Spese Casa categoria 5)
-        elif transazione.categoria_id != 5:
-            budget = Budget.query.filter_by(categoria_id=current_app.config.get('CATEGORIA_SPESE_MENSILI_ID', 6)).first()
-            if budget:
-                # Non modificare il valore iniziale del budget; il residuo è calcolato dinamicamente
-                flash(f'€{importo:.2f} ripristinati (residuo ricalcolato dinamicamente) per il budget "Spese Mensili".', 'info')
-            else:
-                flash(f'Attenzione: Budget "Spese Mensili" non trovato', 'warning')
-    db.session.delete(transazione)
-    db.session.commit()
+    # Delego la decisione al service: se serve ripristinare/considerare budget il service ritorna True
+    servizio = DettaglioPeriodoService()
+    try:
+        should_handle_budget = servizio.handle_budget_on_delete(transazione)
+        if should_handle_budget:
+            # Il residuo è calcolato dinamicamente dai MonthlyBudget; informiamo l'utente
+            flash(f'€{importo:.2f} ripristinati (residuo ricalcolato dinamicamente) per il budget della categoria.', 'info')
+
+        # Esegui l'eliminazione in una singola transazione DB
+        db.session.delete(transazione)
+        db.session.commit()
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        flash(f'Errore durante eliminazione transazione: {e}', 'error')
+        return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
     flash(f'Transazione "{descrizione}" eliminata con successo!', 'success')
     # Preserve categoria filter if present
     # Do not pick categoria_id from the submitted form (that would force the view to filter by the newly added category).
@@ -340,21 +338,22 @@ def aggiungi_transazione_periodo(start_date, end_date):
         tipo=tipo,
         ricorrente=ricorrente
     )
-    # Applica la decurtazione del budget se necessario (uscita non ricorrente)
-    if tipo == 'uscita' and not ricorrente:
-        if categoria_id == current_app.config.get('CATEGORIA_SPORT_ID', 8):
-            budget = Budget.query.filter_by(categoria_id=current_app.config.get('CATEGORIA_SPORT_ID', 8)).first()
-            if budget:
-                # Non modificare il valore iniziale del budget qui; il residuo verrà calcolato dal servizio
-                pass
-        elif categoria_id != 5:
-            budget = Budget.query.filter_by(categoria_id=current_app.config.get('CATEGORIA_SPESE_MENSILI_ID', 6)).first()
-            if budget:
-                # Non modificare il valore iniziale del budget qui; il residuo verrà calcolato dal servizio
-                pass
+    servizio = DettaglioPeriodoService()
+    try:
+        # Valuta se la nuova transazione richiede un'azione sul budget
+        if servizio.handle_budget_on_add(transazione):
+            # Se in futuro serve modificare MonthlyBudget, gestirlo nel service
+            pass
 
-    db.session.add(transazione)
-    db.session.commit()
+        db.session.add(transazione)
+        db.session.commit()
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        flash(f'Errore durante l\'aggiunta della transazione: {e}', 'error')
+        return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
     flash('Transazione aggiunta con successo!', 'success')
     redirect_url = url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date)
     return redirect(redirect_url)
@@ -399,35 +398,19 @@ def modifica_transazione_periodo(start_date, end_date, id):
     db.session.add(transazione)
     db.session.commit()
     # Logica decurtazione/ripristino budget (solo per uscita non ricorrente)
-    # Ripristina budget relativo all'importo originale se necessario
-    if tipo_originale == "uscita" and not ricorrente_originale:
-        if categoria_id_originale == current_app.config.get('CATEGORIA_SPORT_ID', 8):
-            budget = Budget.query.filter_by(categoria_id=current_app.config.get('CATEGORIA_SPORT_ID', 8)).first()
-            if budget:
-                # Non modificare il valore iniziale del budget; il residuo sarà ricalcolato dinamicamente
-                pass
-        elif categoria_id_originale != 5:
-            budget = Budget.query.filter_by(categoria_id=current_app.config.get('CATEGORIA_SPESE_MENSILI_ID', 6)).first()
-            if budget:
-                # Non modificare il valore iniziale del budget; il residuo sarà ricalcolato dinamicamente
-                pass
-        # Persisti modifiche al budget dopo il ripristino
-        # Nessuna modifica al budget da salvare
-    # Ora applica la nuova decurtazione se necessario
-    # Decurtazione del budget in base alla nuova transazione
-    if transazione.tipo == "uscita" and not transazione.ricorrente:
-        if transazione.categoria_id == current_app.config.get('CATEGORIA_SPORT_ID', 8):
-            budget = Budget.query.filter_by(categoria_id=current_app.config.get('CATEGORIA_SPORT_ID', 8)).first()
-            if budget:
-                # Non modificare il valore iniziale del budget; il residuo verrà ricalcolato dinamicamente
-                pass
-        elif transazione.categoria_id != 5:
-            budget = Budget.query.filter_by(categoria_id=current_app.config.get('CATEGORIA_SPESE_MENSILI_ID', 6)).first()
-            if budget:
-                # Non modificare il valore iniziale del budget; il residuo verrà ricalcolato dinamicamente
-                pass
-        # Persisti modifiche al budget dopo la decurtazione
-        # Nessuna modifica al budget da salvare
+    servizio = DettaglioPeriodoService()
+    try:
+        res = servizio.handle_budget_on_modify(categoria_id_originale, tipo_originale, ricorrente_originale, transazione)
+        # res è un dict {'restored': bool, 'applied': bool}
+        # Se occorre ripristinare o applicare, il servizio può essere esteso per fare le modifiche
+        # Per ora limitiamoci ad informare l'utente se era necessario considerare il budget
+        if res.get('restored'):
+            flash('Budget originale ripristinato (residuo ricalcolato dinamicamente).', 'info')
+        if res.get('applied'):
+            flash('Budget aggiornato in base alla nuova transazione (residuo ricalcolato).', 'info')
+    except Exception:
+        # Non blocchiamo la modifica della transazione per errori nel controllo budget
+        pass
     flash('Transazione modificata con successo!', 'success')
     redirect_url = url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date)
     return redirect(redirect_url)

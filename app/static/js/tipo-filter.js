@@ -77,7 +77,7 @@
       });
       const visibleCount = rows.filter(rr => rr.style.display !== 'none').length;
       updateTipoBadge(visibleCount);
-  } catch(e){ /* console.warn removed */ }
+  } catch(e){ /* ignore errors */ }
   }
 
   function updateTipoBadgeFromModel(){

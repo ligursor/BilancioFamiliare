@@ -135,14 +135,14 @@
         // Global error handlers to surface errors (useful when extensions inject scripts that throw)
         window.addEventListener('error', function(event) {
             try {
-                    /* console.error removed */
+                    /* ignore rendering errors */
                 } catch (e) {
                     // ignore
                 }
         });
         window.addEventListener('unhandledrejection', function(event) {
             try {
-                    /* console.error removed */
+                    /* ignore rendering errors */
                 } catch (e) {
                     // ignore
                 }
