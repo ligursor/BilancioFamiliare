@@ -14,29 +14,23 @@
         document.dispatchEvent(new Event('transazioni:ready'));
         this._listeners.forEach(cb => { try{ cb(); }catch(e){} });
         this._listeners = [];
-      } catch(e) { console.warn('[MODEL] setOriginali error', e); }
+  } catch(e) { /* console.warn removed */ }
     },
     getOriginali(){ return this.originali; },
     getFiltrate(){ return this.filtrate; },
     applyFilters(opts){
       try {
-        const categoriaId = opts && typeof opts.categoriaId !== 'undefined' ? opts.categoriaId : (sessionStorage.getItem('dettaglio_selected_categoria_id') || null);
+        // Category filter removed. Only consider 'tipo' (entrata/uscita).
         const tipo = opts && typeof opts.tipo !== 'undefined' ? opts.tipo : (sessionStorage.getItem('dettaglio_selected_tipo') || '');
         const orig = this.originali || [];
-        // fallback to window.getCategoriaNomeById if available
-        const getNome = (id) => { try { return (typeof getCategoriaNomeById === 'function') ? getCategoriaNomeById(id) : ''; } catch(e){ return ''; } };
         this.filtrate = orig.filter(t => {
-          let matchCat = true;
-          if (categoriaId) {
-            matchCat = (String(t.categoriaId || '') === String(categoriaId)) || (String(t.categoria || '') === String(getNome(categoriaId) || ''));
-          }
           let matchTipo = true;
           if (tipo) matchTipo = String(t.tipo) === String(tipo);
-          return matchCat && matchTipo;
+          return matchTipo;
         });
         if (typeof window.aggiornaTabella === 'function') try { window.aggiornaTabella(); } catch(e){}
-        try { if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoBadge === 'function') window.__categoriaFilter.updateTipoBadge(this.filtrate.length || 0); } catch(e){}
-      } catch(e) { console.warn('[MODEL] applyFilters error', e); }
+  try { if (window.__tipoFilter && typeof window.__tipoFilter.updateTipoBadge === 'function') window.__tipoFilter.updateTipoBadge(this.filtrate.length || 0); } catch(e){}
+  } catch(e) { /* console.warn removed */ }
     },
     // Sort the filtered list in-place using known ordering keys and refresh the table
     sortFiltrate(order){
@@ -72,18 +66,18 @@
             break;
         }
         if (typeof window.aggiornaTabella === 'function') try { window.aggiornaTabella(); } catch(e){}
-      } catch(e) { console.warn('[MODEL] sortFiltrate error', e); }
+  } catch(e) { /* console.warn removed */ }
     },
     setFiltrate(arr){
       try {
         this.filtrate = Array.isArray(arr) ? arr : [];
         if (typeof window.aggiornaTabella === 'function') try { window.aggiornaTabella(); } catch(e){}
-        try { if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoBadge === 'function') window.__categoriaFilter.updateTipoBadge(this.filtrate.length || 0); } catch(e){}
-      } catch(e) { console.warn('[MODEL] setFiltrate error', e); }
+  try { if (window.__tipoFilter && typeof window.__tipoFilter.updateTipoBadge === 'function') window.__tipoFilter.updateTipoBadge(this.filtrate.length || 0); } catch(e){}
+  } catch(e) { /* console.warn removed */ }
     },
     onReady(cb){ if (this.ready) { try{ cb(); }catch(e){} } else this._listeners.push(cb); }
   };
-  try { window.BilancioTransazioni = Model; } catch(e) { console.warn('[MODEL] expose failed', e); }
+  try { window.BilancioTransazioni = Model; } catch(e) { /* console.warn removed */ }
   // Note: legacy global proxies removed. Consumers should use the model API exposed on
   // window.BilancioTransazioni: setOriginali, getOriginali, getFiltrate, applyFilters, sortFiltrate, setFiltrate, onReady
 })();

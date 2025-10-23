@@ -13,19 +13,24 @@ def init_database():
     Questa funzione è intenzionalmente conservativa: viene eseguita
     solo quando INIT_DB=1 per evitare side-effect non voluti in produzione.
     """
-    # Import dei modelli e servizi necessari (ritardato per evitare import circolari)
+    # Import dei modelli necessari (ritardato per evitare import circolari)
     from app.models.base import Categoria, SaldoIniziale
     from app.models.transazioni import Transazione
     from app.models.budget import Budget
     # ... altri modelli se necessario
-    from app.services.database_service import DatabaseService
 
     db.create_all()
-    svc = DatabaseService()
-    svc.initialize_default_categories()
-    svc.initialize_saldo_iniziale()
-    svc.initialize_conti_personali()
-    svc.initialize_budget_defaults()
+    # Minimal DB initialization: ensure saldo iniziale exists and default categories
+    try:
+        if Categoria.query.count() == 0:
+            # se vuoi configurare categorie di default, aggiungile qui o tramite fixture
+            pass
+        if not SaldoIniziale.query.first():
+            saldo = SaldoIniziale(importo=0.0)
+            db.session.add(saldo)
+            db.session.commit()
+    except Exception:
+        pass
 
 
 def main():

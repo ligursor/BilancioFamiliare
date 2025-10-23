@@ -36,22 +36,19 @@ function modificaTransazioneAttr(btn) {
 }
 </script>
 
-<!-- Debug and test-mode removed -->
 <div class="row">
     <div class="col-12">
         <div class="card">
-                <div id="filtri-test-badge" style="position:fixed;top:12px;right:12px;z-index:3000;display:none;">
-                    <span class="badge bg-warning text-dark">TEST MODE: filtri disabilitati</span>
-                </div>
+                
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h4 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Dettaglio {{ nome_mese }}</h4>
                 <div class="d-flex align-items-center">
                     <!-- Frecce navigazione mesi -->
                     <div class="btn-group me-2" role="group">
-                        <button onclick="navigateMonth(-1)" class="btn btn-primary btn-sm nav-arrow" title="Mese precedente">
+                        <button data-action="navigate-month" data-direction="-1" class="btn btn-primary btn-sm nav-arrow" title="Mese precedente">
                             <i class="fas fa-chevron-left text-white"></i>
                         </button>
-                        <button onclick="navigateMonth(1)" class="btn btn-primary btn-sm nav-arrow" title="Mese successivo">
+                        <button data-action="navigate-month" data-direction="1" class="btn btn-primary btn-sm nav-arrow" title="Mese successivo">
                             <i class="fas fa-chevron-right text-white"></i>
                         </button>
                     </div>
@@ -190,25 +187,15 @@ function modificaTransazioneAttr(btn) {
                             <tr>
                                 <th style="cursor: pointer; user-select: none;">
                                     Data 
-                                    <span onclick="ordinaDettaglio('data_asc')" class="text-primary me-1" title="Ordina per data crescente" style="cursor: pointer;" id="sort-data-asc">
+                                    <span data-action="ordina" data-tipo="data_asc" class="text-primary me-1" title="Ordina per data crescente" style="cursor: pointer;" id="sort-data-asc">
                                         <i class="fas fa-chevron-up"></i>
                                     </span>
-                                    <span onclick="ordinaDettaglio('data_desc')" class="text-primary" title="Ordina per data decrescente" style="cursor: pointer;" id="sort-data-desc">
+                                    <span data-action="ordina" data-tipo="data_desc" class="text-primary" title="Ordina per data decrescente" style="cursor: pointer;" id="sort-data-desc">
                                         <i class="fas fa-chevron-down"></i>
                                     </span>
                                 </th>
                                 <th>Descrizione</th>
-                                <th>
-                                                                    Categoria
-                                                                        <div class="dropdown d-inline-block ms-2">
-                                                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="filterCategoriaDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                                <i class="fas fa-filter"></i>
-                                                                            </button>
-                                                                            <ul class="dropdown-menu" aria-labelledby="filterCategoriaDropdown" id="filter_categoria_menu">
-                                                                                <!-- items injected by JS -->
-                                                                            </ul>
-                                                                        </div>
-                                </th>
+                                <th>Categoria</th>
                                 <th>
                                     Tipo 
                                     <div class="dropdown d-inline-block ms-2">
@@ -222,10 +209,10 @@ function modificaTransazioneAttr(btn) {
                                 </th>
                                 <th style="cursor: pointer; user-select: none;">
                                     Importo 
-                                    <span onclick="ordinaDettaglio('importo_asc')" class="text-success me-1" title="Ordina per importo crescente" style="cursor: pointer;" id="sort-importo-asc">
+                                    <span data-action="ordina" data-tipo="importo_asc" class="text-success me-1" title="Ordina per importo crescente" style="cursor: pointer;" id="sort-importo-asc">
                                         <i class="fas fa-chevron-up"></i>
                                     </span>
-                                    <span onclick="ordinaDettaglio('importo_desc')" class="text-success" title="Ordina per importo decrescente" style="cursor: pointer;" id="sort-importo-desc">
+                                    <span data-action="ordina" data-tipo="importo_desc" class="text-success" title="Ordina per importo decrescente" style="cursor: pointer;" id="sort-importo-desc">
                                         <i class="fas fa-chevron-down"></i>
                                     </span>
                                 </th>
@@ -261,11 +248,11 @@ function modificaTransazioneAttr(btn) {
     data-importo="{{ transazione.importo if transazione.importo is not none else 0 }}"
     data-data='{{ transazione.data.strftime('%Y-%m-%d')|tojson }}'
     data-categoria="{{ transazione.categoria.id }}"
-    onclick="modificaTransazioneAttr(this)">
+    data-action="modifica-transazione-attr">
     <i class="fas fa-edit"></i>
 </button>
                                     <!-- Pulsante elimina transazione -->
-                                    <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" style="display:inline;" onsubmit="return confirm('Sei sicuro di voler eliminare questa transazione?');">
+                                    <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?">
                                         <button type="submit" class="btn btn-danger btn-sm" title="Elimina transazione">
                                             <i class="fas fa-trash"></i>
                                         </button>
@@ -331,11 +318,11 @@ function modificaTransazioneAttr(btn) {
             data-importo="{{ transazione.importo if transazione.importo is not none else 0 }}"
             data-data='{{ transazione.data.strftime('%Y-%m-%d')|tojson }}'
             data-categoria="{{ transazione.categoria.id }}"
-            onclick="modificaTransazioneAttr(this)">
+            data-action="modifica-transazione-attr">
             <i class="fas fa-edit"></i>
         </button>
                                         <!-- Pulsante elimina transazione in attesa -->
-                                        <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" style="display:inline;" onsubmit="return confirm('Sei sicuro di voler eliminare questa transazione?');">
+                                        <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?">
                                             <button type="submit" class="btn btn-danger btn-sm" title="Elimina transazione">
                                                 <i class="fas fa-trash"></i>
                                             </button>
@@ -506,9 +493,9 @@ function modificaTransazioneAttr(btn) {
 
 {% block scripts %}
     {{ super() }}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/categoria-filter.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tipo-filter.css') }}">
     <script src="{{ url_for('static', filename='js/transazioni-model.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/categoria-filter.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/tipo-filter.js') }}"></script>
 
 <!-- Serializzazione categorie in JSON per JS -->
 <script type="application/json" id="categorie-data">
@@ -555,7 +542,7 @@ function initTransazioni(attempt = 0) {
             // initialized from JSON
             return;
         }
-    } catch(e) { console.warn('[FILTRO] initTransazioni - JSON parsing failed', e); }
+    } catch(e) { /* console.warn removed */ }
 
     const righe = document.querySelectorAll('#tabella-transazioni tbody tr');
     
@@ -591,12 +578,10 @@ function initTransazioni(attempt = 0) {
     }
     // Reset filters to default (Tutte) on page load for monthly detail: clear saved selections
     try {
-        sessionStorage.removeItem('dettaglio_selected_categoria_id');
         sessionStorage.removeItem('dettaglio_selected_tipo');
         // ensure globals used by filter script are in default state
-        try { window.selectedCategoriaId = null; } catch(e){}
-        try { window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoIcon === 'function' && window.__categoriaFilter.updateTipoIcon(false, ''); } catch(e){}
-    try { window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoBadge === 'function' && window.__categoriaFilter.updateTipoBadge((window.BilancioTransazioni && typeof window.BilancioTransazioni.getFiltrate === 'function') ? (window.BilancioTransazioni.getFiltrate().length || 0) : 0); } catch(e){}
+        try { window.__tipoFilter && typeof window.__tipoFilter.updateTipoIcon === 'function' && window.__tipoFilter.updateTipoIcon(false, ''); } catch(e){}
+    try { window.__tipoFilter && typeof window.__tipoFilter.updateTipoBadge === 'function' && window.__tipoFilter.updateTipoBadge((window.BilancioTransazioni && typeof window.BilancioTransazioni.getFiltrate === 'function') ? (window.BilancioTransazioni.getFiltrate().length || 0) : 0); } catch(e){}
     } catch(e){}
     // ensure table shows all rows for default view
     try { if (typeof aggiornaTabella === 'function') aggiornaTabella(); } catch(e){}
@@ -604,9 +589,7 @@ function initTransazioni(attempt = 0) {
     (function ensureDefaultView(attempt){
         try {
             // clear any saved filters
-            sessionStorage.removeItem('dettaglio_selected_categoria_id');
             sessionStorage.removeItem('dettaglio_selected_tipo');
-            try { window.selectedCategoriaId = null; } catch(e){}
             // force update
             if (typeof aggiornaTabella === 'function') aggiornaTabella();
             if (typeof runApplyFilters === 'function') runApplyFilters();
@@ -619,23 +602,22 @@ function initTransazioni(attempt = 0) {
     // Initialize tipo filter state from sessionStorage and update icon/badge via exported API
     try {
         const storedTipo = sessionStorage.getItem('dettaglio_selected_tipo') || '';
-        if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoIcon === 'function') window.__categoriaFilter.updateTipoIcon(!!storedTipo, '');
-    try { const cnt = (window.BilancioTransazioni && typeof window.BilancioTransazioni.getFiltrate === 'function') ? (window.BilancioTransazioni.getFiltrate().length || 0) : 0; if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoBadge === 'function') window.__categoriaFilter.updateTipoBadge(cnt); } catch(e){}
+        if (window.__tipoFilter && typeof window.__tipoFilter.updateTipoIcon === 'function') window.__tipoFilter.updateTipoIcon(!!storedTipo, '');
+    try { const cnt = (window.BilancioTransazioni && typeof window.BilancioTransazioni.getFiltrate === 'function') ? (window.BilancioTransazioni.getFiltrate().length || 0) : 0; if (window.__tipoFilter && typeof window.__tipoFilter.updateTipoBadge === 'function') window.__tipoFilter.updateTipoBadge(cnt); } catch(e){}
     } catch(e){}
 }
 // Start initialization (attempts will retry if necessary)
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => initTransazioni()); else initTransazioni();
     // Popola le categorie nel modal di aggiunta
     popolaCategorieSelect('add_categoria_id');
-    // Popola anche il filtro nella colonna Categoria e imposta listener per filtrare la tabella
-    popolaFiltroCategoria();
+    // Category filter removed; category select for add/edit remains
     // Initialize tipo filter icon and badge using exported API if available (read state from sessionStorage)
     try {
         const storedTipo = sessionStorage.getItem('dettaglio_selected_tipo') || '';
         const active = !!storedTipo;
     const visibleCount = (window.BilancioTransazioni && typeof window.BilancioTransazioni.getFiltrate === 'function') ? (window.BilancioTransazioni.getFiltrate().length || 0) : 0;
-        if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoIcon === 'function') window.__categoriaFilter.updateTipoIcon(active, '');
-        if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoBadge === 'function') window.__categoriaFilter.updateTipoBadge(visibleCount);
+    if (window.__tipoFilter && typeof window.__tipoFilter.updateTipoIcon === 'function') window.__tipoFilter.updateTipoIcon(active, '');
+    if (window.__tipoFilter && typeof window.__tipoFilter.updateTipoBadge === 'function') window.__tipoFilter.updateTipoBadge(visibleCount);
     } catch(e){}
     
     // Gestisci il checkbox ricorrente
@@ -726,19 +708,17 @@ function applicaFiltriDettaglio() {
         if (!checkReady()) { setTimeout(applicaFiltriDettaglio, 80); return; }
     } catch(e){}
     const filtroTipo = sessionStorage.getItem('dettaglio_selected_tipo') || '';
-    // Filtra per tipo e per categoria selezionata
-    const filtroCategoria = document.getElementById('filter_categoria_select');
-    const categoriaVal = filtroCategoria ? filtroCategoria.value : '';
+    // Filtra solo per tipo (categoria filter rimosso)
 
-    try { console.log('[FILTRO] applicaFiltriDettaglio start - filtroTipo=', filtroTipo, 'categoriaVal=', categoriaVal); } catch(e){}
+    // debug logging removed
 
     // Prefer model-driven filtering
     if (window.BilancioTransazioni && typeof window.BilancioTransazioni.applyFilters === 'function') {
         try {
-            window.BilancioTransazioni.applyFilters({ categoriaId: categoriaVal || null, tipo: filtroTipo || '' });
-            try { if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoBadge === 'function') window.__categoriaFilter.updateTipoBadge((window.BilancioTransazioni.getFiltrate() || []).length || 0); } catch(e){}
+            window.BilancioTransazioni.applyFilters({ tipo: filtroTipo || '' });
+            try { if (window.__tipoFilter && typeof window.__tipoFilter.updateTipoBadge === 'function') window.__tipoFilter.updateTipoBadge((window.BilancioTransazioni.getFiltrate() || []).length || 0); } catch(e){}
             return;
-        } catch(e) { console.warn('[FILTRO] model applyFilters failed', e); }
+    } catch(e) { /* console.warn removed */ }
     }
 
     // Delegate to model where possible; without globals there's no proxy fallback.
@@ -755,8 +735,8 @@ function applicaFiltriDettaglio() {
                     window.BilancioTransazioni.setFiltrate(filtered);
                 }
                 try { if (typeof aggiornaTabella === 'function') aggiornaTabella(); } catch(e){}
-                try { if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoBadge === 'function') window.__categoriaFilter.updateTipoBadge((filtered && filtered.length) || 0); } catch(e){}
-            } catch(e) { console.warn('[FILTRO] fallback filtering failed', e); }
+                try { if (window.__tipoFilter && typeof window.__tipoFilter.updateTipoBadge === 'function') window.__tipoFilter.updateTipoBadge((filtered && filtered.length) || 0); } catch(e){}
+            } catch(e) { /* console.warn removed */ }
         } else {
             // Last fallback: DOM-only show/hide (non-authoritative)
             try { if (typeof applyClientSideFilter === 'function') applyClientSideFilter(); } catch(e){}
@@ -811,7 +791,7 @@ function ordinaDettaglio(ordine) {
         // write back via model proxy if available
         try { if (window.BilancioTransazioni && typeof window.BilancioTransazioni.setFiltrate === 'function') window.BilancioTransazioni.setFiltrate(arr); } catch(e) {}
         aggiornaTabella();
-    } catch(e) { console.warn('[FILTRO] ordinaDettaglio error', e); }
+    } catch(e) { /* console.warn removed */ }
 }
 
 function convertDataPerOrdinamento(dataStr) {
@@ -826,32 +806,53 @@ function aggiornaTabella() {
         if (!tbody) return;
         tbody.innerHTML = '';
     const rowsSource = (window.BilancioTransazioni && typeof window.BilancioTransazioni.getFiltrate === 'function') ? window.BilancioTransazioni.getFiltrate() : [];
+        // Helper to format dates (accepts YYYY-MM-DD or ISO strings) -> DD/MM/YYYY
+        function formatDateForDisplay(d) {
+            try {
+                if (!d) return '';
+                // If already in DD/MM/YYYY, keep it
+                if (/^\d{2}\/\d{2}\/\d{4}$/.test(d)) return d;
+                // ISO or YYYY-MM-DD
+                const iso = String(d).trim();
+                const datePart = iso.split('T')[0];
+                const parts = datePart.split('-');
+                if (parts.length === 3) {
+                    return parts[2].padStart(2,'0') + '/' + parts[1].padStart(2,'0') + '/' + parts[0];
+                }
+                return d;
+            } catch(e) { return d; }
+        }
+
         (rowsSource || []).forEach(transazione => {
             // Ricrea la riga HTML da zero
             const tr = document.createElement('tr');
+            const _displayDate = formatDateForDisplay(transazione.data);
             tr.innerHTML = `
-                <td>${transazione.data}</td>
+                <td>${_displayDate}</td>
                 <td>${transazione.descrizione}</td>
                 <td><span class="badge ${transazione.tipo === 'entrata' ? 'bg-success' : 'bg-danger'}">${transazione.categoria}</span></td>
                 <td>${transazione.tipo === 'entrata' ? '<span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>' : '<span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>'}</td>
                 <td class="${transazione.tipo === 'entrata' ? 'text-success' : 'text-danger'}">${transazione.tipo === 'entrata' ? '+' : '-'}€ ${Number(transazione.importo || 0).toFixed(2)}</td>
                 <td>
-                    <button class="btn btn-warning btn-sm me-1"
-                        title="Modifica transazione"
-                        data-id="${transazione.id || ''}"
-                        data-descrizione='${JSON.stringify(transazione.descrizione)}'
-                        data-importo="${transazione.importo}"
-                        data-data='${JSON.stringify(transazione.data)}'
-                        data-categoria="${transazione.categoriaId || ''}"
-                        onclick="modificaTransazioneAttr(this)">
-                        <i class="fas fa-edit"></i>
-                    </button>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-warning btn-sm me-1"
+                            title="Modifica transazione"
+                            data-id="${transazione.id || ''}"
+                            data-descrizione='${JSON.stringify(transazione.descrizione)}'
+                            data-importo="${transazione.importo}"
+                            data-data='${JSON.stringify(transazione.data)}'
+                            data-categoria="${transazione.categoriaId || ''}"
+                            data-action="modifica-transazione-attr">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        ${transazione.id ? `<form method="POST" action="/transazioni/${transazione.id}/elimina" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?"><button type="submit" class="btn btn-outline-danger"><i class=\"fas fa-trash\"></i></button></form>` : ''}
+                    </div>
                 </td>
             `;
-            try { tbody.appendChild(tr); } catch(e) { console.warn('[FILTRO] append tr failed', e); }
+            try { tbody.appendChild(tr); } catch(e) { /* console.warn removed */ }
         });
     } catch(e) {
-        console.error('[FILTRO] aggiornaTabella fatal error, restoring initial HTML', e);
+    /* console.error removed */
         try { if (window.__tabella_initial_html && tbody) tbody.innerHTML = window.__tabella_initial_html; } catch(e2){}
     }
     
@@ -912,46 +913,10 @@ function navigateMonth(direction) {
     // Limiti periodo: dal 27 del mese corrente al 26 del mese successivo
     const startDateStr = `${newYear}-${String(newMonth).padStart(2, '0')}-27`;
     const endDateStr = `${endYear}-${String(endMonth).padStart(2, '0')}-26`;
-    // Mantieni il filtro categoria se selezionato
-    const filtroSelect = document.getElementById('filter_categoria_select');
-    const categoriaSel = filtroSelect ? filtroSelect.value : '';
-    const qs = categoriaSel ? `?categoria_id=${categoriaSel}` : '';
-    window.location.href = `/dettaglio/${startDateStr}/${endDateStr}${qs}`;
+        window.location.href = `/dettaglio/${startDateStr}/${endDateStr}`;
 }
 
-function popolaFiltroCategoria() {
-    const select = document.getElementById('filter_categoria_select');
-    if (!select) return;
-    select.innerHTML = '<option value="">Tutte le categorie</option>';
-    categorie.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = c.nome;
-        select.appendChild(opt);
-    });
-    // Listener: filtra solo la tabella senza ricaricare la pagina
-    select.addEventListener('change', function() {
-        try {
-            // Persist selection so model.applyFilters can read it when runApplyFilters prefers the model
-            const sel = this.value || '';
-            const key = 'dettaglio_selected_categoria_id';
-            const tipoKey = 'dettaglio_selected_tipo';
-            if (sel) {
-                sessionStorage.setItem(key, String(sel));
-                try { window.selectedCategoriaId = String(sel); } catch(e){}
-                // mutual exclusion: clear tipo when category selected
-                sessionStorage.removeItem(tipoKey);
-                try { if (window.__categoriaFilter && typeof window.__categoriaFilter.updateTipoIcon === 'function') window.__categoriaFilter.updateTipoIcon(false, ''); } catch(e){}
-            } else {
-                sessionStorage.removeItem(key);
-                try { window.selectedCategoriaId = null; } catch(e){}
-            }
-            if (typeof runApplyFilters === 'function') runApplyFilters();
-            else if (typeof applicaFiltriDettaglio === 'function') applicaFiltriDettaglio();
-            else if (typeof applyClientSideFilter === 'function') applyClientSideFilter();
-        } catch(e) { try { if (typeof applyClientSideFilter === 'function') applyClientSideFilter(); } catch(e){} }
-    });
-}
+// category filter removed: popolaFiltroCategoria removed
 </script>
 
 <!-- Chart.js datalabels plugin (for showing percentages inside segments)
@@ -980,7 +945,7 @@ function loadScript(src) {
         // Detect SES/lockdown-like globals early and skip loading plugins if present
         const sesActive = (typeof window.lockdown === 'function') || (typeof window.harden === 'function') || (typeof window.SES !== 'undefined') || !!window.__SES__;
         if (sesActive) {
-            console.warn('Detected SES/lockdown-like environment - skipping loading of ChartDataLabels script to avoid noisy extension logs.');
+            /* console.warn removed */
             return;
         }
 
@@ -990,7 +955,7 @@ function loadScript(src) {
         });
     } catch (e) {
         // Any error during plugin load should not break the page; plugin is optional.
-        console.debug('ChartDataLabels script load skipped or failed:', e);
+    /* console.debug removed */
     }
 })();
 </script>
@@ -1037,16 +1002,16 @@ function buildUsciteChart(labels, data) {
         if (sesActive) {
             // Some browser extensions inject SES/lockdown and then modify intrinsics, which causes noisy logs.
             // Skip registering plugins to avoid triggering those messages.
-            console.warn('Detected SES/lockdown environment - skipping ChartDataLabels registration to avoid intrinsics modifications.');
+            /* console.warn removed */
         } else if (window.Chart && typeof window.ChartDataLabels !== 'undefined') {
             try {
                 Chart.register(window.ChartDataLabels);
             } catch (regErr) {
-                console.debug('ChartDataLabels present but registration failed:', regErr);
+                /* console.debug removed */
             }
         }
     } catch(e) {
-        console.debug('ChartDataLabels registration skipped due to error', e);
+    /* console.debug removed */
     }
 
     const total = data.reduce((s, v) => s + (Number(v) || 0), 0);
@@ -1125,7 +1090,7 @@ async function refreshUsciteChart(year, month) {
             updateUsciteChartFromStats(payload.stats_categorie);
         }
     } catch (err) {
-        console.error('Errore ricaricamento statistiche per grafico:', err);
+    /* console.error removed */
     }
 }
 
@@ -1150,14 +1115,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         const stats = JSON.parse(raw.textContent || '[]');
         try {
-            console.debug('Chart debug: Chart available?', typeof Chart !== 'undefined');
-            console.debug('Chart debug: raw stats length', (stats && stats.length) ? stats.length : 0);
+            /* console.debug removed */
+            /* console.debug removed */
         } catch(e) { /* ignore */ }
         if (stats && stats.length > 0) {
             try {
                 updateUsciteChartFromStats(stats);
             } catch (err) {
-                console.error('Errore durante updateUsciteChartFromStats:', err);
+                /* console.error removed */
             }
         } else {
             // fallback to API if no embedded stats
@@ -1168,7 +1133,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     } catch (err) {
-        console.error('Errore inizializzazione grafico uscite:', err);
+    /* console.error removed */
     }
 });
 </script>
@@ -1283,7 +1248,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
                 cleanup();
             } catch (err) {
-                console.error('Errore aggiornamento budget inline:', err);
+                /* console.error removed */
                 alert('Errore durante l\'aggiornamento. Controlla la console.');
             }
         });

@@ -56,7 +56,6 @@ def create_app(config_name=None):
     from app.views.auto import auto_bp
     from app.views.ppay_evolution import ppay_bp
     from app.views.appunti import appunti_bp
-    from app.views.database import database_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(transazioni_bp, url_prefix='/transazioni')
@@ -68,6 +67,5 @@ def create_app(config_name=None):
     app.register_blueprint(auto_bp, url_prefix='/auto')
     app.register_blueprint(ppay_bp, url_prefix='/ppay_evolution')
     app.register_blueprint(appunti_bp, url_prefix='/appunti')
-    app.register_blueprint(database_bp, url_prefix='/database')
     
     return app

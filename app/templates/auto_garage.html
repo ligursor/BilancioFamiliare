@@ -129,10 +129,10 @@
                                         <a href="{{ url_for('auto.dettaglio', veicolo_id=veicolo.id) }}" class="btn btn-sm btn-primary">
                                             <i class="fas fa-eye"></i> Dettagli
                                         </a>
-                                        <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalNuovoBollo" onclick="setVeicoloId({{ veicolo.id }})">
+                                        <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalNuovoBollo" data-action="set-veicolo-id" data-id="{{ veicolo.id }}">
                                             <i class="fas fa-receipt"></i> Bollo
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalNuovaManutenzione" onclick="setVeicoloId({{ veicolo.id }})">
+                                        <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalNuovaManutenzione" data-action="set-veicolo-id" data-id="{{ veicolo.id }}">
                                             <i class="fas fa-wrench"></i> Manut.
                                         </button>
                                     </div>

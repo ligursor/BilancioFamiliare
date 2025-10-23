@@ -44,16 +44,16 @@
                         <td><small>{{ appunto.data_creazione.strftime('%d/%m/%Y %H:%M') }}</small></td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-primary" onclick="modificaAppunto({{ appunto.id }})">
+                                <button type="button" class="btn btn-outline-primary" data-action="modifica-appunto" data-id="{{ appunto.id }}">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-success" onclick="trasferisciAppunto({{ appunto.id }});">
+                                <button type="button" class="btn btn-outline-success" data-action="trasferisci-appunto" data-id="{{ appunto.id }}">
                                     <i class="fas fa-arrow-right"></i>
                                 </button>
                                 <button type="button" class="btn btn-outline-danger" 
                                         data-id="{{ appunto.id }}" 
                                         data-titolo="{{ appunto.titolo }}"
-                                        onclick="eliminaAppuntoFromData(this)">
+                                        data-action="elimina-appunto">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -217,7 +217,7 @@
 function modificaAppunto(id) {
     // Recupera i dati dell'appunto tramite AJAX
     const url = '/appunti/' + id + '/dati';
-    console.log('DEBUG: Chiamando URL:', url);
+    // debug logging removed
     fetch(url)
         .then(response => response.json())
         .then(data => {
@@ -239,7 +239,7 @@ function modificaAppunto(id) {
             }
         })
         .catch(error => {
-            console.error('Error:', error);
+            /* console.error removed */
             alert('Errore durante il caricamento dei dati dell\'appunto');
         });
 }
@@ -269,7 +269,7 @@ function trasferisciAppunto(id) {
                     const modal = new bootstrap.Modal(document.getElementById('trasferisciModal'));
                     modal.show();
                 } else {
-                    console.error('Elementi del modal non trovati');
+                    /* console.error removed */
                     alert('Errore: elementi del modal non trovati');
                 }
             } else {
@@ -277,7 +277,7 @@ function trasferisciAppunto(id) {
             }
         })
         .catch(error => {
-            console.error('Errore nel caricamento dei dati:', error);
+            /* console.error removed */
             alert('Errore nel caricamento dei dati: ' + error.message);
         });
 }
@@ -334,7 +334,7 @@ function eliminaAppunto(id, titolo) {
             }
         })
         .catch(error => {
-            console.error('Error:', error);
+            /* console.error removed */
             alert('Errore durante l\'eliminazione');
         });
     }

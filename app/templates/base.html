@@ -87,22 +87,12 @@
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarGestione">
                             <li><h6 class="dropdown-header">Gestione Dati</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('transazioni.lista') }}">
-                                <i class="fas fa-list me-2"></i>Transazioni
-                            </a></li>
+                            <!-- Transazioni menu entry removed: transactions are available only in monthly view -->
                             <li><a class="dropdown-item" href="{{ url_for('categorie.lista') }}">
                                 <i class="fas fa-tags me-2"></i>Categorie
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('main.saldo_iniziale') }}">
                                 <i class="fas fa-piggy-bank me-2"></i>Saldo Iniziale
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">Database</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('database.export') }}">
-                                <i class="fas fa-download me-2"></i>Esporta Database
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('database.import_data') }}">
-                                <i class="fas fa-upload me-2"></i>Importa Database
                             </a></li>
                         </ul>
                     </li>
@@ -140,21 +130,22 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Local Chart.js DataLabels plugin (fallback to avoid CDN / extension issues) -->
     <script src="{{ url_for('static', filename='vendor/chartjs-plugin-datalabels.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/inline-handlers.js') }}"></script>
     <script>
         // Global error handlers to surface errors (useful when extensions inject scripts that throw)
         window.addEventListener('error', function(event) {
             try {
-                console.error('Global JS error captured:', event.message || event.error || event);
-            } catch (e) {
-                // ignore
-            }
+                    /* console.error removed */
+                } catch (e) {
+                    // ignore
+                }
         });
         window.addEventListener('unhandledrejection', function(event) {
             try {
-                console.error('Unhandled promise rejection:', event.reason);
-            } catch (e) {
-                // ignore
-            }
+                    /* console.error removed */
+                } catch (e) {
+                    // ignore
+                }
         });
     </script>
     

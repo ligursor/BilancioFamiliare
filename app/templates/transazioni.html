@@ -20,10 +20,10 @@
                             <tr>
                                 <th style="cursor: pointer; user-select: none;">
                                     Data 
-                                    <span onclick="applicaOrdinamento('data_asc')" class="text-primary me-1" title="Ordina per data crescente" style="cursor: pointer;">
+                                    <span data-action="applica-ordinamento" data-tipo="data_asc" class="text-primary me-1" title="Ordina per data crescente" style="cursor: pointer;">
                                         <i class="fas fa-chevron-up {% if request.args.get('ordine') == 'data_asc' %}text-warning{% endif %}"></i>
                                     </span>
-                                    <span onclick="applicaOrdinamento('data_desc')" class="text-primary" title="Ordina per data decrescente" style="cursor: pointer;">
+                                    <span data-action="applica-ordinamento" data-tipo="data_desc" class="text-primary" title="Ordina per data decrescente" style="cursor: pointer;">
                                         <i class="fas fa-chevron-down {% if not request.args.get('ordine') or request.args.get('ordine') == 'data_desc' %}text-warning{% endif %}"></i>
                                     </span>
                                 </th>
@@ -42,10 +42,10 @@
                                 </th>
                                 <th style="cursor: pointer; user-select: none;">
                                     Importo 
-                                    <span onclick="applicaOrdinamento('importo_asc')" class="text-success me-1" title="Ordina per importo crescente" style="cursor: pointer;">
+                                    <span data-action="applica-ordinamento" data-tipo="importo_asc" class="text-success me-1" title="Ordina per importo crescente" style="cursor: pointer;">
                                         <i class="fas fa-chevron-up {% if request.args.get('ordine') == 'importo_asc' %}text-warning{% endif %}"></i>
                                     </span>
-                                    <span onclick="applicaOrdinamento('importo_desc')" class="text-success" title="Ordina per importo decrescente" style="cursor: pointer;">
+                                    <span data-action="applica-ordinamento" data-tipo="importo_desc" class="text-success" title="Ordina per importo decrescente" style="cursor: pointer;">
                                         <i class="fas fa-chevron-down {% if request.args.get('ordine') == 'importo_desc' %}text-warning{% endif %}"></i>
                                     </span>
                                 </th>
@@ -98,11 +98,11 @@
                                             <i class="fas fa-edit"></i>
                                         </button>
                                     {% endif %}
-                                    <a href="{{ url_for('transazioni.elimina', transazione_id=transazione.id) }}" 
-                                       class="btn btn-danger btn-sm"
-                                       onclick="return confirm('Sei sicuro di voler eliminare questa transazione?')">
-                                        <i class="fas fa-trash"></i>
-                                    </a>
+                                    <form method="POST" action="{{ url_for('transazioni.elimina', transazione_id=transazione.id) }}" style="display:inline">
+                                        <button type="submit" class="btn btn-danger btn-sm" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                             {% endfor %}

@@ -71,10 +71,11 @@
                         <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modificaSaldoModal">
                             <i class="fas fa-edit me-1"></i>Modifica Saldo Iniziale
                         </button>
-                        <a href="#" onclick="if(confirm('Sei sicuro di voler resettare il conto? Tutti i versamenti saranno eliminati!')) window.location.href='{{ url_for('conti.reset_conto', nome_conto=nome_persona) }}'" 
-                           class="btn btn-warning btn-sm">
-                            <i class="fas fa-undo me-1"></i>Reset Conto
-                        </a>
+                        <form method="POST" action="{{ url_for('conti.reset_conto', nome_conto=nome_persona) }}" style="display:inline">
+                            <button type="submit" class="btn btn-warning btn-sm" data-action="confirm-delete" data-message="Sei sicuro di voler resettare il conto? Tutti i versamenti saranno eliminati!">
+                                <i class="fas fa-undo me-1"></i>Reset Conto
+                            </button>
+                        </form>
                         <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#infoModal">
                             <i class="fas fa-info-circle me-1"></i>Info
                         </button>
@@ -156,10 +157,11 @@
                                 {{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(versamento.saldo_dopo_versamento) }}
                             </td>
                             <td class="text-center">
-                                <a href="#" onclick="if(confirm('Sei sicuro di voler eliminare questo versamento?')) window.location.href='{{ url_for('conti.elimina_versamento', versamento_id=versamento.id) }}'" 
-                                   class="btn btn-danger btn-sm" title="Elimina versamento">
-                                    <i class="fas fa-trash"></i>
-                                </a>
+                                <form method="POST" action="{{ url_for('conti.elimina_versamento', versamento_id=versamento.id) }}" style="display:inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo versamento?')">
+                                    <button type="submit" class="btn btn-danger btn-sm" title="Elimina versamento">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                         {% endfor %}
@@ -303,8 +305,39 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gestione anteprima modifica saldo
     const nuovoSaldoField = document.getElementById('nuovo_saldo_iniziale');
     const previewDiv = document.getElementById('preview-saldo');
-    const saldoAttuale = {{ conto.saldo_iniziale }};
-    const saldoCorrente = {{ conto.saldo_corrente }};
+    // Parse numeric values from embedded JSON to avoid template-in-JS warnings
+    (function(){
+        var _data = document.getElementById('conto-personale-data');
+        var __obj = _data ? JSON.parse(_data.textContent || '{}') : {};
+        var saldoAttuale = parseFloat(__obj.saldo_iniziale || 0);
+        var saldoCorrente = parseFloat(__obj.saldo_corrente || 0);
+
+        function formatEuro(amount) {
+            return '€ ' + amount.toFixed(2);
+        }
+
+        function aggiornaAnteprima() {
+            const nuovoSaldo = parseFloat(nuovoSaldoField.value) || 0;
+            const differenza = nuovoSaldo - saldoAttuale;
+            const nuovoSaldoCorrente = saldoCorrente + differenza;
+
+            if (nuovoSaldo > 0 && nuovoSaldo !== saldoAttuale) {
+                previewDiv.style.display = 'block';
+                document.getElementById('nuovo-saldo').textContent = formatEuro(nuovoSaldo);
+                document.getElementById('differenza').textContent = formatEuro(differenza);
+                document.getElementById('differenza').className = differenza >= 0 ? 'text-success' : 'text-danger';
+                document.getElementById('saldo-risultante').textContent = formatEuro(nuovoSaldoCorrente);
+                document.getElementById('saldo-risultante').className = nuovoSaldoCorrente >= 0 ? 'text-success' : 'text-danger';
+            } else {
+                previewDiv.style.display = 'none';
+            }
+        }
+
+        if (nuovoSaldoField) {
+            nuovoSaldoField.addEventListener('input', aggiornaAnteprima);
+            nuovoSaldoField.addEventListener('keyup', aggiornaAnteprima);
+        }
+    })();
     
     function formatEuro(amount) {
         return '€ ' + amount.toFixed(2);
@@ -333,4 +366,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+<script id="conto-personale-data" type="application/json">{{ {'saldo_iniziale': conto.saldo_iniziale, 'saldo_corrente': conto.saldo_corrente} | tojson }}</script>
 {% endblock %}

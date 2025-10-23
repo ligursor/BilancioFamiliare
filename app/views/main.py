@@ -2,7 +2,6 @@
 Blueprint principale per le route di base
 """
 from flask import Blueprint, render_template, current_app
-from app.services.database_service import DatabaseService
 from app.services.transazioni_service import TransazioneService
 from app.models.base import Categoria, SaldoIniziale
 from app.services import get_month_boundaries, get_current_month_name
@@ -177,11 +176,13 @@ def aggiorna_saldo_iniziale():
         saldo = SaldoIniziale.query.first()
         if not saldo:
             saldo = SaldoIniziale(importo=nuovo_importo)
-            db_service = DatabaseService()
-            db_service.save(saldo)
+            from app import db
+            db.session.add(saldo)
+            db.session.commit()
         else:
-            db_service = DatabaseService()
-            db_service.update(saldo, importo=nuovo_importo)
+            saldo.importo = nuovo_importo
+            from app import db
+            db.session.commit()
         
         flash('Saldo iniziale aggiornato con successo!', 'success')
     except Exception as e:

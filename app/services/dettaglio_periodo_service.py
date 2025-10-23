@@ -16,7 +16,7 @@ class DettaglioPeriodoService:
     def __init__(self):
         pass
     
-    def get_dettaglio_mese(self, anno, mese, categoria_id=None):
+    def get_dettaglio_mese(self, anno, mese):
         """
         Implementazione fedele della funzione dettaglio_periodo_interno dell'app.py originale
         """
@@ -24,9 +24,9 @@ class DettaglioPeriodoService:
         data_mese = date(anno, mese, 1)
         start_date, end_date = get_month_boundaries(data_mese)
 
-        return self.dettaglio_periodo_interno(start_date, end_date, categoria_id=categoria_id)
+        return self.dettaglio_periodo_interno(start_date, end_date)
     
-    def dettaglio_periodo_interno(self, start_date, end_date, categoria_id=None):
+    def dettaglio_periodo_interno(self, start_date, end_date):
         """Funzione interna per gestire il dettaglio del periodo - copia fedele da app.py"""
         
         # Prendi tutte le transazioni del periodo (escluse PayPal)
@@ -35,8 +35,7 @@ class DettaglioPeriodoService:
             Transazione.data <= end_date,
             Transazione.categoria_id.isnot(None)  # Escludi transazioni PayPal (senza categoria)
         )
-        if categoria_id:
-            query = query.filter(Transazione.categoria_id == categoria_id)
+        # No category filter applied here (categoria filtering removed)
         transazioni = query.order_by(Transazione.data.desc()).all()
         
         # Separa transazioni effettuate da quelle in attesa
@@ -110,9 +109,7 @@ class DettaglioPeriodoService:
                 Transazione.data <= mese_corrente_end,
                 Transazione.categoria_id.isnot(None)  # Escludi transazioni PayPal (senza categoria)
             ).all()
-            # Applica filtro per categoria anche ai conteggi mensili quando richiesto
-            if categoria_id:
-                tutte_transazioni_mese = [t for t in tutte_transazioni_mese if t.categoria_id == categoria_id]
+            # Do not apply category filter to monthly aggregates (categoria filtering removed)
             
             # Per mesi passati, usa solo transazioni effettuate
             # Per mese corrente e futuri, includi tutte le transazioni (per saldo finale)
@@ -203,9 +200,7 @@ class DettaglioPeriodoService:
             categoria_lookup = {c.id: c for c in Categoria.query.all()}
 
             for b in budgets:
-                # Se è stato passato un filtro categoria e non coincide con questo budget, saltalo
-                if categoria_id and b.categoria_id != categoria_id:
-                    continue
+                # Include all budgets (categoria filtering removed)
                 cat_id = b.categoria_id
                 cat = categoria_lookup.get(cat_id)
                 nome_cat = cat.nome if cat else f'Categoria {cat_id}'

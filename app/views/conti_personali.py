@@ -95,7 +95,7 @@ def aggiungi_versamento(nome_conto):
     
     return redirect(url_for('conti.' + nome_conto.lower()))
 
-@conti_bp.route('/elimina_versamento/<int:versamento_id>')
+@conti_bp.route('/elimina_versamento/<int:versamento_id>', methods=['POST'])
 def elimina_versamento(versamento_id):
     """Elimina un versamento e ripristina il saldo"""
     try:
@@ -129,7 +129,7 @@ def elimina_versamento(versamento_id):
         flash(f'Errore nell\'eliminazione: {str(e)}', 'error')
         return redirect(url_for('conti.maurizio'))  # fallback
 
-@conti_bp.route('/reset_conto/<nome_conto>')
+@conti_bp.route('/reset_conto/<nome_conto>', methods=['POST'])
 def reset_conto(nome_conto):
     """Reset del conto al saldo iniziale"""
     try:

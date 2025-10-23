@@ -13,7 +13,7 @@
                     <!-- Pulsante per test roll-over (nascosto in produzione) -->
                     <a href="{{ url_for('main.forza_rollover') }}" class="btn btn-outline-warning btn-sm" 
                        style="display: none;" id="btnRollover"
-                       onclick="return confirm('Forzare il roll-over mensile? Questa azione aggiornerà il saldo iniziale.')">
+                       data-action="confirm-delete" data-message="Forzare il roll-over mensile? Questa azione aggiornerà il saldo iniziale.">
                         <i class="fas fa-sync me-1"></i>Test Roll-over
                     </a>
                 </div>
@@ -94,52 +94,7 @@
     </div>
 </div>
 
-<div class="row mt-4">
-    <div class="col-lg-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Grafico Bilancio</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="bilancioChart" height="100"></canvas>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Transazioni Periodo Corrente</h5>
-            </div>
-            <div class="card-body">
-                {% if ultime_transazioni %}
-                    <div class="list-group list-group-flush">
-                        {% for transazione in ultime_transazioni %}
-                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <div>
-                                <strong>{{ transazione.descrizione }}</strong><br>
-                                <small class="text-muted">
-                                    {{ transazione.data.strftime('%d/%m/%Y') }} - {{ transazione.categoria.nome }}
-                                </small>
-                            </div>
-                            <span class="badge {% if transazione.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %} rounded-pill">
-                                {% if transazione.tipo == 'entrata' %}+{% else %}-{% endif %}€{{ "%.2f"|format(transazione.importo) }}
-                            </span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    <div class="text-center mt-3">
-                        <a href="{{ url_for('transazioni.lista') }}" class="btn btn-outline-primary btn-sm">
-                            Vedi tutte le transazioni
-                        </a>
-                    </div>
-                {% else %}
-                    <p class="text-muted text-center">Nessuna transazione trovata</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
+<!-- Grafico e transazioni rimosse dalla dashboard principale per semplificare l'interfaccia -->
 
 <!-- Modal per aggiungere transazione -->
 <div class="modal fade" id="addTransactionModal" tabindex="-1">
@@ -214,108 +169,18 @@
 </div>
 {% endblock %}
 
+<!-- Keep only categorie-data and modal JS; mesi-data and Chart initialization removed -->
+<script id="categorie-data" type="application/json">[
+{% for categoria in categorie %}
+    {"id": {{ categoria.id }}, "nome": "{{ categoria.nome | replace('"','\"') }}", "tipo": "{{ categoria.tipo }}" }{% if not loop.last %},{% endif %}
+{% endfor %}
+]</script>
+
 {% block scripts %}
 <script>
-// Dati per il grafico e funzioni globali
-const mesiData = {{ mesi | tojson }};
-const categorie = {{ categorie | tojson }};
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Inizializza il grafico
-    if (mesiData && mesiData.length > 0) {
-        const labels = mesiData.map(d => d.nome);
-        const entrate = mesiData.map(d => d.entrate);
-        const uscite = mesiData.map(d => d.uscite);
-        const bilanci = mesiData.map(d => d.bilancio);
-
-        const ctx = document.getElementById('bilancioChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Entrate',
-                    data: entrate,
-                    backgroundColor: 'rgba(40, 167, 69, 0.8)',
-                    borderColor: 'rgba(40, 167, 69, 1)',
-                    borderWidth: 1
-                }, {
-                    label: 'Uscite',
-                    data: uscite,
-                    backgroundColor: 'rgba(220, 53, 69, 0.8)',
-                    borderColor: 'rgba(220, 53, 69, 1)',
-                    borderWidth: 1
-                }, {
-                    label: 'Bilancio',
-                    data: bilanci,
-                    type: 'line',
-                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                    borderColor: 'rgba(0, 123, 255, 1)',
-                    borderWidth: 2,
-                    fill: false,
-                    yAxisID: 'y1'
-                }]
-            },
-            options: {
-                responsive: true,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                scales: {
-                    y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        title: {
-                            display: true,
-                            text: 'Importo (€)'
-                        }
-                    },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: {
-                            display: true,
-                            text: 'Bilancio (€)'
-                        },
-                        grid: {
-                            drawOnChartArea: false,
-                        },
-                    }
-                },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Analisi Bilancio Mensile'
-                    },
-                    legend: {
-                        display: true,
-                        position: 'top'
-                    }
-                }
-            }
-        });
-    } else {
-        console.error('Dati mesi non disponibili per il grafico');
-    }
-
-    // Shortcut per mostrare il pulsante di roll-over (Ctrl+Shift+R)
-    document.addEventListener('keydown', function(e) {
-        if (e.ctrlKey && e.shiftKey && e.key === 'R') {
-            e.preventDefault();
-            document.getElementById('btnRollover').style.display = 'inline-block';
-        }
-    });
-    
-    // Carica automaticamente le categorie di uscita al caricamento della pagina
-    setTimeout(function() {
-        filtraCategorie();
-    }, 100);
-});
-
 // Funzioni per il modal nuova transazione
+const categorie = JSON.parse(document.getElementById('categorie-data').textContent || '[]');
+
 function filtraCategorie() {
     const tipo = document.getElementById('tipo').value;
     const categoriaSelect = document.getElementById('categoria_id');

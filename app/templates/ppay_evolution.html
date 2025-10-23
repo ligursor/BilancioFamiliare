@@ -102,7 +102,7 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary" onclick="modificaAbbonamento({{ abbonamento.id }})" data-bs-toggle="modal" data-bs-target="#modalModificaAbbonamento">
+                                            <button class="btn btn-outline-primary" data-action="modifica-abbonamento" data-id="{{ abbonamento.id }}" data-bs-toggle="modal" data-bs-target="#modalModificaAbbonamento">
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                             <form method="POST" action="{{ url_for('ppay.elimina_abbonamento', abbonamento_id=abbonamento.id) }}" style="display: inline;" onsubmit="return confirm('Sei sicuro di voler eliminare questo abbonamento?')">

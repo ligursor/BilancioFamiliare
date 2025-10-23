@@ -174,7 +174,7 @@
                             {% set rate_totali = piano.rate|length if piano.rate else 3 %}
                             {% set rate_pagate = piano.rate|selectattr('stato', 'equalto', 'pagata')|list|length if piano.rate else 0 %}
                             <div class="progress" style="height: 20px;">
-                                <div class="progress-bar" style="width: {{ (rate_pagate / rate_totali * 100) if rate_totali > 0 else 0 }}%">
+                                <div class="progress-bar" data-progress="{{ (rate_pagate / rate_totali * 100) if rate_totali > 0 else 0 }}">
                                     {{ rate_pagate }}/{{ rate_totali }}
                                 </div>
                             </div>
@@ -187,9 +187,11 @@
                                 <a href="{{ url_for('paypal.modifica', piano_id=piano.id) }}" class="btn btn-sm btn-outline-secondary">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <a href="{{ url_for('paypal.elimina', piano_id=piano.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Sei sicuro di voler eliminare questo piano?')">
-                                    <i class="fas fa-trash"></i>
-                                </a>
+                                <form method="POST" action="{{ url_for('paypal.elimina', piano_id=piano.id) }}" style="display:inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo piano?">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
                             </div>
                         </td>
                     </tr>
@@ -209,4 +211,15 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('.progress-bar[data-progress]').forEach(function(pb){
+        var v = parseFloat(pb.dataset.progress) || 0;
+        pb.style.width = v + '%';
+    });
+});
+</script>
 {% endblock %}

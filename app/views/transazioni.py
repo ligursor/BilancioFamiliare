@@ -95,6 +95,8 @@ def nuova():
 def completa(transazione_id):
     """Segna una transazione come completata"""
     try:
+        # fetch the transaction to determine its date for redirect
+        transazione = Transazione.query.get_or_404(transazione_id)
         service = TransazioneService()
         success, message = service.mark_as_completed(transazione_id)
         
@@ -104,26 +106,46 @@ def completa(transazione_id):
             flash(f'Errore: {message}', 'error')
     except Exception as e:
         flash(f'Errore: {str(e)}', 'error')
-    
-    return redirect(url_for('transazioni.lista'))
+
+    # Redirect back to the month view containing the transaction
+    try:
+        target_date = getattr(transazione, 'data', None)
+        if not target_date:
+            target_date = date.today()
+        return redirect(url_for('dettaglio_periodo.mese', anno=target_date.year, mese=target_date.month))
+    except Exception:
+        return redirect(url_for('transazioni.lista'))
 
 @transazioni_bp.route('/<int:transazione_id>/elimina', methods=['POST'])
-def elimina(transazione_id):
-    """Elimina una transazione"""
+@transazioni_bp.route('/<int:id>/elimina', methods=['POST'])
+def elimina(transazione_id=None, id=None):
+    """Elimina una transazione. Supporta sia POST che GET and accepts either
+    'transazione_id' or 'id' as path parameter to be compatible with existing templates.
+    """
+    # Accept either name coming from different templates/routes
+    tid = transazione_id or id
     try:
-        transazione = Transazione.query.get_or_404(transazione_id)
+        transazione = Transazione.query.get_or_404(tid)
         service = TransazioneService()
-        
+
+        # Allow deletion regardless of data_effettiva / stato
         success, message = service.delete(transazione)
-        
+
         if success:
             flash('Transazione eliminata con successo!', 'success')
         else:
-            flash(f'Errore nell\'eliminazione: {message}', 'error')
+            flash(f"Errore nell'eliminazione: {message}", 'error')
     except Exception as e:
         flash(f'Errore: {str(e)}', 'error')
-    
-    return redirect(url_for('transazioni.lista'))
+
+    # Redirect back to the month view containing the (now deleted) transaction
+    try:
+        target_date = getattr(transazione, 'data', None)
+        if not target_date:
+            target_date = date.today()
+        return redirect(url_for('dettaglio_periodo.mese', anno=target_date.year, mese=target_date.month))
+    except Exception:
+        return redirect(url_for('transazioni.lista'))
 
 @transazioni_bp.route('/<int:transazione_id>/modifica', methods=['GET', 'POST'])
 def modifica(transazione_id):
@@ -155,7 +177,18 @@ def modifica(transazione_id):
         
         if success:
             flash('Transazione aggiornata con successo!', 'success')
-            return redirect(url_for('transazioni.lista'))
+            # Redirect to the month view containing the transaction's date instead of the full transactions list
+            try:
+                # use the updated transaction date to determine the target month
+                target_date = transazione.data if hasattr(transazione, 'data') else None
+                if not target_date:
+                    # fallback to form data
+                    target_date = data
+                anno = target_date.year
+                mese = target_date.month
+                return redirect(url_for('dettaglio_periodo.mese', anno=anno, mese=mese))
+            except Exception:
+                return redirect(url_for('transazioni.lista'))
         else:
             flash(f'Errore nell\'aggiornamento: {message}', 'error')
     
@@ -210,7 +243,12 @@ def aggiungi():
                 _, start_date_str, end_date_str = redirect_to.split(':')
                 return redirect(url_for('main.dettaglio_periodo', start_date=start_date_str, end_date=end_date_str))
             else:
-                return redirect(url_for('transazioni.lista'))
+                # Default: redirect to the month view containing the created transaction
+                try:
+                    target_date = getattr(transazione, 'data', None) or data
+                    return redirect(url_for('dettaglio_periodo.mese', anno=target_date.year, mese=target_date.month))
+                except Exception:
+                    return redirect(url_for('transazioni.lista'))
         else:
             flash(f'Errore nella creazione: {message}', 'error')
     

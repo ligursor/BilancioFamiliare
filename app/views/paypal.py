@@ -212,7 +212,7 @@ def modifica(piano_id):
     
     return render_template('paypal_modifica.html', piano=piano)
 
-@paypal_bp.route('/piano/<int:piano_id>/elimina')
+@paypal_bp.route('/piano/<int:piano_id>/elimina', methods=['POST'])
 def elimina(piano_id):
     """Elimina un piano PayPal"""
     piano = PaypalPiano.query.get_or_404(piano_id)
