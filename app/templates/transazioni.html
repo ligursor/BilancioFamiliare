@@ -13,7 +13,7 @@
                 </button>
             </div>
             <div class="card-body">
-                {% if transazioni.items %}
+                {% if transazioni %}
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
@@ -54,7 +54,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for transazione in transazioni.items %}
+                            {% for transazione in transazioni %}
                             <tr>
                                 <td>{{ transazione.data.strftime('%d/%m/%Y') }}</td>
                                 <td>{{ transazione.descrizione }}</td>
@@ -110,38 +110,7 @@
                     </table>
                 </div>
 
-                <!-- Paginazione -->
-                {% if transazioni.pages > 1 %}
-                <nav aria-label="Paginazione transazioni">
-                    <ul class="pagination justify-content-center">
-                        {% if transazioni.has_prev %}
-                            <li class="page-item">
-                                <a class="page-link" href="{{ url_for('transazioni.lista', page=transazioni.prev_num, tipo=request.args.get('tipo'), ordine=request.args.get('ordine')) }}">Precedente</a>
-                            </li>
-                        {% endif %}
-                        
-                        {% for page_num in transazioni.iter_pages() %}
-                            {% if page_num %}
-                                {% if page_num != transazioni.page %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="{{ url_for('transazioni.lista', page=page_num, tipo=request.args.get('tipo'), ordine=request.args.get('ordine')) }}">{{ page_num }}</a>
-                                    </li>
-                                {% else %}
-                                    <li class="page-item active">
-                                        <span class="page-link">{{ page_num }}</span>
-                                    </li>
-                                {% endif %}
-                            {% endif %}
-                        {% endfor %}
-                        
-                        {% if transazioni.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="{{ url_for('transazioni.lista', page=transazioni.next_num, tipo=request.args.get('tipo'), ordine=request.args.get('ordine')) }}">Successiva</a>
-                            </li>
-                        {% endif %}
-                    </ul>
-                </nav>
-                {% endif %}
+                <!-- Paginazione rimossa: tutte le transazioni vengono mostrate in un'unica lista -->
                 {% else %}
                 <div class="text-center py-5">
                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
@@ -313,11 +282,7 @@ function applicaFiltri() {
         urlParams.delete('tipo');
     }
     
-    // Mantieni la pagina corrente se esiste
-    if (!urlParams.has('page')) {
-        urlParams.set('page', '1');
-    }
-    
+    // La paginazione è stata rimossa: non manipoliamo più il parametro 'page'
     window.location.search = urlParams.toString();
 }
 
@@ -334,7 +299,7 @@ function renderTipoMenuTransazioni() {
         b.addEventListener('click', function(){
             const urlParams = new URLSearchParams(window.location.search);
             if (e.id) urlParams.set('tipo', e.id); else urlParams.delete('tipo');
-            urlParams.set('page', '1');
+            // Paginazione rimossa: non impostiamo più 'page'
             window.location.search = urlParams.toString();
         });
         li.appendChild(b); tipoMenu.appendChild(li);
@@ -373,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function applicaOrdinamento(ordine) {
     const urlParams = new URLSearchParams(window.location.search);
     urlParams.set('ordine', ordine);
-    urlParams.set('page', '1'); // Torna alla prima pagina
+    // Paginazione rimossa: non manipoliamo più 'page'
     window.location.search = urlParams.toString();
 }
 
@@ -420,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 100);
 });
 
-// Backup: richiama filtraCategorie anche quando la finestra è completamente caricata
+// Assicura il popolamento delle categorie anche al completo caricamento della pagina
 window.addEventListener('load', function() {
     filtraCategorie();
 });

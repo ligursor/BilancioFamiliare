@@ -20,7 +20,9 @@ def lista():
             Appunto.data_creazione.desc()
         ).all()
         
-        categorie = Categoria.query.filter(Categoria.nome != 'PayPal').all()
+        from app.services.categorie_service import CategorieService
+        service_cat = CategorieService()
+        categorie = service_cat.get_all_categories(exclude_paypal=True)
         
         return render_template('appunti.html', appunti=appunti, categorie=categorie)
     except Exception as e:

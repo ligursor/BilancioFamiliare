@@ -1,7 +1,10 @@
 """
-Placeholder: database service was archived to `_backup/obsolete/app_services_database_service.py`.
-This module intentionally contains no operational code to avoid accidental use.
-Restore from the backup file if you want to re-enable the feature.
+REMOVED: Import/Export database service stub
+
+Il servizio operativo per import/export è stato rimosso dal codice attivo.
+I sorgenti originali sono archiviati in `_backup/obsolete/`.
+
+Questo file rimane come placeholder per evitare rotture su import.
 """
 
-# inert stub
+# inert placeholder

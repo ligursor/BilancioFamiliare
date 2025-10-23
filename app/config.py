@@ -13,7 +13,6 @@ from dotenv import load_dotenv
 
 # Carica le variabili d'ambiente dal file .env se esiste
 load_dotenv()
-from app import defaults
 
 class Config:
     """Configurazione principale dell'applicazione"""
@@ -55,9 +54,6 @@ class Config:
     STIPENDIO_DICEMBRE_GIORNO = 20  # Accreditato il 20 dicembre
     STIPENDIO_NORMALE_GIORNO = 27   # Accreditato il 27 degli altri mesi
     
-    # Categorie predefinite (valori non-operativi; delegati a app.defaults)
-    CATEGORIE_DEFAULT = getattr(defaults, 'CATEGORIE_DEFAULT', [])
-    
     # Impostazioni UI
     TITOLO_APP = "Gestione Bilancio Familiare"
     DESCRIZIONE_APP = "Sistema di gestione del bilancio familiare con calcolo mensile personalizzato"
@@ -67,13 +63,10 @@ class Config:
     FORMATO_DATA = "%d/%m/%Y"
     FORMATO_DATA_COMPLETA = "%d/%m/%Y %H:%M"
     
-    # Paginazione
-    TRANSAZIONI_PER_PAGINA = 30
-    
     # Backup automatico (settembre 2025)
-    BACKUP_KEEP_DATES = 2  # Numero di date di backup da mantenere  
-    BACKUP_KEEP_RECENT = 5  # Numero di backup recenti da mantenere
-    BACKUP_AUTO_EXPORT = True  # Export automatico attivo
+    # Backup automatico: funzionalità disabilitata nel codice principale.
+    # Implementazioni originali e script di import/export sono stati
+    # archiviati in `_backup/obsolete/`. Ripristinare da lì se necessario.
     
     # UI Improvements (settembre 2025)
     AUTO_LOAD_CATEGORIES = True  # Caricamento automatico categorie
@@ -90,11 +83,7 @@ class Config:
     POSTEPAY_SALDO_INIZIALE = 0  # Saldo iniziale PostePay Evolution
     POSTEPAY_FORMATO_VALUTA = "€ {:.2f}"  # Formato valuta per PostePay
     
-    # Configurazioni PayPal predefinite (delegato a app.defaults)
-    PIANI_PAYPAL_DEFAULT = getattr(defaults, 'PIANI_PAYPAL_DEFAULT', [])
-
-    # Configurazioni abbonamenti PostePay predefiniti (delegato a app.defaults)
-    POSTEPAY_ABBONAMENTI_DEFAULT = getattr(defaults, 'POSTEPAY_ABBONAMENTI_DEFAULT', [])
+    # NOTE: non caricare piani/abbonamenti default da file; usare il DB.
 
 class DevelopmentConfig(Config):
     """Configurazione per l'ambiente di sviluppo"""

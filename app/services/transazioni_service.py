@@ -51,6 +51,29 @@ class TransazioneService(BaseService):
         
         return query.paginate(page=page, per_page=per_page, error_out=False)
 
+    def get_transazioni_filtered(self, tipo_filtro=None, ordine='data_desc'):
+        """Recupera tutte le transazioni applicando filtri e ordinamento, senza paginazione"""
+        query = Transazione.query.filter(Transazione.categoria_id.isnot(None))
+
+        # Applica filtro tipo se specificato
+        if tipo_filtro in ['entrata', 'uscita']:
+            query = query.filter(Transazione.tipo == tipo_filtro)
+
+        # Applica ordinamento
+        if ordine == 'data_asc':
+            query = query.order_by(Transazione.data.asc(), Transazione.id.asc())
+        elif ordine == 'data_desc':
+            query = query.order_by(Transazione.data.desc(), Transazione.id.desc())
+        elif ordine == 'importo_asc':
+            query = query.order_by(Transazione.importo.asc(), Transazione.data.desc())
+        elif ordine == 'importo_desc':
+            query = query.order_by(Transazione.importo.desc(), Transazione.data.desc())
+        else:
+            # Default: data decrescente
+            query = query.order_by(Transazione.data.desc(), Transazione.id.desc())
+
+        return query.all()
+
     def calculate_saldo_by_period(self, data_inizio, data_fine):
         """Calcola entrate, uscite e saldo per un periodo"""
         transazioni = self.get_transazioni_by_period(data_inizio, data_fine)

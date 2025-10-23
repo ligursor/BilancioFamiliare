@@ -34,10 +34,9 @@ def mese(anno, mese):
         dettaglio = service.get_dettaglio_mese(anno, mese)
         stats_categorie = service.get_statistiche_per_categoria(anno, mese)
 
-        # Prepara categorie per il modal (escludi PayPal)
-        from app.models.base import Categoria
-        categorie = Categoria.query.filter(Categoria.nome != 'PayPal').all()
-        categorie_dict = [{'id': c.id, 'nome': c.nome, 'tipo': c.tipo} for c in categorie]
+        # Prepara categorie per il modal (escludi PayPal) usando il servizio
+        service_cat = CategorieService()
+        categorie_dict = service_cat.get_categories_dict(exclude_paypal=True)
 
         # Calcola mese precedente e successivo
         if mese == 1:
@@ -80,10 +79,9 @@ def dettaglio_periodo(start_date, end_date):
         # Recupera dettaglio del periodo (categoria filtering removed)
         result = service.dettaglio_periodo_interno(start_date_obj, end_date_obj)
 
-        # Prepara categorie per il modal (escludi PayPal)
-        from app.models.base import Categoria
-        categorie = Categoria.query.filter(Categoria.nome != 'PayPal').all()
-        categorie_dict = [{'id': c.id, 'nome': c.nome, 'tipo': c.tipo} for c in categorie]
+        # Prepara categorie per il modal (escludi PayPal) usando il servizio
+        service_cat = CategorieService()
+        categorie_dict = service_cat.get_categories_dict(exclude_paypal=True)
 
         # Aggiungi le categorie al risultato
         result['categorie'] = categorie_dict

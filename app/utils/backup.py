@@ -1,9 +1,10 @@
 """
-Placeholder: the backup utility was archived to `_backup/obsolete/app_utils_backup.py`.
-This module intentionally provides no operational functions to avoid accidental usage.
-If you need to restore import/export, recover the original implementation from
-`_backup/obsolete/app_utils_backup.py` and add only the functions you need.
+REMOVED: Backup utility
+
+Le funzioni di backup/import-export sono state rimosse dal codice principale
+e archiviate in `_backup/obsolete/`. Questo file è mantenuto come placeholder
+non operativo per evitare errori di import.
 """
 
-# inert stub - no runtime behavior
+# inert placeholder
 

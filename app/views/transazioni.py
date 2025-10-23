@@ -14,28 +14,24 @@ def lista():
     """Lista delle transazioni con paginazione e filtri"""
     try:
         service = TransazioneService()
-        
-        # Parametri di paginazione e filtri
-        page = request.args.get('page', 1, type=int)
-        per_page = 20
+        # Parametri di filtri (senza paginazione)
         tipo_filtro = request.args.get('tipo', '')
         ordine = request.args.get('ordine', 'data_desc')
-        
-        # Recupera transazioni con paginazione
-        transazioni = service.get_transazioni_with_pagination(
-            page=page, 
-            per_page=per_page, 
+
+        # Recupera tutte le transazioni applicando i filtri e l'ordinamento
+        transazioni = service.get_transazioni_filtered(
             tipo_filtro=tipo_filtro if tipo_filtro else None,
             ordine=ordine
         )
         
-        # Categorie per i filtri
-        categorie = Categoria.query.filter(Categoria.nome != 'PayPal').all()
-        categorie_dict = [{'id': c.id, 'nome': c.nome, 'tipo': c.tipo} for c in categorie]
+        # Categorie per i filtri - usa il servizio per leggere dal DB
+        from app.services.categorie_service import CategorieService
+        service_cat = CategorieService()
+        categorie_dict = service_cat.get_categories_dict(exclude_paypal=True)
         
         return render_template('transazioni.html',
-                             transazioni=transazioni,
-                             categorie=categorie_dict)
+                               transazioni=transazioni,
+                               categorie=categorie_dict)
         
     except Exception as e:
         flash(f'Errore nel caricamento delle transazioni: {str(e)}', 'error')
@@ -45,7 +41,9 @@ def lista():
 def nuova():
     """Crea una nuova transazione"""
     if request.method == 'GET':
-        categorie = Categoria.query.all()
+        from app.services.categorie_service import CategorieService
+        service_cat = CategorieService()
+        categorie = service_cat.get_all_categories()
         return render_template('transazioni/nuova.html', categorie=categorie)
     
     try:
@@ -88,7 +86,9 @@ def nuova():
         flash(f'Errore imprevisto: {str(e)}', 'error')
     
     # Ricarica form in caso di errore
-    categorie = Categoria.query.all()
+    from app.services.categorie_service import CategorieService
+    service_cat = CategorieService()
+    categorie = service_cat.get_all_categories()
     return render_template('transazioni/nuova.html', categorie=categorie)
 
 @transazioni_bp.route('/<int:transazione_id>/completa', methods=['POST'])
@@ -153,7 +153,9 @@ def modifica(transazione_id):
     transazione = Transazione.query.get_or_404(transazione_id)
     
     if request.method == 'GET':
-        categorie = Categoria.query.all()
+        from app.services.categorie_service import CategorieService
+        service_cat = CategorieService()
+        categorie = service_cat.get_all_categories()
         return render_template('transazioni/modifica.html', 
                              transazione=transazione, 
                              categorie=categorie)
@@ -196,7 +198,9 @@ def modifica(transazione_id):
         flash(f'Errore: {str(e)}', 'error')
     
     # Ricarica form in caso di errore
-    categorie = Categoria.query.all()
+    from app.services.categorie_service import CategorieService
+    service_cat = CategorieService()
+    categorie = service_cat.get_all_categories()
     return render_template('transazioni/modifica.html', 
                          transazione=transazione, 
                          categorie=categorie)

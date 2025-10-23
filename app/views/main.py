@@ -149,9 +149,10 @@ def index():
     else:
         ultime_transazioni = []
     
-    # Ottieni categorie per il modal (escludi PayPal)
-    categorie = Categoria.query.filter(Categoria.nome != 'PayPal').all()
-    categorie_dict = [{'id': c.id, 'nome': c.nome, 'tipo': c.tipo} for c in categorie]
+    # Ottieni categorie per il modal (escludi PayPal) usando il servizio
+    from app.services.categorie_service import CategorieService
+    service_cat = CategorieService()
+    categorie_dict = service_cat.get_categories_dict(exclude_paypal=True)
     
     return render_template('index.html', 
                          mesi=mesi, 
