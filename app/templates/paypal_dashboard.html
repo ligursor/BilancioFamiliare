@@ -91,22 +91,21 @@
         {% set piani_in_corso = piani|rejectattr('stato', 'equalto', 'completato')|list if piani else [] %}
         {% if piani_in_corso %}
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table id="table-piani-in-corso" class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Descrizione</th>
-                        <th>Importo Totale</th>
-                        <th>Importo Rata</th>
-                        <th>Prossima Scadenza</th>
-                        <th>Stato</th>
-                        <th>Progresso</th>
-                        <th>Azioni</th>
+                        <th class="text-center">Descrizione</th>
+                        <th class="text-center">Importo Totale</th>
+                        <th class="text-center">Importo Rata</th>
+                        <th class="text-center">Prossima Scadenza</th>
+                        
+                        <th class="text-center">Azioni</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for piano in piani_in_corso %}
                     <tr>
-                        <td>
+                        <td class="text-start">
                             <a href="{{ url_for('paypal.dettaglio', piano_id=piano.id) }}" class="text-decoration-none">
                                 <strong>{{ piano.descrizione }}</strong>
                             </a>
@@ -114,9 +113,9 @@
                             <br><small class="text-muted">{{ piano.note[:50] }}{% if piano.note|length > 50 %}...{% endif %}</small>
                             {% endif %}
                         </td>
-                        <td>€{{ "%.2f"|format(piano.importo_totale) }}</td>
-                        <td>€{{ "%.2f"|format(piano.importo_rata) }}</td>
-                        <td>
+                        <td class="text-center">€{{ "%.2f"|format(piano.importo_totale) }}</td>
+                        <td class="text-center">€{{ "%.2f"|format(piano.importo_rata) }}</td>
+                        <td class="text-center">
                             {# mostra la prossima rata non pagata; fallback alla prima rata #}
                             {% set prossime = (piano.rate|selectattr('stato', 'ne', 'pagata')|list) if piano.rate else [] %}
                             {% if prossime and prossime|length > 0 %}
@@ -125,19 +124,8 @@
                                 {{ piano.data_prima_rata.strftime('%d/%m/%Y') }}
                             {% endif %}
                         </td>
-                        <td>
-                            <span class="badge bg-success">In corso</span>
-                        </td>
-                        <td>
-                            {% set rate_totali = piano.rate|length if piano.rate else 3 %}
-                            {% set rate_pagate = piano.rate|selectattr('stato', 'equalto', 'pagata')|list|length if piano.rate else 0 %}
-                            <div class="progress" style="height: 20px;">
-                                <div class="progress-bar" data-progress="{{ (rate_pagate / rate_totali * 100) if rate_totali > 0 else 0 }}">
-                                    {{ rate_pagate }}/{{ rate_totali }}
-                                </div>
-                            </div>
-                        </td>
-                        <td>
+                        
+                        <td class="text-center">
                             <div class="btn-group" role="group">
                                 <a href="{{ url_for('paypal.dettaglio', piano_id=piano.id) }}" class="btn btn-sm btn-outline-primary">
                                     <i class="fas fa-eye"></i>
@@ -175,42 +163,29 @@
         {% set piani_completati = piani|selectattr('stato', 'equalto', 'completato')|list if piani else [] %}
         {% if piani_completati %}
         <div class="table-responsive">
-            <table id="table-piani-completati" class="table table-hover" data-page-size="5" tabindex="-1">
+            <table id="table-piani-completati" class="table table-striped" data-page-size="5" tabindex="-1">
                 <thead>
                     <tr>
-                        <th>Descrizione</th>
-                        <th>Importo Totale</th>
-                        <th>Importo Rata</th>
-                        <th>Prima Rata</th>
-                        <th>Stato</th>
-                        <th>Progresso</th>
-                        <th>Azioni</th>
+                        <th class="text-center">Descrizione</th>
+                        <th class="text-center">Importo Totale</th>
+                        <th class="text-center">Importo Rata</th>
+                        <th class="text-center">Prima Rata</th>
+                        <th class="text-center">Azioni</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for piano in piani_completati %}
                     <tr>
-                        <td>
+                        <td class="text-start">
                             <a href="{{ url_for('paypal.dettaglio', piano_id=piano.id) }}" class="text-decoration-none">
                                 <strong>{{ piano.descrizione }}</strong>
                             </a>
                         </td>
-                        <td>€{{ "%.2f"|format(piano.importo_totale) }}</td>
-                        <td>€{{ "%.2f"|format(piano.importo_rata) }}</td>
-                        <td>{{ piano.data_prima_rata.strftime('%d/%m/%Y') }}</td>
-                        <td>
-                            <span class="badge bg-primary">Completato</span>
-                        </td>
-                        <td>
-                            {% set rate_totali = piano.rate|length if piano.rate else 3 %}
-                            {% set rate_pagate = piano.rate|selectattr('stato', 'equalto', 'pagata')|list|length if piano.rate else 0 %}
-                            <div class="progress" style="height: 20px;">
-                                <div class="progress-bar" data-progress="{{ (rate_pagate / rate_totali * 100) if rate_totali > 0 else 0 }}">
-                                    {{ rate_pagate }}/{{ rate_totali }}
-                                </div>
-                            </div>
-                        </td>
-                        <td>
+                        <td class="text-center">€{{ "%.2f"|format(piano.importo_totale) }}</td>
+                        <td class="text-center">€{{ "%.2f"|format(piano.importo_rata) }}</td>
+                        <td class="text-center">{{ piano.data_prima_rata.strftime('%d/%m/%Y') }}</td>
+                        
+                        <td class="text-center">
                             <div class="btn-group" role="group">
                                 <a href="{{ url_for('paypal.dettaglio', piano_id=piano.id) }}" class="btn btn-sm btn-outline-primary">
                                     <i class="fas fa-eye"></i>

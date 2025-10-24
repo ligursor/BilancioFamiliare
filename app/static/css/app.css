@@ -113,3 +113,50 @@
 .tipo-filter-wrapper { position: static; margin-left: 6px; }
 .tipo-filter-wrapper .btn { width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; border: 1px solid transparent; border-radius: 6px; }
 .tipo-filter-wrapper .btn i { display: inline-flex; align-items: center; justify-content: center; font-size: 14px; line-height: 1; }
+
+/* Make action buttons in tables uniformly rounded and spaced */
+.table .btn,
+.table .btn-sm,
+.table .btn-group .btn {
+    border-radius: 6px !important; /* consistent rounded corners */
+    height: 32px !important;
+    min-width: 32px !important;
+    padding: 4px 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 14px !important;
+    box-sizing: border-box !important;
+}
+/* Ensure icon inside button doesn't add extra offset */
+.table .btn i,
+.table .btn-sm i,
+.table .btn-group .btn i { margin: 0 !important; line-height: 1 !important; }
+/* Ensure uniform gap between buttons in action groups (gap + fallback) */
+.table .btn-group { display: inline-flex; gap: 8px; }
+
+/* Center all table header labels by default */
+.table thead th { text-align: center; vertical-align: middle; }
+
+/* PayPal and PostePay tables: description left-aligned, all other columns centered */
+#table-piani-in-corso th:first-child,
+#table-piani-completati th:first-child,
+#table-piani-in-corso td:first-child,
+#table-piani-completati td:first-child,
+#table-abbonamenti th:first-child,
+#table-movimenti-recenti th:first-child,
+#table-abbonamenti td:first-child,
+#table-movimenti-recenti td:first-child {
+    text-align: left !important;
+}
+#table-piani-in-corso th:not(:first-child),
+#table-piani-completati th:not(:first-child),
+#table-piani-in-corso td:not(:first-child),
+#table-piani-completati td:not(:first-child),
+#table-abbonamenti th:not(:first-child),
+#table-movimenti-recenti th:not(:first-child),
+#table-abbonamenti td:not(:first-child),
+#table-movimenti-recenti td:not(:first-child) {
+    text-align: center !important;
+    vertical-align: middle !important;
+}

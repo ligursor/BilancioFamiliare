@@ -15,37 +15,65 @@
         </div>
     </div>
 
-    <!-- Statistiche generali -->
+    <!-- Statistiche generali (stile PayPal: titolo+valore a sinistra, icona a destra) -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card border-primary">
-                <div class="card-body text-center">
-                    <h5 class="card-title text-primary">Veicoli Attivi</h5>
-                    <h3 class="text-primary">{{ veicoli|length }}</h3>
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Veicoli Attivi</h5>
+                            <h3>{{ veicoli|length }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-car fa-2x"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-info">
-                <div class="card-body text-center">
-                    <h5 class="card-title text-info">Costo Totale Finanziamenti</h5>
-                    <h3 class="text-info">{{ formato_valuta.format(totale_costo_finanziamento) }}</h3>
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Totale Finanziamenti</h5>
+                            <h3>{{ formato_valuta.format(totale_costo_finanziamento) }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-euro-sign fa-2x"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-success">
-                <div class="card-body text-center">
-                    <h5 class="card-title text-success">Totale Versato</h5>
-                    <h3 class="text-success">{{ formato_valuta.format(totale_versato) }}</h3>
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Totale Versato</h5>
+                            <h3>{{ formato_valuta.format(totale_versato) }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-wallet fa-2x"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-warning">
-                <div class="card-body text-center">
-                    <h5 class="card-title text-warning">Saldo Rimanente</h5>
-                    <h3 class="text-warning">{{ formato_valuta.format(totale_saldo_rimanente) }}</h3>
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Saldo Rimanente</h5>
+                            <h3>{{ formato_valuta.format(totale_saldo_rimanente) }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-coins fa-2x"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -153,57 +181,90 @@
         </div>
     </div>
 
-    <!-- Attività recenti -->
+    <!-- Attività recenti (collassate e paginate come PostePay Movimenti) -->
     <div class="row">
-        <!-- Ultimi bolli -->
-        <div class="col-md-6 mb-4">
+        <!-- Bolli pagati (collassabile) -->
+        <div class="col-12 mb-4">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Ultimi Bolli Pagati</h5>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Bolli Pagati</h5>
+                    <button id="toggle-bolli" class="btn btn-sm d-flex" type="button" data-bs-toggle="collapse" data-bs-target="#bolliCollapse" aria-expanded="false" aria-controls="bolliCollapse" aria-label="Mostra o nascondi bolli" style="background: transparent; color: inherit; border: none; box-shadow: none; width:32px; height:32px; padding:0; align-items:center; justify-content:center;">
+                        <span id="toggle-icon-bolli"><i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i></span>
+                    </button>
                 </div>
-                <div class="card-body">
-                    {% if ultimi_bolli %}
-                    <div class="list-group list-group-flush">
-                        {% for bollo in ultimi_bolli %}
-                        <div class="list-group-item">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">{{ bollo.veicolo.nome_completo }}</h6>
-                                <small>{{ bollo.data_pagamento.strftime('%d/%m/%Y') }}</small>
-                            </div>
-                            <p class="mb-1">Anno {{ bollo.anno_riferimento }} - {{ formato_valuta.format(bollo.importo) }}</p>
+                <div id="bolliCollapse" class="collapse">
+                    <div class="card-body">
+                        {% if ultimi_bolli %}
+                        <div class="table-responsive">
+                            <table id="table-bolli" class="table table-striped" data-page-size="5" tabindex="-1">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">Veicolo</th>
+                                        <th class="text-center">Data</th>
+                                        <th class="text-center">Anno</th>
+                                        <th class="text-center">Importo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for bollo in ultimi_bolli %}
+                                    <tr>
+                                        <td class="text-start">{{ bollo.veicolo.nome_completo }}</td>
+                                        <td class="text-center">{{ bollo.data_pagamento.strftime('%d/%m/%Y') }}</td>
+                                        <td class="text-center">{{ bollo.anno_riferimento }}</td>
+                                        <td class="text-center">{{ formato_valuta.format(bollo.importo) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
-                        {% endfor %}
+                        <nav id="pagination-bolli" class="mt-2 d-flex justify-content-center" aria-label="Paginazione bolli"></nav>
+                        {% else %}
+                        <p class="text-muted text-center">Nessun bollo registrato</p>
+                        {% endif %}
                     </div>
-                    {% else %}
-                    <p class="text-muted text-center">Nessun bollo registrato</p>
-                    {% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- Ultime manutenzioni -->
-        <div class="col-md-6 mb-4">
+        <!-- Manutenzioni (collassabile) -->
+        <div class="col-12 mb-4">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-wrench me-2"></i>Ultime Manutenzioni</h5>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-wrench me-2"></i>Manutenzioni</h5>
+                    <button id="toggle-manutenzioni" class="btn btn-sm d-flex" type="button" data-bs-toggle="collapse" data-bs-target="#manutenzioniCollapse" aria-expanded="false" aria-controls="manutenzioniCollapse" aria-label="Mostra o nascondi manutenzioni" style="background: transparent; color: inherit; border: none; box-shadow: none; width:32px; height:32px; padding:0; align-items:center; justify-content:center;">
+                        <span id="toggle-icon-manutenzioni"><i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i></span>
+                    </button>
                 </div>
-                <div class="card-body">
-                    {% if ultime_manutenzioni %}
-                    <div class="list-group list-group-flush">
-                        {% for manutenzione in ultime_manutenzioni %}
-                        <div class="list-group-item">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">{{ manutenzione.veicolo.nome_completo }}</h6>
-                                <small>{{ manutenzione.data_intervento.strftime('%d/%m/%Y') }}</small>
-                            </div>
-                            <p class="mb-1">{{ manutenzione.tipo_intervento }} - {{ formato_valuta.format(manutenzione.costo) }}</p>
-                            <small class="text-muted">{{ manutenzione.officina }} - KM {{ "{:,}".format(manutenzione.km_intervento).replace(',', '.') }}</small>
+                <div id="manutenzioniCollapse" class="collapse">
+                    <div class="card-body">
+                        {% if ultime_manutenzioni %}
+                        <div class="table-responsive">
+                            <table id="table-manutenzioni" class="table table-striped" data-page-size="5" tabindex="-1">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">Veicolo</th>
+                                        <th class="text-center">Data</th>
+                                        <th class="text-center">Dettaglio</th>
+                                        <th class="text-center">Importo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for manutenzione in ultime_manutenzioni %}
+                                    <tr>
+                                        <td class="text-start">{{ manutenzione.veicolo.nome_completo }}</td>
+                                        <td class="text-center">{{ manutenzione.data_intervento.strftime('%d/%m/%Y') }}</td>
+                                        <td class="text-start">{{ manutenzione.tipo_intervento }}<br><small class="text-muted">{{ manutenzione.officina }} - KM {{ "{:,}".format(manutenzione.km_intervento).replace(',', '.') }}</small></td>
+                                        <td class="text-center">{{ formato_valuta.format(manutenzione.costo) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
-                        {% endfor %}
+                        <nav id="pagination-manutenzioni" class="mt-2 d-flex justify-content-center" aria-label="Paginazione manutenzioni"></nav>
+                        {% else %}
+                        <p class="text-muted text-center">Nessuna manutenzione registrata</p>
+                        {% endif %}
                     </div>
-                    {% else %}
-                    <p class="text-muted text-center">Nessuna manutenzione registrata</p>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -420,5 +481,86 @@ function calcolaRataMensile() {
     }
 }
 </script>
+
+{% block scripts %}
+<script>
+// Reusable client-side pagination for tables similar to PostePay Evolution
+function initClientPagination(tableId, paginationId) {
+    var table = document.getElementById(tableId);
+    if (!table) return;
+    var pageSize = parseInt(table.dataset.pageSize, 10) || 5;
+    var tbody = table.querySelector('tbody');
+    var rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
+    var totalRows = rows.length;
+    var totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+    var paginationNav = document.getElementById(paginationId);
+
+    function renderPage(page) {
+        var start = (page - 1) * pageSize;
+        var end = start + pageSize;
+        rows.forEach(function(r, idx){
+            r.style.display = (idx >= start && idx < end) ? '' : 'none';
+        });
+        renderControls(page);
+    }
+
+    function renderControls(activePage){
+        if (!paginationNav) return;
+        paginationNav.innerHTML = '';
+        if (totalPages <= 1) return;
+        var ul = document.createElement('ul');
+        ul.className = 'pagination';
+        for (var i = 1; i <= totalPages; i++) {
+            var li = document.createElement('li');
+            li.className = 'page-item' + (i === activePage ? ' active' : '');
+            var a = document.createElement('a');
+            a.className = 'page-link';
+            a.href = '#';
+            a.textContent = i;
+            (function(page){
+                a.addEventListener('click', function(e){
+                    e.preventDefault();
+                    renderPage(page);
+                });
+            })(i);
+            li.appendChild(a);
+            ul.appendChild(li);
+        }
+        paginationNav.appendChild(ul);
+    }
+
+    // initialize to first page
+    renderPage(1);
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+    initClientPagination('table-bolli', 'pagination-bolli');
+    initClientPagination('table-manutenzioni', 'pagination-manutenzioni');
+
+    // Toggle icons for collapse sections
+    var bolliCollapse = document.getElementById('bolliCollapse');
+    var bolliIcon = document.getElementById('toggle-icon-bolli');
+    if (bolliCollapse && bolliIcon) {
+        bolliCollapse.addEventListener('show.bs.collapse', function(){
+            bolliIcon.innerHTML = '<i class="fas fa-eye" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';
+        });
+        bolliCollapse.addEventListener('hide.bs.collapse', function(){
+            bolliIcon.innerHTML = '<i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';
+        });
+    }
+
+    var manutCollapse = document.getElementById('manutenzioniCollapse');
+    var manutIcon = document.getElementById('toggle-icon-manutenzioni');
+    if (manutCollapse && manutIcon) {
+        manutCollapse.addEventListener('show.bs.collapse', function(){
+            manutIcon.innerHTML = '<i class="fas fa-eye" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';
+        });
+        manutCollapse.addEventListener('hide.bs.collapse', function(){
+            manutIcon.innerHTML = '<i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';
+        });
+    }
+});
+</script>
+{% endblock %}
 
 {% endblock %}

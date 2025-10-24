@@ -102,35 +102,51 @@
     <!-- Statistiche costi -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card border-info text-center">
+            <div class="card bg-info text-white">
                 <div class="card-body">
-                    <h5 class="card-title text-info">Totale Bolli</h5>
-                    <h4 class="text-info">{{ formato_valuta.format(totale_bolli or 0) }}</h4>
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ formato_valuta.format(totale_bolli or 0) }}</h4>
+                            <p class="card-text">Totale Bolli</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-warning text-center">
+            <div class="card bg-warning text-white">
                 <div class="card-body">
-                    <h5 class="card-title text-warning">Totale Manutenzioni</h5>
-                    <h4 class="text-warning">{{ formato_valuta.format(totale_manutenzioni or 0) }}</h4>
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ formato_valuta.format(totale_manutenzioni or 0) }}</h4>
+                            <p class="card-text">Totale Manutenzioni</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-danger text-center">
+            <div class="card bg-danger text-white">
                 <div class="card-body">
-                    <h5 class="card-title text-danger">Costo Totale</h5>
-                    <h4 class="text-danger">{{ formato_valuta.format(costo_totale or 0) }}</h4>
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ formato_valuta.format(costo_totale or 0) }}</h4>
+                            <p class="card-text">Costo Totale</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-success text-center">
+            <div class="card bg-success text-white">
                 <div class="card-body">
-                    <h5 class="card-title text-success">Totale Costi</h5>
-                    <h4 class="text-success">{{ formato_valuta.format(costo_totale or 0) }}</h4>
-                    <small class="text-muted">Finanziamento + Bolli + Manutenzioni</small>
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ formato_valuta.format(costo_totale or 0) }}</h4>
+                            <p class="card-text">Totale Costi</p>
+                            <small>Finanziamento + Bolli + Manutenzioni</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -166,25 +182,25 @@
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Storico Bolli</h5>
+                    <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Bolli Pagati</h5>
                 </div>
                 <div class="card-body">
                     {% if bolli %}
                     <div class="table-responsive">
-                        <table class="table table-sm">
+                        <table class="table table-striped">
                             <thead>
                                 <tr>
-                                    <th>Anno</th>
-                                    <th>Data Pagamento</th>
-                                    <th>Importo</th>
+                                    <th class="text-center">Anno</th>
+                                    <th class="text-center">Data Pagamento</th>
+                                    <th class="text-center">Importo</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for bollo in bolli %}
                                 <tr>
-                                    <td>{{ bollo.anno_riferimento }}</td>
-                                    <td>{{ bollo.data_pagamento.strftime('%d/%m/%Y') }}</td>
-                                    <td>{{ formato_valuta.format(bollo.importo or 0) }}</td>
+                                    <td class="text-center">{{ bollo.anno_riferimento }}</td>
+                                    <td class="text-center">{{ bollo.data_pagamento.strftime('%d/%m/%Y') }}</td>
+                                    <td class="text-center">{{ formato_valuta.format(bollo.importo or 0) }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -201,31 +217,31 @@
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-wrench me-2"></i>Storico Manutenzioni</h5>
+                    <h5 class="mb-0"><i class="fas fa-wrench me-2"></i>Manutenzioni</h5>
                 </div>
                 <div class="card-body">
                     {% if manutenzioni %}
                     <div class="table-responsive">
-                        <table class="table table-sm">
+                        <table class="table table-striped">
                             <thead>
                                 <tr>
-                                    <th>Data</th>
-                                    <th>KM</th>
-                                    <th>Tipo</th>
-                                    <th>Costo</th>
+                                    <th class="text-center">Tipo</th>
+                                    <th class="text-center">Data</th>
+                                    <th class="text-center">KM</th>
+                                    <th class="text-center">Costo</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for manutenzione in manutenzioni %}
                                 <tr>
-                                    <td>{{ manutenzione.data_intervento.strftime('%d/%m/%Y') }}</td>
-                                    <td>{{ "{:,}".format(manutenzione.km_intervento).replace(',', '.') }}</td>
-                                    <td>
+                                    <td class="text-start">
                                         <span data-bs-toggle="tooltip" title="{{ manutenzione.dettaglio if manutenzione.dettaglio else '' }}">
                                             {{ manutenzione.tipo_intervento }}
                                         </span>
                                     </td>
-                                    <td>{{ formato_valuta.format(manutenzione.costo or 0) }}</td>
+                                    <td class="text-center">{{ manutenzione.data_intervento.strftime('%d/%m/%Y') }}</td>
+                                    <td class="text-center">{{ "{:,}".format(manutenzione.km_intervento).replace(',', '.') }}</td>
+                                    <td class="text-center">{{ formato_valuta.format(manutenzione.costo or 0) }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

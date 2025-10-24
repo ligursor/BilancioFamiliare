@@ -133,26 +133,26 @@ function modificaTransazioneAttr(btn) {
                             <table class="table table-sm table-striped">
                                 <thead>
                                     <tr>
-                                        <th>Categoria</th>
-                                        <th>Iniziale (€)</th>
-                                        <th>Effettuate (€)</th>
-                                        <th>Pianificate (€)</th>
-                                        <th>Residuo (€)</th>
+                                        <th class="text-center">Categoria</th>
+                                        <th class="text-center">Iniziale (€)</th>
+                                        <th class="text-center">Effettuate (€)</th>
+                                        <th class="text-center">Pianificate (€)</th>
+                                        <th class="text-center">Residuo (€)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for b in budget_items %}
                                     <tr>
-                                        <td>{{ b.categoria_nome }}</td>
-                                        <td>
+                                        <td class="text-start">{{ b.categoria_nome }}</td>
+                                        <td class="text-center">
                                             <span class="iniziale-val">€ {{ "%.2f"|format(b.iniziale) }}</span>
                                             <button type="button" class="btn btn-sm btn-outline-secondary ms-2 btn-edit-budget" data-categoria="{{ b.categoria_id }}" data-iniziale="{{ '%.2f'|format(b.iniziale) }}" title="Modifica importo mensile">
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                         </td>
-                                        <td class="text-danger">€ {{ "%.2f"|format(b.spese_effettuate) }}</td>
-                                        <td class="text-warning">€ {{ "%.2f"|format(b.spese_pianificate) }}</td>
-                                        <td class="{% if b.residuo < 0 %}text-danger{% else %}text-success{% endif %}">€ {{ "%.2f"|format(b.residuo) }}</td>
+                                        <td class="text-center text-danger">€ {{ "%.2f"|format(b.spese_effettuate) }}</td>
+                                        <td class="text-center text-warning">€ {{ "%.2f"|format(b.spese_pianificate) }}</td>
+                                        <td class="text-center {% if b.residuo < 0 %}text-danger{% else %}text-success{% endif %}">€ {{ "%.2f"|format(b.residuo) }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -185,8 +185,9 @@ function modificaTransazioneAttr(btn) {
                     <table class="table table-striped">
                         <thead>
                             <tr>
-                                <th style="cursor: pointer; user-select: none;">
-                                    Data 
+                                <th class="text-center">Descrizione</th>
+                                <th class="text-center" style="cursor: pointer; user-select: none;">
+                                    Data
                                     <span data-action="ordina" data-tipo="data_asc" class="text-primary me-1" title="Ordina per data crescente" style="cursor: pointer;" id="sort-data-asc">
                                         <i class="fas fa-chevron-up"></i>
                                     </span>
@@ -194,11 +195,10 @@ function modificaTransazioneAttr(btn) {
                                         <i class="fas fa-chevron-down"></i>
                                     </span>
                                 </th>
-                                <th>Descrizione</th>
-                                <th>Categoria</th>
-                                <th class="tipo-col" style="cursor: pointer; user-select: none;">
-                                    <div class="tipo-col-label">Tipo</div>
-                                    <div class="tipo-filter-wrapper">
+                                <th class="text-center">Categoria</th>
+                                <th class="text-center tipo-col" style="cursor: pointer; user-select: none;">
+                                    <div class="tipo-col-label d-flex justify-content-center">Tipo</div>
+                                    <div class="tipo-filter-wrapper d-flex justify-content-center">
                                         <div class="dropdown d-inline-block">
                                             <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="filterTipoDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                                 <i class="fas fa-filter"></i>
@@ -209,8 +209,8 @@ function modificaTransazioneAttr(btn) {
                                         </div>
                                     </div>
                                 </th>
-                                <th style="cursor: pointer; user-select: none;">
-                                    Importo 
+                                <th class="text-center" style="cursor: pointer; user-select: none;">
+                                    Importo
                                     <span data-action="ordina" data-tipo="importo_asc" class="text-success me-1" title="Ordina per importo crescente" style="cursor: pointer;" id="sort-importo-asc">
                                         <i class="fas fa-chevron-up"></i>
                                     </span>
@@ -218,32 +218,32 @@ function modificaTransazioneAttr(btn) {
                                         <i class="fas fa-chevron-down"></i>
                                     </span>
                                 </th>
-                                <th>Azioni</th>
+                                <th class="text-center">Azioni</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for transazione in transazioni %}
                             {% set descrizione = transazione.descrizione if transazione.descrizione is not none else '' %}
                             <tr>
-                                <td>{{ transazione.data.strftime('%d/%m/%Y') }}</td>
-                                <td>{{ transazione.descrizione }}</td>
-                                <td>
+                                <td class="text-start">{{ transazione.descrizione }}</td>
+                                <td class="text-center">{{ transazione.data.strftime('%d/%m/%Y') }}</td>
+                                <td class="text-center">
                                     <span class="badge {% if transazione.categoria.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
                                         {{ transazione.categoria.nome }}
                                     </span>
                                 </td>
-                                <td>
+                                <td class="text-center">
                                     {% if transazione.tipo == 'entrata' %}
                                         <span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>
                                     {% else %}
                                         <span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>
                                     {% endif %}
                                 </td>
-                                <td class="{% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
+                                <td class="text-center {% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
                                     {% if transazione.tipo == 'entrata' %}+{% else %}-{% endif %}€ {{ "%.2f"|format(transazione.importo) }}
                                 </td>
-                                <td>
-                                    <button class="btn btn-warning btn-sm me-1"
+                                <td class="text-center">
+                                    <button class="btn btn-outline-primary btn-sm me-1"
     title="Modifica transazione"
     data-id="{{ transazione.id }}"
     data-descrizione='{{ descrizione|tojson }}'
@@ -255,7 +255,7 @@ function modificaTransazioneAttr(btn) {
 </button>
                                     <!-- Pulsante elimina transazione -->
                                     <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?">
-                                        <button type="submit" class="btn btn-danger btn-sm" title="Elimina transazione">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina transazione">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
@@ -284,36 +284,36 @@ function modificaTransazioneAttr(btn) {
                         <table class="table table-striped table-sm">
                             <thead>
                                 <tr>
-                                    <th>Data Programmata</th>
-                                    <th>Descrizione</th>
-                                    <th>Categoria</th>
-                                    <th>Tipo</th>
-                                    <th>Importo</th>
-                                    <th>Azioni</th>
+                                    <th class="text-center">Descrizione</th>
+                                    <th class="text-center">Data Programmata</th>
+                                    <th class="text-center">Categoria</th>
+                                    <th class="text-center">Tipo</th>
+                                    <th class="text-center">Importo</th>
+                                    <th class="text-center">Azioni</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for transazione in transazioni_in_attesa %}
                                 <tr>
-                                    <td>{{ transazione.data.strftime('%d/%m/%Y') }}</td>
-                                    <td>{{ transazione.descrizione }}</td>
-                                    <td>
+                                    <td class="text-start">{{ transazione.descrizione }}</td>
+                                    <td class="text-center">{{ transazione.data.strftime('%d/%m/%Y') }}</td>
+                                    <td class="text-center">
                                         <span class="badge {% if transazione.categoria.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
                                             {{ transazione.categoria.nome }}
                                         </span>
                                     </td>
-                                    <td>
+                                    <td class="text-center">
                                         {% if transazione.tipo == 'entrata' %}
                                             <span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>
                                         {% else %}
                                             <span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>
                                         {% endif %}
                                     </td>
-                                    <td class="{% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
+                                    <td class="text-center {% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
                                         {% if transazione.tipo == 'entrata' %}+{% else %}-{% endif %}€ {{ "%.2f"|format(transazione.importo) }}
                                     </td>
-                                    <td>
-                                        <button class="btn btn-warning btn-sm me-1"
+                                    <td class="text-center">
+                                        <button class="btn btn-outline-primary btn-sm me-1"
             title="Modifica transazione"
             data-id="{{ transazione.id }}"
             data-descrizione='{{ transazione.descrizione|tojson }}'
@@ -325,7 +325,7 @@ function modificaTransazioneAttr(btn) {
         </button>
                                         <!-- Pulsante elimina transazione in attesa -->
                                         <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?">
-                                            <button type="submit" class="btn btn-danger btn-sm" title="Elimina transazione">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina transazione">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </form>
@@ -564,8 +564,8 @@ function initTransazioni(attempt = 0) {
         return {
             elemento: riga,
             id: tid || null,
-            data: celle[0] ? celle[0].textContent.trim() : '',
-            descrizione: celle[1] ? celle[1].textContent.trim() : '',
+            descrizione: celle[0] ? celle[0].textContent.trim() : '',
+            data: celle[1] ? celle[1].textContent.trim() : '',
             categoria: celle[2] ? celle[2].textContent.trim() : '',
             categoriaId: categoriaId || null,
             tipo: (celle[3] && celle[3].textContent.includes('Entrata')) ? 'entrata' : 'uscita',
@@ -829,14 +829,14 @@ function aggiornaTabella() {
             const tr = document.createElement('tr');
             const _displayDate = formatDateForDisplay(transazione.data);
             tr.innerHTML = `
-                <td>${_displayDate}</td>
-                <td>${transazione.descrizione}</td>
-                <td><span class="badge ${transazione.tipo === 'entrata' ? 'bg-success' : 'bg-danger'}">${transazione.categoria}</span></td>
-                <td>${transazione.tipo === 'entrata' ? '<span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>' : '<span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>'}</td>
-                <td class="${transazione.tipo === 'entrata' ? 'text-success' : 'text-danger'}">${transazione.tipo === 'entrata' ? '+' : '-'}€ ${Number(transazione.importo || 0).toFixed(2)}</td>
-                <td>
+                <td class="text-start">${transazione.descrizione}</td>
+                <td class="text-center">${_displayDate}</td>
+                <td class="text-center"><span class="badge ${transazione.tipo === 'entrata' ? 'bg-success' : 'bg-danger'}">${transazione.categoria}</span></td>
+                <td class="text-center">${transazione.tipo === 'entrata' ? '<span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>' : '<span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>'}</td>
+                <td class="text-center ${transazione.tipo === 'entrata' ? 'text-success' : 'text-danger'}">${transazione.tipo === 'entrata' ? '+' : '-'}€ ${Number(transazione.importo || 0).toFixed(2)}</td>
+                <td class="text-center">
                     <div class="btn-group btn-group-sm">
-                        <button class="btn btn-warning btn-sm me-1"
+                        <button class="btn btn-outline-primary btn-sm me-1"
                             title="Modifica transazione"
                             data-id="${transazione.id || ''}"
                             data-descrizione='${JSON.stringify(transazione.descrizione)}'
@@ -846,7 +846,7 @@ function aggiornaTabella() {
                             data-action="modifica-transazione-attr">
                             <i class="fas fa-edit"></i>
                         </button>
-                        ${transazione.id ? `<form method="POST" action="/transazioni/${transazione.id}/elimina" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?"><button type="submit" class="btn btn-outline-danger"><i class=\"fas fa-trash\"></i></button></form>` : ''}
+                        ${transazione.id ? `<form method="POST" action="/transazioni/${transazione.id}/elimina" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?"><button type="submit" class="btn btn-outline-danger btn-sm"><i class=\"fas fa-trash\"></i></button></form>` : ''}
                     </div>
                 </td>
             `;
