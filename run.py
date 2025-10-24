@@ -43,7 +43,7 @@ def main():
 
     # Avvia l'app
     # For security and consistency we run without debug logs by default.
-    app.run(host=app.config.get('HOST', '0.0.0.0'), port=app.config.get('PORT', 5001), debug=False)
+    app.run(host=app.config.get('HOST', '0.0.0.0'), port=app.config.get('PORT', 5001), debug=True)
 
 
 if __name__ == '__main__':

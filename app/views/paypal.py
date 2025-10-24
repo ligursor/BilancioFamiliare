@@ -34,11 +34,11 @@ def aggiorna_importi_rimanenti_paypal():
                     rate_non_pagate.remove(rata)
                 else:
                     # Se la rata è scaduta oggi (o prima) e non ha transazione collegata,
-                    # proviamo a trovare una Transazione con importo e data corrispondenti
+                    # proviamo prima a trovare una Transazione con importo e data corrispondenti;
+                    # se non troviamo una transazione, consideriamo la rata come pagata automaticamente
                     try:
                         oggi = datetime.now().date()
                         if rata.data_scadenza <= oggi and not getattr(rata, 'transazione_id', None):
-                            # Cerca una transazione con stessa data (o data_effettiva) e importo simile
                             from app.models.transazioni import Transazione
                             trans = Transazione.query.filter(
                                 ((Transazione.data == rata.data_scadenza) | (Transazione.data_effettiva == rata.data_scadenza)),
@@ -52,10 +52,20 @@ def aggiorna_importi_rimanenti_paypal():
                                 except Exception:
                                     continue
                             if match:
+                                # Se esiste una transazione corrispondente, colleghiamola e marchiamo pagata
                                 rata.transazione_id = match.id
                                 rata.stato = 'pagata'
                                 rata.data_pagamento = match.data_effettiva or match.data
                                 piano.importo_rimanente = (piano.importo_rimanente or 0.0) - (rata.importo or 0.0)
+                                rate_non_pagate.remove(rata)
+                            else:
+                                # Nessuna transazione trovata: consideriamo la rata come pagata alla scadenza
+                                rata.stato = 'pagata'
+                                rata.data_pagamento = rata.data_scadenza
+                                try:
+                                    piano.importo_rimanente = (piano.importo_rimanente or 0.0) - (rata.importo or 0.0)
+                                except Exception:
+                                    pass
                                 rate_non_pagate.remove(rata)
                     except Exception:
                         pass

@@ -156,13 +156,17 @@
     <div class="row mt-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <h5><i class="fas fa-history me-2"></i>Movimenti Recenti</h5>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Movimenti Recenti</h5>
+                    <button id="toggle-movimenti" class="btn btn-sm d-flex" type="button" data-bs-toggle="collapse" data-bs-target="#movimentiCollapse" aria-expanded="true" aria-controls="movimentiCollapse" aria-label="Mostra o nascondi movimenti recenti" style="background: transparent; color: inherit; border: none; box-shadow: none; width:32px; height:32px; padding:0; align-items:center; justify-content:center;">
+                        <span id="toggle-icon-movimenti"><i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i></span>
+                    </button>
                 </div>
-                <div class="card-body">
-                    {% if movimenti %}
-                    <div class="table-responsive">
-                        <table class="table table-striped">
+                <div id="movimentiCollapse" class="collapse">
+                    <div class="card-body">
+                        {% if movimenti %}
+                        <div class="table-responsive">
+                            <table id="table-movimenti-recenti" class="table table-striped" data-page-size="5" tabindex="-1">
                             <thead>
                                 <tr>
                                     <th>Data</th>
@@ -187,11 +191,13 @@
                                 </tr>
                                 {% endfor %}
                             </tbody>
-                        </table>
+                            </table>
+                        </div>
+                        <nav id="pagination-movimenti" class="mt-2 d-flex justify-content-center" aria-label="Paginazione movimenti recenti"></nav>
+                        {% else %}
+                        <p class="text-muted">Nessun movimento registrato.</p>
+                        {% endif %}
                     </div>
-                    {% else %}
-                    <p class="text-muted">Nessun movimento registrato.</p>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -379,6 +385,79 @@ function modificaAbbonamento(id) {
 document.addEventListener('DOMContentLoaded', function() {
     const oggi = new Date().toISOString().split('T')[0];
     document.getElementById('mov_data').value = oggi;
+});
+</script>
+<script>
+// Client-side pagination for Movimenti Recenti
+document.addEventListener('DOMContentLoaded', function(){
+    var table = document.getElementById('table-movimenti-recenti');
+    if (!table) return;
+    var pageSize = parseInt(table.dataset.pageSize, 10) || 5;
+    var tbody = table.querySelector('tbody');
+    var rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
+    var totalRows = rows.length;
+    var totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+    var paginationNav = document.getElementById('pagination-movimenti');
+
+    function renderPage(page) {
+        var start = (page - 1) * pageSize;
+        var end = start + pageSize;
+        rows.forEach(function(r, idx){
+            r.style.display = (idx >= start && idx < end) ? '' : 'none';
+        });
+        renderControls(page);
+    }
+
+    function renderControls(activePage){
+        if (!paginationNav) return;
+        paginationNav.innerHTML = '';
+        if (totalPages <= 1) return;
+        var ul = document.createElement('ul');
+        ul.className = 'pagination';
+        for (var i = 1; i <= totalPages; i++) {
+            var li = document.createElement('li');
+            li.className = 'page-item' + (i === activePage ? ' active' : '');
+            var a = document.createElement('a');
+            a.className = 'page-link';
+            a.href = '#';
+            a.textContent = i;
+            (function(page){
+                a.addEventListener('click', function(e){
+                    e.preventDefault();
+                    renderPage(page);
+                });
+            })(i);
+            li.appendChild(a);
+            ul.appendChild(li);
+        }
+        paginationNav.appendChild(ul);
+    }
+
+    // initialize to first page
+    renderPage(1);
+});
+</script>
+<script>
+// Toggle icon for the movimenti section collapse
+document.addEventListener('DOMContentLoaded', function(){
+    var collapseEl = document.getElementById('movimentiCollapse');
+    var toggleIcon = document.getElementById('toggle-icon-movimenti');
+    var toggleBtn = document.getElementById('toggle-movimenti');
+    if (!collapseEl || !toggleIcon || !toggleBtn) return;
+
+    collapseEl.addEventListener('show.bs.collapse', function(){
+        toggleIcon.innerHTML = '<i class="fas fa-eye" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';
+        var table = document.getElementById('table-movimenti-recenti');
+        if (table) {
+            setTimeout(function(){
+                table.scrollIntoView({behavior: 'smooth', block: 'center'});
+                try { table.focus(); } catch(e){}
+            }, 200);
+        }
+    });
+    collapseEl.addEventListener('hide.bs.collapse', function(){
+        toggleIcon.innerHTML = '<i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';
+    });
 });
 </script>
 {% endblock %}

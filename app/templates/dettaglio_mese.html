@@ -196,15 +196,17 @@ function modificaTransazioneAttr(btn) {
                                 </th>
                                 <th>Descrizione</th>
                                 <th>Categoria</th>
-                                <th>
-                                    Tipo 
-                                    <div class="dropdown d-inline-block ms-2">
-                                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="filterTipoDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                            <i class="fas fa-filter"></i>
-                                        </button>
-                                        <ul class="dropdown-menu" aria-labelledby="filterTipoDropdown" id="filter_tipo_menu">
-                                            <!-- items injected by JS -->
-                                        </ul>
+                                <th class="tipo-col" style="cursor: pointer; user-select: none;">
+                                    <div class="tipo-col-label">Tipo</div>
+                                    <div class="tipo-filter-wrapper">
+                                        <div class="dropdown d-inline-block">
+                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="filterTipoDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="fas fa-filter"></i>
+                                            </button>
+                                            <ul class="dropdown-menu" aria-labelledby="filterTipoDropdown" id="filter_tipo_menu">
+                                                <!-- items injected by JS -->
+                                            </ul>
+                                        </div>
                                     </div>
                                 </th>
                                 <th style="cursor: pointer; user-select: none;">
@@ -493,7 +495,6 @@ function modificaTransazioneAttr(btn) {
 
 {% block scripts %}
     {{ super() }}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/tipo-filter.css') }}">
     <script src="{{ url_for('static', filename='js/transazioni-model.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tipo-filter.js') }}"></script>
 
