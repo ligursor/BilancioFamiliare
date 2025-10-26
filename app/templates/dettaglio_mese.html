@@ -243,22 +243,25 @@ function modificaTransazioneAttr(btn) {
                                     {% if transazione.tipo == 'entrata' %}+{% else %}-{% endif %}€ {{ "%.2f"|format(transazione.importo) }}
                                 </td>
                                 <td class="text-center">
-                                    <button class="btn btn-outline-primary btn-sm me-1"
-    title="Modifica transazione"
-    data-id="{{ transazione.id }}"
-    data-descrizione='{{ descrizione|tojson }}'
-    data-importo="{{ transazione.importo if transazione.importo is not none else 0 }}"
-    data-data='{{ transazione.data.strftime('%Y-%m-%d')|tojson }}'
-    data-categoria="{{ transazione.categoria.id }}"
-    data-action="modifica-transazione-attr">
-    <i class="fas fa-edit"></i>
-</button>
-                                    <!-- Pulsante elimina transazione -->
-                                    <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?">
-                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina transazione">
-                                            <i class="fas fa-trash"></i>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button class="btn btn-outline-primary btn-sm"
+                                            title="Modifica transazione"
+                                            data-id="{{ transazione.id }}"
+                                            data-descrizione='{{ descrizione|tojson }}'
+                                            data-importo="{{ transazione.importo if transazione.importo is not none else 0 }}"
+                                            data-data='{{ transazione.data.strftime('%Y-%m-%d')|tojson }}'
+                                            data-categoria="{{ transazione.categoria.id }}"
+                                            data-action="modifica-transazione-attr">
+                                            <i class="fas fa-edit" aria-hidden="true"></i>
+                                            <span class="visually-hidden">Modifica transazione</span>
                                         </button>
-                                    </form>
+                                        <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina transazione" aria-label="Elimina transazione">
+                                                <i class="fas fa-trash" aria-hidden="true"></i>
+                                                <span class="visually-hidden">Elimina transazione</span>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -313,22 +316,25 @@ function modificaTransazioneAttr(btn) {
                                         {% if transazione.tipo == 'entrata' %}+{% else %}-{% endif %}€ {{ "%.2f"|format(transazione.importo) }}
                                     </td>
                                     <td class="text-center">
-                                        <button class="btn btn-outline-primary btn-sm me-1"
-            title="Modifica transazione"
-            data-id="{{ transazione.id }}"
-            data-descrizione='{{ transazione.descrizione|tojson }}'
-            data-importo="{{ transazione.importo if transazione.importo is not none else 0 }}"
-            data-data='{{ transazione.data.strftime('%Y-%m-%d')|tojson }}'
-            data-categoria="{{ transazione.categoria.id }}"
-            data-action="modifica-transazione-attr">
-            <i class="fas fa-edit"></i>
-        </button>
-                                        <!-- Pulsante elimina transazione in attesa -->
-                                        <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina transazione">
-                                                <i class="fas fa-trash"></i>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button class="btn btn-outline-primary btn-sm"
+                                                title="Modifica transazione"
+                                                data-id="{{ transazione.id }}"
+                                                data-descrizione='{{ transazione.descrizione|tojson }}'
+                                                data-importo="{{ transazione.importo if transazione.importo is not none else 0 }}"
+                                                data-data='{{ transazione.data.strftime('%Y-%m-%d')|tojson }}'
+                                                data-categoria="{{ transazione.categoria.id }}"
+                                                data-action="modifica-transazione-attr">
+                                                <i class="fas fa-edit" aria-hidden="true"></i>
+                                                <span class="visually-hidden">Modifica transazione</span>
                                             </button>
-                                        </form>
+                                            <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina transazione" aria-label="Elimina transazione">
+                                                    <i class="fas fa-trash" aria-hidden="true"></i>
+                                                    <span class="visually-hidden">Elimina transazione</span>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}

@@ -197,16 +197,7 @@ def nuovo():
     
     return render_template('paypal_nuovo.html')
 
-@paypal_bp.route('/piano/<int:piano_id>')
-def dettaglio(piano_id):
-    """Dettaglio di un piano PayPal"""
-    try:
-        piano = PaypalPiano.query.get_or_404(piano_id)
-        rate = PaypalRata.query.filter_by(piano_id=piano_id).order_by(PaypalRata.numero_rata).all()
-        return render_template('paypal_dettaglio.html', piano=piano, rate=rate)
-    except Exception as e:
-        flash(f'Errore nel caricamento piano: {str(e)}', 'error')
-        return redirect(url_for('paypal.dashboard'))
+# Dettaglio route rimossa: i dettagli vengono gestiti nella dashboard o nella pagina di modifica.
 
 @paypal_bp.route('/rata/<int:rata_id>/paga', methods=['POST'])
 def paga_rata(rata_id):
@@ -257,7 +248,7 @@ def modifica(piano_id):
             
             db.session.commit()
             flash(f'Piano "{piano.descrizione}" aggiornato con successo!', 'success')
-            return redirect(url_for('paypal.dettaglio', piano_id=piano_id))
+            return redirect(url_for('paypal.dashboard'))
             
         except Exception as e:
             db.session.rollback()

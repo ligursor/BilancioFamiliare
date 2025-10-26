@@ -30,10 +30,7 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <h4 class="card-title">
-                                <a href="#" class="text-white text-decoration-none" data-bs-toggle="modal" data-bs-target="#modificaSaldoModal" title="Clicca per modificare">
-                                    {{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(conto.saldo_iniziale) }}
-                                    <i class="fas fa-edit ms-1" style="font-size: 0.8rem;"></i>
-                                </a>
+                                <span class="text-white">{{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(conto.saldo_iniziale) }}</span>
                             </h4>
                             <p class="card-text">Saldo Iniziale</p>
                         </div>

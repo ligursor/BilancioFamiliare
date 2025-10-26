@@ -137,6 +137,8 @@
                         <th class="text-center">Descrizione</th>
                         <th class="text-center">Importo Totale</th>
                         <th class="text-center">Importo Rata</th>
+                        <th class="text-center">Importo Residuo</th>
+                        <th class="text-center">Rate Pagate</th>
                         <th class="text-center">Prossima Scadenza</th>
                         
                         <th class="text-center">Azioni</th>
@@ -146,15 +148,20 @@
                     {% for piano in piani_in_corso %}
                     <tr>
                         <td class="text-start">
-                            <a href="{{ url_for('paypal.dettaglio', piano_id=piano.id) }}" class="text-decoration-none">
-                                <strong>{{ piano.descrizione }}</strong>
-                            </a>
+                            <strong>{{ piano.descrizione }}</strong>
                             {% if piano.note %}
                             <br><small class="text-muted">{{ piano.note[:50] }}{% if piano.note|length > 50 %}...{% endif %}</small>
                             {% endif %}
                         </td>
                         <td class="text-center">€{{ "%.2f"|format(piano.importo_totale) }}</td>
                         <td class="text-center">€{{ "%.2f"|format(piano.importo_rata) }}</td>
+                        <td class="text-center">€{{ "%.2f"|format(piano.importo_rimanente or 0.0) }}</td>
+                        <td class="text-center">
+                            {% set pagate = (piano.rate|selectattr('stato', 'equalto', 'pagata')|list) if piano.rate else [] %}
+                            {% set tot = (piano.rate|length) if piano.rate else 0 %}
+                            {% set paid = pagate|length %}
+                            <span class="badge bg-success">{{ paid }} / {{ tot }}</span>
+                        </td>
                         <td class="text-center">
                             {# mostra la prossima rata non pagata; fallback alla prima rata #}
                             {% set prossime = (piano.rate|selectattr('stato', 'ne', 'pagata')|list) if piano.rate else [] %}
@@ -166,16 +173,24 @@
                         </td>
                         
                         <td class="text-center">
-                            <div class="btn-group" role="group">
-                                <a href="{{ url_for('paypal.dettaglio', piano_id=piano.id) }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{{ url_for('paypal.modifica', piano_id=piano.id) }}" class="btn btn-sm btn-outline-secondary">
+                            <div class="btn-group btn-group-sm" role="group">
+                                {# dettaglio rimosso - lasciare solo modifica/elimina #}
+                                <button type="button" class="btn btn-outline-primary btn-edit-piano" title="Modifica piano" aria-label="Modifica piano"
+                                        data-edit-url="{{ url_for('paypal.modifica', piano_id=piano.id) }}"
+                                        data-piano-id="{{ piano.id }}"
+                                        data-descrizione="{{ piano.descrizione|e }}"
+                                        data-importo-totale="{{ "%.2f"|format(piano.importo_totale) }}"
+                                        data-importo-rata="{{ "%.2f"|format(piano.importo_rata) }}"
+                                        data-data-prima-rata="{{ piano.data_prima_rata.strftime('%Y-%m-%d') }}"
+                                        data-importo-rimanente="{{ "%.2f"|format(piano.importo_rimanente or 0.0) }}"
+                                        data-note="{{ (piano.note or '')|e }}"
+                                >
                                     <i class="fas fa-edit"></i>
-                                </a>
+                                </button>
                                 <form method="POST" action="{{ url_for('paypal.elimina', piano_id=piano.id) }}" style="display:inline">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo piano?">
-                                        <i class="fas fa-trash"></i>
+                                    <button type="submit" class="btn btn-outline-danger" title="Elimina piano" aria-label="Elimina piano" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo piano?">
+                                        <i class="fas fa-trash" aria-hidden="true"></i>
+                                        <span class="visually-hidden">Elimina piano</span>
                                     </button>
                                 </form>
                             </div>
@@ -218,22 +233,19 @@
                     {% for piano in piani_completati %}
                     <tr>
                         <td class="text-start">
-                            <a href="{{ url_for('paypal.dettaglio', piano_id=piano.id) }}" class="text-decoration-none">
-                                <strong>{{ piano.descrizione }}</strong>
-                            </a>
+                            <strong>{{ piano.descrizione }}</strong>
                         </td>
                         <td class="text-center">€{{ "%.2f"|format(piano.importo_totale) }}</td>
                         <td class="text-center">€{{ "%.2f"|format(piano.importo_rata) }}</td>
                         <td class="text-center">{{ piano.data_prima_rata.strftime('%d/%m/%Y') }}</td>
                         
                         <td class="text-center">
-                            <div class="btn-group" role="group">
-                                <a href="{{ url_for('paypal.dettaglio', piano_id=piano.id) }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-eye"></i>
-                                </a>
+                            <div class="btn-group btn-group-sm" role="group">
+                                {# dettaglio rimosso - lasciare solo modifica/elimina #}
                                 <form method="POST" action="{{ url_for('paypal.elimina', piano_id=piano.id) }}" style="display:inline">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo piano?">
-                                        <i class="fas fa-trash"></i>
+                                    <button type="submit" class="btn btn-outline-danger" title="Elimina piano" aria-label="Elimina piano" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo piano?">
+                                        <i class="fas fa-trash" aria-hidden="true"></i>
+                                        <span class="visually-hidden">Elimina piano</span>
                                     </button>
                                 </form>
                             </div>
@@ -353,7 +365,15 @@ document.addEventListener('DOMContentLoaded', function(){
         } else {
             document.querySelector('main .container')?.appendChild(clone);
         }
-        return document.getElementById('card-nuovo-piano');
+        // after insertion, store default action and title so we can restore them later
+        var created = document.getElementById('card-nuovo-piano');
+        try {
+            var f = created.querySelector('#form-nuovo-piano');
+            if (f) created.dataset.defaultAction = f.action || '';
+            var hdr = created.querySelector('.card-header h5');
+            if (hdr) created.dataset.defaultTitle = hdr.innerHTML || 'Nuovo Piano';
+        } catch(e){}
+        return created;
     }
 
     if (btnShow) {
@@ -365,6 +385,15 @@ document.addEventListener('DOMContentLoaded', function(){
                 if (dataInput && !dataInput.value) dataInput.value = new Date().toISOString().split('T')[0];
                 var desc = card.querySelector('#descrizione');
                 if (desc && !desc.value) desc.value = '';
+                // ensure all fields enabled when opening as "new" and restore title
+                var form = card.querySelector('#form-nuovo-piano');
+                if (form) {
+                    form.action = card.dataset.defaultAction || form.action;
+                    ['#importo_totale', '#data_prima_rata'].forEach(function(sel){ var el = form.querySelector(sel); if (el){ el.removeAttribute('readonly'); el.removeAttribute('disabled'); } });
+                    var submitBtn = form.querySelector('#btn-salva-piano'); if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>Salva';
+                    var hdr = card.querySelector('.card-header h5'); if (hdr) hdr.innerHTML = (card.dataset.defaultTitle || '<i class="fas fa-plus me-2"></i>Nuovo Piano');
+                    delete card.dataset.editing;
+                }
             } catch(e){}
             try { card.querySelector('input,select,textarea').focus(); } catch(e){}
             setTimeout(function(){ card.scrollIntoView({behavior: 'smooth', block: 'center'}); }, 100);
@@ -374,7 +403,47 @@ document.addEventListener('DOMContentLoaded', function(){
         });
     }
 
-    // Delegated submit handler for the new piano form
+    // Open the inline form populated for editing when clicking an edit button
+    document.addEventListener('click', function(e){
+        var btn = e.target.closest && e.target.closest('.btn-edit-piano');
+        if (!btn) return;
+        e.preventDefault();
+        var card = ensureCardPresent();
+        if (!card) return;
+        var form = card.querySelector('#form-nuovo-piano');
+        if (!form) return;
+        // populate values
+        try {
+            var desc = form.querySelector('#descrizione'); if (desc) { desc.value = btn.dataset.descrizione || ''; desc.removeAttribute('disabled'); desc.removeAttribute('readonly'); }
+            var note = form.querySelector('#note'); if (note) note.value = btn.dataset.note || '';
+            var importo = form.querySelector('#importo_totale'); if (importo) { importo.value = btn.dataset.importoTotale || ''; importo.setAttribute('readonly', 'readonly'); importo.setAttribute('aria-readonly', 'true'); }
+            var rata = form.querySelector('#importo_rata'); if (rata) { /* if present in future */ }
+            var dataPrima = form.querySelector('#data_prima_rata'); if (dataPrima) { dataPrima.value = btn.dataset.dataPrimaRata || ''; dataPrima.setAttribute('readonly', 'readonly'); dataPrima.setAttribute('aria-readonly', 'true'); }
+            // set action to edit URL
+            form.action = btn.dataset.editUrl || form.action;
+            // change submit button text
+            var submitBtn = form.querySelector('#btn-salva-piano');
+            if (submitBtn) { submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>Salva Modifiche'; submitBtn.disabled = false; }
+            // change header to indicate edit mode
+            var hdr = card.querySelector('.card-header h5'); if (hdr) hdr.innerHTML = '<i class="fas fa-edit me-2"></i>Modifica Piano';
+            card.dataset.editing = '1';
+        } catch(err){}
+        try { form.querySelector('#descrizione').focus(); } catch(e){}
+        setTimeout(function(){ card.scrollIntoView({behavior: 'smooth', block: 'center'}); }, 100);
+    });
+
+    // Delegated close handler for the inline nuovo/modifica piano card
+    // This uses event delegation so the close button works whether the card
+    // was opened via 'Nuovo Piano' or via a modifica button (edit mode).
+    document.addEventListener('click', function(e){
+        var close = e.target.closest && e.target.closest('#btn-close-nuovo-piano');
+        if (close) {
+            var c = document.getElementById('card-nuovo-piano');
+            if (c) c.remove();
+        }
+    });
+
+    // Delegated submit handler for the new piano form (works for both create and edit)
     document.addEventListener('submit', function(e){
         if (!e.target || e.target.id !== 'form-nuovo-piano') return;
         e.preventDefault();

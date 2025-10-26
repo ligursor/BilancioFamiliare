@@ -414,6 +414,47 @@ def aggiungi_movimento():
     return redirect(url_for('ppay.evolution'))
 
 
+@ppay_bp.route('/modifica_movimento_postepay/<int:movimento_id>', methods=['POST'])
+def modifica_movimento_postepay(movimento_id):
+    """Modifica un movimento PostePay esistente (aggiunge la possibilità di edit inline)."""
+    try:
+        movimento = MovimentoPostePay.query.get_or_404(movimento_id)
+        # store old importo to update saldo
+        old_importo = movimento.importo or 0.0
+
+        # parse new values
+        new_data = datetime.strptime(request.form['data'], '%Y-%m-%d').date()
+        new_descrizione = request.form.get('descrizione', '').strip()
+        new_tipo = request.form.get('tipo_movimento', movimento.tipo)
+        # importo is provided as positive; respect 'tipo' (entrata/uscita)
+        raw_importo = float(request.form.get('importo', 0))
+        tipo_sign = request.form.get('tipo', 'entrata')
+        if tipo_sign == 'uscita':
+            new_importo = -abs(raw_importo)
+        else:
+            new_importo = abs(raw_importo)
+
+        # apply changes
+        movimento.data = new_data
+        movimento.descrizione = new_descrizione
+        movimento.tipo = new_tipo
+        movimento.importo = new_importo
+
+        # update PostePay saldo by the delta
+        postepay = PostePayEvolution.query.first()
+        if postepay:
+            delta = (new_importo or 0.0) - (old_importo or 0.0)
+            postepay.saldo_attuale = (postepay.saldo_attuale or 0.0) + delta
+            postepay.data_ultimo_aggiornamento = datetime.utcnow()
+
+        db.session.commit()
+        flash('Movimento modificato con successo!', 'success')
+    except Exception as e:
+        flash(f'Errore nella modifica del movimento: {str(e)}', 'error')
+        db.session.rollback()
+    return redirect(url_for('ppay.evolution'))
+
+
 @ppay_bp.route('/reset_postepay', methods=['POST'])
 def reset():
     """Reset completo sistema PostePay Evolution"""

@@ -148,13 +148,16 @@
                                         </span>
                                     </td>
                                     <td class="text-center">
-                                        <form method="POST" action="{{ url_for('conti.elimina_versamento', versamento_id=versamento.id) }}"
-                                              class="d-inline"
-                                              onsubmit="return confirm('Sei sicuro di voler eliminare questo versamento?')">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
+                                        <div class="d-inline-flex align-items-center">
+                                            <form method="POST" action="{{ url_for('conti.elimina_versamento', versamento_id=versamento.id) }}"
+                                                  class="d-inline"
+                                                  onsubmit="return confirm('Sei sicuro di voler eliminare questo versamento?')">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina versamento" aria-label="Elimina versamento">
+                                                    <i class="fas fa-trash" aria-hidden="true"></i>
+                                                    <span class="visually-hidden">Elimina versamento</span>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}

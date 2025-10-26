@@ -67,6 +67,13 @@
         -moz-appearance: textfield;
         appearance: textfield;
     }
+    /* readonly fields styling for inline edit forms */
+    .form-control[readonly], .form-control[aria-readonly="true"] {
+        background-color: #f8f9fa; /* light gray */
+        opacity: 1;
+    }
+    .inline-edit-badge { font-size: 0.75rem; }
+
     </style>
 
         <!-- Inline Nuovo Movimento template (replaces modal) -->
@@ -157,13 +164,20 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary" data-action="modifica-abbonamento" data-id="{{ abbonamento.id }}" data-bs-toggle="modal" data-bs-target="#modalModificaAbbonamento">
-                                                <i class="fas fa-edit"></i>
+                                        <div class="d-inline-flex align-items-center">
+                                            <button class="btn btn-outline-primary btn-sm me-1 btn-edit-abbonamento" 
+                                                    data-abbonamento-id="{{ abbonamento.id }}"
+                                                    data-nome="{{ abbonamento.nome|e }}"
+                                                    data-descrizione="{{ (abbonamento.descrizione or '')|e }}"
+                                                    data-importo="{{ '%.2f'|format(abbonamento.importo) }}"
+                                                    data-giorno-addebito="{{ abbonamento.giorno_addebito }}"
+                                            >
+                                                <i class="fas fa-edit" aria-hidden="true"></i>
                                             </button>
                                             <form method="POST" action="{{ url_for('ppay.elimina_abbonamento', abbonamento_id=abbonamento.id) }}" style="display: inline;" onsubmit="return confirm('Sei sicuro di voler eliminare questo abbonamento?')">
-                                                <button type="submit" class="btn btn-outline-danger">
-                                                    <i class="fas fa-trash"></i>
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina abbonamento" aria-label="Elimina abbonamento">
+                                                    <i class="fas fa-trash" aria-hidden="true"></i>
+                                                    <span class="visually-hidden">Elimina abbonamento</span>
                                                 </button>
                                             </form>
                                         </div>
@@ -256,8 +270,19 @@
                                         {{ config.FORMATO_VALUTA.format(movimento.importo) }}
                                     </td>
                                     <td>
+                                        <button type="button" class="btn btn-outline-primary btn-sm btn-edit-movimento" 
+                                                data-movimento-id="{{ movimento.id }}"
+                                                data-movimento-descrizione="{{ movimento.descrizione|e }}"
+                                                data-movimento-data="{{ movimento.data.strftime('%Y-%m-%d') }}"
+                                                data-movimento-tipo="{{ 'entrata' if movimento.importo>0 else 'uscita' }}"
+                                                data-movimento-importo="{{ '%.2f'|format(movimento.importo|abs) }}"
+                                                data-movimento-tipo_movimento="{{ movimento.tipo }}"
+                                        ><i class="fas fa-edit"></i></button>
                                         <form method="POST" action="{{ url_for('ppay.elimina_movimento', movimento_id=movimento.id) }}" class="form-delete-movimento" style="display:inline;" onsubmit="return confirm('Sei sicuro di eliminare questo movimento?')">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash"></i></button>
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina movimento" aria-label="Elimina movimento">
+                                                <i class="fas fa-trash" aria-hidden="true"></i>
+                                                <span class="visually-hidden">Elimina movimento</span>
+                                            </button>
                                         </form>
                                     </td>
                                 </tr>
@@ -678,6 +703,62 @@ document.addEventListener('DOMContentLoaded', function(){
 
     if (btnNuovoMov) btnNuovoMov.addEventListener('click', function(){ insertTemplateAtTop('tmpl-nuovo-movimento', 'form-nuovo-movimento'); });
     if (btnNuovoAbb) btnNuovoAbb.addEventListener('click', function(){ insertTemplateAtTop('tmpl-nuovo-abbonamento', 'form-nuovo-abbonamento'); });
+
+    // Open inline form for editing Abbonamento or Movimento
+    document.addEventListener('click', function(e){
+        // Abbonamento edit
+        var btnAbb = e.target.closest && e.target.closest('.btn-edit-abbonamento');
+        if (btnAbb) {
+            e.preventDefault();
+            insertTemplateAtTop('tmpl-nuovo-abbonamento', 'form-nuovo-abbonamento');
+            // populate the inserted form
+            setTimeout(function(){
+                var form = document.querySelector('.form-nuovo-abbonamento');
+                if (!form) return;
+                // fill values
+                var nome = form.querySelector('[name="nome"]'); if (nome) nome.value = btnAbb.dataset.nome || '';
+                var descr = form.querySelector('[name="descrizione"]'); if (descr) descr.value = btnAbb.dataset.descrizione || '';
+                var imp = form.querySelector('[name="importo"]'); if (imp) { imp.value = btnAbb.dataset.importo || ''; imp.setAttribute('readonly','readonly'); }
+                var giorno = form.querySelector('[name="giorno_addebito"]'); if (giorno) { giorno.value = btnAbb.dataset.giornoAddebito || ''; giorno.setAttribute('readonly','readonly'); }
+                // set form action to modifica endpoint
+                form.action = '/ppay_evolution/modifica_abbonamento_postepay/' + (btnAbb.dataset.abbonamentoId || '');
+                var submit = form.querySelector('#btn-salva-abbonamento'); if (submit) submit.innerHTML = 'Salva Modifiche';
+                // set header to indicate edit mode and add a small badge
+                try {
+                    var card = form.closest('.card');
+                    var hdr = card && card.querySelector('.card-header h5');
+                    if (hdr) hdr.innerHTML = '<i class="fas fa-edit me-2"></i>Modifica Abbonamento <span class="badge bg-warning inline-edit-badge ms-2">Modifica</span>';
+                } catch(e){}
+            }, 30);
+            return;
+        }
+
+        // Movimento edit
+        var btnMov = e.target.closest && e.target.closest('.btn-edit-movimento');
+        if (btnMov) {
+            e.preventDefault();
+            insertTemplateAtTop('tmpl-nuovo-movimento', 'form-nuovo-movimento');
+            setTimeout(function(){
+                var form = document.querySelector('.form-nuovo-movimento');
+                if (!form) return;
+                var data = form.querySelector('[name="data"]'); if (data) data.value = btnMov.dataset.movimentoData || '';
+                var descr = form.querySelector('[name="descrizione"]'); if (descr) descr.value = btnMov.dataset.movimentoDescrizione || '';
+                var tipo = form.querySelector('[name="tipo"]'); if (tipo) tipo.value = btnMov.dataset.movimentoTipo || 'entrata';
+                var importo = form.querySelector('[name="importo"]'); if (importo) importo.value = btnMov.dataset.movimentoImporto || '';
+                var tipo_mov = form.querySelector('[name="tipo_movimento"]'); if (tipo_mov) tipo_mov.value = btnMov.dataset.movimentoTipoMovimento || '';
+                // set action to modifica movimento endpoint (we'll add this route)
+                form.action = '/ppay_evolution/modifica_movimento_postepay/' + (btnMov.dataset.movimentoId || '');
+                var submit = form.querySelector('#btn-salva-movimento'); if (submit) submit.innerHTML = 'Salva Modifiche';
+                // header badge for edit
+                try {
+                    var card = form.closest('.card');
+                    var hdr = card && card.querySelector('.card-header h5');
+                    if (hdr) hdr.innerHTML = '<i class="fas fa-edit me-2"></i>Modifica Movimento <span class="badge bg-warning inline-edit-badge ms-2">Modifica</span>';
+                } catch(e){}
+            }, 30);
+            return;
+        }
+    });
 
     // Delegate submit for dynamically inserted forms (movimento or abbonamento)
     document.addEventListener('submit', function(e){
