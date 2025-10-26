@@ -1,22 +1,19 @@
 {% extends "base.html" %}
 
-{% block title %}Garage Auto{% endblock %}
+{% block title %}Garage{% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4">
     <div class="row">
         <div class="col-lg-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2><i class="fas fa-warehouse me-2"></i>Garage Auto</h2>
-                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNuovoVeicolo">
-                    <i class="fas fa-plus me-2"></i>Nuovo Veicolo
-                </button>
             </div>
         </div>
     </div>
 
     <!-- Statistiche generali (stile PayPal: titolo+valore a sinistra, icona a destra) -->
-    <div class="row mb-4">
+    <div id="top-cards" class="row mb-4">
         <div class="col-md-3">
             <div class="card bg-primary text-white">
                 <div class="card-body">
@@ -114,17 +111,26 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-car me-2"></i>I Tuoi Veicoli</h5>
+                    <div>
+                        <button id="btn-nuovo-veicolo" type="button" class="btn btn-sm btn-success">
+                            <i class="fas fa-plus me-1"></i>Nuovo Veicolo
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
+                    <div id="veicoli-list">
                     {% if veicoli %}
                     <div class="row">
                         {% for veicolo in veicoli %}
                         <div class="col-md-6 col-lg-4 mb-3">
                             <div class="card h-100">
                                 <div class="card-body">
-                                    <h6 class="card-title">{{ veicolo.nome_completo }}</h6>
+                                    <h6 class="card-title">
+                                        {{ veicolo.nome_completo }}
+                                        <span class="badge bg-secondary ms-2"><i class="fas fa-car me-1"></i>Auto</span>
+                                    </h6>
                                     <p class="card-text">
                                         <small class="text-muted">
                                             {% if veicolo.mese_scadenza_bollo %}
@@ -176,6 +182,7 @@
                         <p class="text-muted">Aggiungi il primo veicolo per iniziare!</p>
                     </div>
                     {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -271,91 +278,61 @@
     </div>
 </div>
 
-<!-- Modal Nuovo Veicolo -->
-<div class="modal fade" id="modalNuovoVeicolo" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Nuovo Veicolo</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ url_for('auto.aggiungi_veicolo') }}">
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="marca" class="form-label">Marca *</label>
-                                <input type="text" class="form-control" id="marca" name="marca" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="modello" class="form-label">Modello *</label>
-                                <input type="text" class="form-control" id="modello" name="modello" required>
-                            </div>
-                        </div>
+<!-- Template nascosto per Nuovo Veicolo (inserito inline nella card) -->
+<template id="tpl-nuovo-veicolo">
+    <div id="card-nuovo-veicolo" class="card mb-2">
+        <div class="card-header d-flex align-items-center py-2">
+            <h5 class="mb-0 fs-6"><i class="fas fa-plus me-2"></i>Nuovo Veicolo</h5>
+            <button type="button" class="btn btn-link p-0 ms-auto" aria-label="Chiudi" id="btn-close-nuovo-veicolo">
+                <i class="fas fa-times" style="font-size:1.1rem;color:#fff;"></i>
+            </button>
+        </div>
+        <div class="card-body py-2">
+            <form id="form-nuovo-veicolo" method="POST" action="{{ url_for('auto.aggiungi_veicolo') }}">
+                <div class="row g-2 align-items-center">
+                    <div class="col-auto" style="min-width:140px;">
+                        <input type="text" class="form-control form-control-sm" name="marca" placeholder="Marca *" required aria-label="Marca">
                     </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="mese_scadenza_bollo" class="form-label">Mese Scadenza Bollo</label>
-                                <select class="form-control" id="mese_scadenza_bollo" name="mese_scadenza_bollo">
-                                    <option value="">-- Seleziona mese --</option>
-                                    <option value="1">Gennaio</option>
-                                    <option value="2">Febbraio</option>
-                                    <option value="3">Marzo</option>
-                                    <option value="4">Aprile</option>
-                                    <option value="5">Maggio</option>
-                                    <option value="6">Giugno</option>
-                                    <option value="7">Luglio</option>
-                                    <option value="8">Agosto</option>
-                                    <option value="9">Settembre</option>
-                                    <option value="10">Ottobre</option>
-                                    <option value="11">Novembre</option>
-                                    <option value="12">Dicembre</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="costo_finanziamento" class="form-label">Costo Finanziamento (€)</label>
-                                <input type="number" class="form-control" id="costo_finanziamento" name="costo_finanziamento" step="0.01" min="0">
-                            </div>
-                        </div>
+                    <div class="col" >
+                        <input type="text" class="form-control form-control-sm" name="modello" placeholder="Modello *" required aria-label="Modello">
                     </div>
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="prima_rata" class="form-label">Prima Rata</label>
-                                <input type="date" class="form-control" id="prima_rata" name="prima_rata">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="numero_rate" class="form-label">Numero Rate</label>
-                                <input type="number" class="form-control" id="numero_rate" name="numero_rate" min="1">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="rata_mensile" class="form-label">Rata Mensile (€)</label>
-                                <input type="number" class="form-control" id="rata_mensile" name="rata_mensile" step="0.01" min="0">
-                            </div>
-                        </div>
+                    <div class="col-auto" style="min-width:110px;">
+                        <select class="form-control form-control-sm" name="mese_scadenza_bollo" aria-label="Mese bollo">
+                            <option value="">Mese bollo</option>
+                            <option value="1">Gen</option>
+                            <option value="2">Feb</option>
+                            <option value="3">Mar</option>
+                            <option value="4">Apr</option>
+                            <option value="5">Mag</option>
+                            <option value="6">Giu</option>
+                            <option value="7">Lug</option>
+                            <option value="8">Ago</option>
+                            <option value="9">Set</option>
+                            <option value="10">Ott</option>
+                            <option value="11">Nov</option>
+                            <option value="12">Dic</option>
+                        </select>
                     </div>
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        I calcoli del totale versato, saldo rimanente e rate rimanenti verranno effettuati automaticamente in base alla data di sistema.
+                    <div class="col-auto" style="min-width:110px;">
+                        <input type="number" class="form-control form-control-sm text-end" name="costo_finanziamento" placeholder="Costo" step="0.01" min="0" aria-label="Costo">
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="btn btn-success">Aggiungi Veicolo</button>
+                    <div class="col-auto" style="min-width:90px;">
+                        <input type="number" class="form-control form-control-sm" name="numero_rate" placeholder="N. rate" min="0" aria-label="Numero rate">
+                    </div>
+                    <div class="col-auto" style="min-width:140px;">
+                        <input type="date" class="form-control form-control-sm" name="prima_rata" placeholder="Prima rata" aria-label="Prima rata">
+                    </div>
+                    <div class="col-auto" style="min-width:110px;">
+                        <input type="number" class="form-control form-control-sm text-end" name="rata_mensile" placeholder="Rata" step="0.01" min="0" aria-label="Rata mensile">
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" id="btn-salva-nuovo-veicolo" class="btn btn-success btn-sm">Aggiungi</button>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
-</div>
+</template>
 
 <!-- Modal Nuovo Bollo -->
 <div class="modal fade" id="modalNuovoBollo" tabindex="-1">
@@ -559,6 +536,105 @@ document.addEventListener('DOMContentLoaded', function(){
             manutIcon.innerHTML = '<i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';
         });
     }
+});
+</script>
+<script>
+// Inserimento inline del box Nuovo Veicolo usando il template e submit via AJAX
+document.addEventListener('DOMContentLoaded', function(){
+    var btn = document.getElementById('btn-nuovo-veicolo');
+    if (!btn) return;
+
+    btn.addEventListener('click', function(){
+        // evita inserimenti multipli
+        if (document.getElementById('card-nuovo-veicolo')) return;
+
+        var tpl = document.getElementById('tpl-nuovo-veicolo');
+        if (!tpl) return;
+        var clone = tpl.content.cloneNode(true);
+
+        // inserisci il box all'inizio del body della card (dopo header)
+        var card = btn.closest('.card');
+        var body = card.querySelector('.card-body');
+            if (body) {
+            // clone.firstElementChild is the card element
+            var node = clone.firstElementChild;
+            // insert the new box above the entire card (outside 'I Tuoi Veicoli')
+            var parent = card.parentNode;
+            if (parent) {
+                parent.insertBefore(node, card);
+            } else {
+                body.insertAdjacentElement('afterbegin', node);
+            }
+
+            // hook per il pulsante chiudi dentro il nodo appena inserito
+            var cancel = node.querySelector('#btn-close-nuovo-veicolo');
+            if (cancel) {
+                cancel.addEventListener('click', function(){
+                    var box = document.getElementById('card-nuovo-veicolo');
+                    if (box) box.remove();
+                });
+            }
+
+            // attach submit handler for the inline form
+            var form = node.querySelector('#form-nuovo-veicolo');
+            if (form) {
+                form.addEventListener('submit', function(e){
+                    e.preventDefault();
+                    // prevent double submit
+                    if (form.dataset.submitting === '1') return;
+                    form.dataset.submitting = '1';
+
+                    var action = form.getAttribute('action') || window.location.href;
+                    var fd = new FormData(form);
+
+                    fetch(action, {
+                        method: 'POST',
+                        body: fd,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    }).then(function(resp){
+                        if (!resp.ok) throw new Error('Errore nella richiesta: ' + resp.status);
+                        // refresh fragments by re-fetching the page and replacing fragments
+                        return fetch(window.location.href);
+                    }).then(function(resp){
+                        if (!resp.ok) throw new Error('Errore nel recupero della pagina: ' + resp.status);
+                        return resp.text();
+                    }).then(function(html){
+                        var parser = new DOMParser();
+                        var doc = parser.parseFromString(html, 'text/html');
+
+                        // replace top-cards
+                        var newTop = doc.getElementById('top-cards');
+                        var oldTop = document.getElementById('top-cards');
+                        if (newTop && oldTop) {
+                            oldTop.innerHTML = newTop.innerHTML;
+                        }
+
+                        // replace veicoli list
+                        var newList = doc.getElementById('veicoli-list');
+                        var oldList = document.getElementById('veicoli-list');
+                        if (newList && oldList) {
+                            oldList.replaceWith(newList.cloneNode(true));
+                        }
+
+                        // remove inline box if still present
+                        var box = document.getElementById('card-nuovo-veicolo');
+                        if (box) box.remove();
+
+                        // re-init client-side pieces (pagination, collapse icons)
+                        try { initClientPagination('table-bolli', 'pagination-bolli'); } catch(e){}
+                        try { initClientPagination('table-manutenzioni', 'pagination-manutenzioni'); } catch(e){}
+
+                        form.dataset.submitting = '0';
+                    }).catch(function(err){
+                        form.dataset.submitting = '0';
+                        alert('Errore: ' + err.message);
+                    });
+                });
+            }
+        }
+    });
 });
 </script>
 {% endblock %}

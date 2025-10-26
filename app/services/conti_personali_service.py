@@ -65,20 +65,28 @@ class ContiPersonaliService:
             conto = self.inizializza_conto_personale(nome_conto)
             if not conto:
                 return False, "Conto non trovato"
-            
+            # Validazione: l'importo deve essere positivo
+            try:
+                valore = float(importo)
+            except Exception:
+                return False, "Importo non valido"
+
+            if valore <= 0:
+                return False, "L'importo del versamento deve essere maggiore di 0"
+
             # Calcola il nuovo saldo (sottrae l'importo perché è un versamento/uscita)
-            nuovo_saldo = conto.saldo_corrente - abs(importo)
-            
-            # Crea il versamento
+            nuovo_saldo = conto.saldo_corrente - abs(valore)
+
+            # Crea il versamento: memorizziamo l'importo come POSITIVO (rappresenta l'ammontare versato)
             versamento = VersamentoPersonale(
                 conto_id=conto.id,
                 data=data,
                 descrizione=descrizione,
-                importo=-abs(importo),  # Sempre negativo per i versamenti
+                importo=abs(valore),  # Memorizzato positivo
                 saldo_dopo_versamento=nuovo_saldo
             )
-            
-            # Aggiorna il saldo del conto
+
+            # Aggiorna il saldo del conto (decresce del valore versato)
             conto.saldo_corrente = nuovo_saldo
             
             db.session.add(versamento)
@@ -104,7 +112,8 @@ class ContiPersonaliService:
             conto = versamento.conto
             
             # Ripristina il saldo (aggiunge l'importo perché era stato sottratto)
-            conto.saldo_corrente -= versamento.importo  # importo è negativo, quindi lo sottrae (= aggiunge)
+            # Ora importo è memorizzato come positivo, quindi aggiungiamo il valore al saldo corrente
+            conto.saldo_corrente += versamento.importo
             
             # Elimina il versamento
             db.session.delete(versamento)

@@ -8,15 +8,11 @@
         <h2><i class="fab fa-paypal me-2"></i>Gestione Piani PayPal</h2>
         <p class="text-muted">Monitora e gestisci i tuoi piani di pagamento PayPal a 3 rate</p>
     </div>
-    <div class="col-auto">
-        <a href="{{ url_for('paypal.nuovo') }}" class="btn btn-primary">
-            <i class="fas fa-plus me-1"></i>Nuovo Piano
-        </a>
-    </div>
+    
 </div>
 
 <!-- Statistiche -->
-<div class="row mb-4">
+<div id="top-cards" class="row mb-4">
     <div class="col-md-3">
         <div class="card bg-primary text-white">
             <div class="card-body">
@@ -84,12 +80,56 @@
 
 <!-- Lista piani: separa In corso e Completati -->
 <div class="card mb-4">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="fas fa-list me-2"></i>Piani in corso</h5>
+        <button id="btn-nuovo-piano" class="btn btn-primary btn-sm" type="button" aria-controls="tmpl-nuovo-piano">
+            <i class="fas fa-plus me-1"></i>Nuovo Piano
+        </button>
     </div>
+    
+    <!-- Template Nuovo Piano (inserito dinamicamente) -->
+    <template id="tmpl-nuovo-piano">
+        <div id="card-nuovo-piano" class="card mb-3">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Nuovo Piano</h5>
+                <button type="button" class="btn btn-link p-0 ms-auto" aria-label="Chiudi" id="btn-close-nuovo-piano">
+                    <i class="fas fa-times" style="font-size:1.25rem;color:#fff;"></i>
+                </button>
+            </div>
+            <div class="card-body">
+                <form id="form-nuovo-piano" method="POST" action="{{ url_for('paypal.nuovo') }}">
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label for="descrizione" class="form-label">Descrizione</label>
+                            <input type="text" class="form-control" id="descrizione" name="descrizione" required placeholder="Es. iPhone 15" style="text-transform: uppercase;">
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label for="importo_totale" class="form-label">Importo Totale (€)</label>
+                            <input type="number" class="form-control" id="importo_totale" name="importo_totale" step="0.01" min="0.01" required placeholder="0.00">
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label for="data_prima_rata" class="form-label">Data Prima Rata</label>
+                            <input type="date" class="form-control" id="data_prima_rata" name="data_prima_rata" required>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label for="note" class="form-label">Note (opzionale)</label>
+                        <textarea class="form-control" id="note" name="note" rows="2" placeholder="Note aggiuntive..."></textarea>
+                    </div>
+                    <!-- Save button placed here (right-aligned in body) -->
+                    <div class="d-flex justify-content-end mt-2">
+                        <button type="submit" id="btn-salva-piano" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Salva
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </template>
     <div class="card-body">
         {% set piani_in_corso = piani|rejectattr('stato', 'equalto', 'completato')|list if piani else [] %}
         {% if piani_in_corso %}
+        <div id="piani-in-corso-container">
         <div class="table-responsive">
             <table id="table-piani-in-corso" class="table table-striped">
                 <thead>
@@ -144,6 +184,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
         </div>
         {% else %}
         <div class="text-center py-3 text-muted">Nessun piano in corso</div>
@@ -290,6 +331,84 @@ document.addEventListener('DOMContentLoaded', function(){
     });
     collapseEl.addEventListener('hide.bs.collapse', function(){
         toggleIcon.innerHTML = '<i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';
+    });
+});
+</script>
+<script>
+// Inline Nuovo Piano: clone template, submit via fetch and update fragments (#piani-in-corso-container, #top-cards)
+document.addEventListener('DOMContentLoaded', function(){
+    var btnShow = document.getElementById('btn-nuovo-piano');
+    var template = document.getElementById('tmpl-nuovo-piano');
+    var pianiContainer = document.getElementById('piani-in-corso-container');
+    var topCards = document.getElementById('top-cards');
+
+    function ensureCardPresent() {
+        var existing = document.getElementById('card-nuovo-piano');
+        if (existing) return existing;
+        if (!template) return null;
+        var cardArea = document.querySelector('.card.mb-4'); // insert at top of the piani card
+        var clone = template.content.cloneNode(true);
+        if (cardArea && cardArea.parentNode) {
+            cardArea.parentNode.insertBefore(clone, cardArea);
+        } else {
+            document.querySelector('main .container')?.appendChild(clone);
+        }
+        return document.getElementById('card-nuovo-piano');
+    }
+
+    if (btnShow) {
+        btnShow.addEventListener('click', function(){
+            var card = ensureCardPresent();
+            if (!card) return;
+            try {
+                var dataInput = card.querySelector('#data_prima_rata');
+                if (dataInput && !dataInput.value) dataInput.value = new Date().toISOString().split('T')[0];
+                var desc = card.querySelector('#descrizione');
+                if (desc && !desc.value) desc.value = '';
+            } catch(e){}
+            try { card.querySelector('input,select,textarea').focus(); } catch(e){}
+            setTimeout(function(){ card.scrollIntoView({behavior: 'smooth', block: 'center'}); }, 100);
+
+            var btnClose = document.getElementById('btn-close-nuovo-piano');
+            if (btnClose) btnClose.addEventListener('click', function(){ var c = document.getElementById('card-nuovo-piano'); if (c) c.remove(); });
+        });
+    }
+
+    // Delegated submit handler for the new piano form
+    document.addEventListener('submit', function(e){
+        if (!e.target || e.target.id !== 'form-nuovo-piano') return;
+        e.preventDefault();
+    var theForm = e.target;
+    var submitBtn = theForm.querySelector('#btn-salva-piano') || theForm.querySelector('button[type=submit]');
+        var origHtml = null;
+        if (submitBtn) { submitBtn.disabled = true; origHtml = submitBtn.innerHTML; submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salva'; }
+
+        var url = theForm.action;
+        var formData = new FormData(theForm);
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function(resp){
+            if (resp.ok) {
+                var currentCard = document.getElementById('card-nuovo-piano'); if (currentCard) currentCard.remove();
+                fetch(window.location.href, {credentials: 'same-origin'})
+                    .then(function(r){ return r.text(); })
+                    .then(function(html){
+                        try {
+                            var parser = new DOMParser();
+                            var doc = parser.parseFromString(html, 'text/html');
+                            var newPiani = doc.getElementById('piani-in-corso-container');
+                            var newTop = doc.getElementById('top-cards');
+                            if (newPiani && pianiContainer) pianiContainer.innerHTML = newPiani.innerHTML;
+                            if (newTop && topCards) topCards.innerHTML = newTop.innerHTML;
+                        } catch (err) { setTimeout(function(){ location.reload(); }, 250); }
+                    }).catch(function(){ setTimeout(function(){ location.reload(); }, 250); });
+            } else {
+                resp.text().then(function(txt){ alert('Errore nel salvataggio: ' + txt); if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; } });
+            }
+        }).catch(function(err){ alert('Errore di rete: ' + err); if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; } });
     });
 });
 </script>

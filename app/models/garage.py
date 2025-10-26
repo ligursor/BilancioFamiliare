@@ -23,7 +23,6 @@ class Veicolo(db.Model):
     def totale_versato(self):
         """Calcola il totale versato in base alla data odierna e alla prima rata"""
         oggi = date.today()
-        
         if oggi < self.prima_rata:
             return 0.0
         
@@ -42,6 +41,7 @@ class Veicolo(db.Model):
     @property
     def rate_rimanenti(self):
         """Calcola le rate rimanenti"""
+        oggi = date.today()
         oggi = date.today()
         
         if oggi < self.prima_rata:
@@ -71,7 +71,6 @@ class Veicolo(db.Model):
     def giorni_alla_scadenza_bollo(self):
         """Calcola i giorni alla prossima scadenza bollo"""
         oggi = date.today()
-        
         # Data di scadenza per l'anno corrente (ultimo giorno del mese di scadenza)
         ultimo_giorno = calendar.monthrange(oggi.year, self.mese_scadenza_bollo)[1]
         data_scadenza = date(oggi.year, self.mese_scadenza_bollo, ultimo_giorno)

@@ -247,6 +247,30 @@ def elimina_abbonamento(abbonamento_id):
     
     return redirect(url_for('ppay.evolution'))
 
+
+@ppay_bp.route('/elimina_movimento/<int:movimento_id>', methods=['POST'])
+def elimina_movimento(movimento_id):
+    """Elimina un movimento PostePay e aggiorna il saldo"""
+    try:
+        movimento = MovimentoPostePay.query.get_or_404(movimento_id)
+        importo = movimento.importo
+
+        # Elimina il movimento
+        db.session.delete(movimento)
+
+        # Aggiorna saldo PostePay invertendo l'effetto del movimento
+        postepay = PostePayEvolution.query.first()
+        if postepay:
+            postepay.saldo_attuale -= importo
+            postepay.data_ultimo_aggiornamento = datetime.utcnow()
+
+        db.session.commit()
+        flash('Movimento eliminato con successo!', 'success')
+    except Exception as e:
+        flash(f'Errore nell\'eliminazione del movimento: {str(e)}', 'error')
+        db.session.rollback()
+    return redirect(url_for('ppay.evolution'))
+
 @ppay_bp.route('/modifica_saldo', methods=['POST'])
 def modifica_saldo():
     """Modifica il saldo PostePay Evolution"""
@@ -298,16 +322,50 @@ def modifica_saldo():
 def aggiungi_abbonamento():
     """Aggiunge un nuovo abbonamento PostePay"""
     try:
+        # Determine giorno_addebito: prefer explicit field, otherwise derive from provided date or today
+        giorno_raw = request.form.get('giorno_addebito')
+        if giorno_raw:
+            try:
+                giorno_addebito = int(giorno_raw)
+            except ValueError:
+                giorno_addebito = None
+        else:
+            # try to derive from the 'data' field if provided
+            data_str = request.form.get('data', '')
+            if data_str:
+                try:
+                    giorno_addebito = datetime.strptime(data_str, '%Y-%m-%d').day
+                except Exception:
+                    giorno_addebito = None
+            else:
+                giorno_addebito = None
+
+        if not giorno_addebito:
+            # fallback to today's day of month
+            giorno_addebito = date.today().day
+
         abbonamento = AbbonamentoPostePay(
             nome=request.form['nome'],
             descrizione=request.form.get('descrizione', ''),
             importo=float(request.form['importo']),
-            giorno_addebito=int(request.form['giorno_addebito']),
+            giorno_addebito=giorno_addebito,
             attivo=True
         )
-        
-        db.session.add(abbonamento)
-        db.session.commit()
+        # Server-side lightweight deduplication: if an identical abbonamento
+        # was created in the last few seconds, skip to avoid duplicates from
+        # accidental double-submit (client-side guard should handle most cases).
+        recent_threshold = datetime.utcnow() - timedelta(seconds=5)
+        existing = AbbonamentoPostePay.query.filter(
+            AbbonamentoPostePay.nome == abbonamento.nome,
+            AbbonamentoPostePay.importo == abbonamento.importo,
+            AbbonamentoPostePay.giorno_addebito == abbonamento.giorno_addebito,
+            AbbonamentoPostePay.data_creazione >= recent_threshold
+        ).first()
+        if existing:
+            flash(f'Abbonamento simile rilevato (evitato duplicato).', 'info')
+        else:
+            db.session.add(abbonamento)
+            db.session.commit()
         
         flash(f'Abbonamento {abbonamento.nome} aggiunto con successo!', 'success')
         

@@ -4,24 +4,38 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="row">
-        <div class="col-12">
-            <h1 class="mb-4">
-                <i class="fas fa-user-circle me-2 text-primary"></i>
-                Conto {{ nome_persona }}
-            </h1>
+    
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4 d-flex align-items-center gap-2">
+                    <i class="fas fa-user-circle me-2 text-primary"></i>
+                    <span>Conto {{ nome_persona }}</span>
+                    <button type="button" class="btn btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center ms-2 shadow-none" style="width:28px;height:28px;padding:0;border-width:1px;font-size:12px;" data-bs-toggle="modal" data-bs-target="#infoModal" aria-label="Informazioni conto">
+                        <i class="fas fa-info-circle" style="font-size:12px;color:inherit;"></i>
+                    </button>
+                </h1>
+            </div>
         </div>
-    </div>
 
     <!-- Cards delle statistiche -->
+    {# Pre-calcolo del totale versato come somma degli importi registrati (importi memorizzati positivi) #}
+    {# Usa il filtro sum per ottenere la somma degli importi; evita problemi di scope con set dentro i loop #}
+    {% set totale_versato = (versamenti | map(attribute='importo') | sum) if versamenti else 0.0 %}
+    {% set saldo_calcolato = conto.saldo_iniziale - totale_versato %}
+    <div id="top-cards">
     <div class="row mb-4">
         <div class="col-md-6 col-lg-3">
-            <div class="card {% if conto.saldo_corrente >= 0 %}bg-primary{% else %}bg-danger{% endif %} text-white">
+            <div class="card bg-info text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h4 class="card-title">{{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(conto.saldo_corrente) }}</h4>
-                            <p class="card-text">Saldo Attuale</p>
+                            <h4 class="card-title">
+                                <a href="#" class="text-white text-decoration-none" data-bs-toggle="modal" data-bs-target="#modificaSaldoModal" title="Clicca per modificare">
+                                    {{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(conto.saldo_iniziale) }}
+                                    <i class="fas fa-edit ms-1" style="font-size: 0.8rem;"></i>
+                                </a>
+                            </h4>
+                            <p class="card-text">Saldo Iniziale</p>
                         </div>
                     </div>
                 </div>
@@ -29,12 +43,12 @@
         </div>
 
         <div class="col-md-6 col-lg-3">
-            <div class="card bg-info text-white">
+            <div class="card {% if saldo_calcolato >= 0 %}bg-primary{% else %}bg-danger{% endif %} text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h4 class="card-title">{{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(conto.saldo_iniziale) }}</h4>
-                            <p class="card-text">Saldo Iniziale</p>
+                            <h4 class="card-title">{{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(saldo_calcolato) }}</h4>
+                            <p class="card-text">Saldo Attuale</p>
                         </div>
                     </div>
                 </div>
@@ -59,7 +73,7 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h4 class="card-title">{{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(conto.saldo_iniziale - conto.saldo_corrente) }}</h4>
+                            <h4 class="card-title">{{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(totale_versato) }}</h4>
                             <p class="card-text">Totale Versato</p>
                         </div>
                     </div>
@@ -67,83 +81,80 @@
             </div>
         </div>
     </div>
+    </div>
 
-    <!-- Azioni Rapide -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-tools me-2"></i>Azioni Rapide
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modificaSaldoModal">
-                            <i class="fas fa-edit me-1"></i>Modifica Saldo Iniziale
-                        </button>
-                        <form method="POST" action="{{ url_for('conti.reset_conto', nome_conto=nome_persona) }}" style="display:inline">
-                            <button type="submit" class="btn btn-warning btn-sm" data-action="confirm-delete" data-message="Sei sicuro di voler resettare il conto? Tutti i versamenti saranno eliminati!">
-                                <i class="fas fa-undo me-1"></i>Reset Conto
+    <!-- Azioni Rapide rimossa: le funzionalità sono state integrate nella UI principale -->
+
+    <!-- Template for Nuovo Versamento (inserted by JS when needed) -->
+    <style>
+    /* remove number input spinners for the inline Nuovo Versamento card */
+    #card-nuovo-versamento input[type=number]::-webkit-outer-spin-button,
+    #card-nuovo-versamento input[type=number]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    #card-nuovo-versamento input[type=number] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+    </style>
+
+    <template id="tmpl-nuovo-versamento">
+        <div id="card-nuovo-versamento" class="card mb-4">
+            <div class="card-header d-flex align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus-circle me-2"></i>Nuovo Versamento
+                </h5>
+                <button type="button" class="btn btn-link ms-auto p-0" aria-label="Chiudi" id="btn-close-nuovo-versamento">
+                    <i class="fas fa-times" style="font-size:1.25rem;color:#fff;"></i>
+                </button>
+            </div>
+            <div class="card-body">
+                <form id="form-nuovo-versamento" method="POST" action="{{ url_for('conti.aggiungi_versamento', nome_conto=nome_persona) }}">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="data" class="form-label">Data</label>
+                            <input type="date" class="form-control" id="data" name="data" required>
+                        </div>
+                        <div class="col-md-5">
+                            <label for="descrizione" class="form-label">Descrizione</label>
+                            <input type="text" class="form-control" id="descrizione" name="descrizione" placeholder="Descrizione del versamento..." required>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="importo" class="form-label">Importo (€)</label>
+                            <input type="number" step="0.01" min="0.01" inputmode="decimal" value="100.00" class="form-control" id="importo" name="importo" required>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" id="btn-salva-versamento" class="btn btn-success w-100">
+                                <i class="fas fa-save me-1"></i>Salva
                             </button>
-                        </form>
-                        <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#infoModal">
-                            <i class="fas fa-info-circle me-1"></i>Info
-                        </button>
+                        </div>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
-    </div>
-
-    <!-- Form Nuovo Versamento -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">
-                <i class="fas fa-plus-circle me-2"></i>Nuovo Versamento
-            </h5>
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('conti.aggiungi_versamento', nome_conto=nome_persona) }}">
-                <div class="row">
-                    <div class="col-md-3">
-                        <label for="data" class="form-label">Data</label>
-                        <input type="date" class="form-control" id="data" name="data" required>
-                    </div>
-                    <div class="col-md-5">
-                        <label for="descrizione" class="form-label">Descrizione</label>
-                        <input type="text" class="form-control" id="descrizione" name="descrizione" 
-                               placeholder="Descrizione del versamento..." required>
-                    </div>
-                    <div class="col-md-2">
-                        <label for="importo" class="form-label">Importo (€)</label>
-                        <input type="number" step="0.01" min="0.01" max="{{ conto.saldo_corrente }}" 
-                               class="form-control" id="importo" name="importo" required>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-success w-100">
-                            <i class="fas fa-plus me-1"></i>Aggiungi
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
+    </template>
 
     <!-- Tabella Versamenti -->
     <div class="card">
-        <div class="card-header">
+        <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
                 <i class="fas fa-list me-2"></i>Versamenti
                 {% if versamenti %}
-                <span class="badge bg-primary ms-2">{{ versamenti|length }}</span>
+                <span id="versamenti-count" class="badge bg-primary ms-2">{{ versamenti|length }}</span>
                 {% endif %}
             </h5>
+            <div>
+                <button type="button" id="btn-nuovo-versamento" class="btn btn-success btn-sm" aria-expanded="false" aria-controls="nuovoVersamentoCollapse">
+                    <i class="fas fa-plus me-1"></i>Nuovo Versamento
+                </button>
+            </div>
         </div>
         <div class="card-body">
             {% if versamenti %}
             <div class="table-responsive">
-                <table class="table table-striped">
+                <div id="versamenti-table-container">
+                <table id="table-versamenti" class="table table-striped">
                     <thead>
                         <tr>
                             <th class="text-center">Descrizione</th>
@@ -158,10 +169,10 @@
                             <td class="text-start">{{ versamento.descrizione }}</td>
                             <td class="text-center">{{ versamento.data.strftime('%d/%m/%Y') }}</td>
                             <td class="text-center text-danger">
-                                <strong>-{{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(versamento.importo) }}</strong>
+                                <strong>{{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(versamento.importo) }}</strong>
                             </td>
                             <td class="text-center">
-                                <form method="POST" action="{{ url_for('conti.elimina_versamento', versamento_id=versamento.id) }}" style="display:inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo versamento?')">
+                                <form class="form-elimina-versamento" method="POST" action="{{ url_for('conti.elimina_versamento', versamento_id=versamento.id) }}" style="display:inline">
                                     <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina versamento">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -171,6 +182,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
             </div>
             {% else %}
             <div class="text-center py-5 text-muted">
@@ -200,7 +212,7 @@
                         <ul class="list-unstyled">
                             <li><strong>Proprietario:</strong> {{ nome_persona }}</li>
                             <li><strong>Saldo iniziale:</strong> {{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(conto.saldo_iniziale) }}</li>
-                            <li><strong>Saldo corrente:</strong> {{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(conto.saldo_corrente) }}</li>
+                            <li><strong>Saldo corrente:</strong> {{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(saldo_calcolato) }}</li>
                             <li><strong>Data creazione:</strong> {{ conto.data_creazione.strftime('%d/%m/%Y %H:%M') }}</li>
                             <li><strong>Ultimo aggiornamento:</strong> {{ conto.data_aggiornamento.strftime('%d/%m/%Y %H:%M') }}</li>
                         </ul>
@@ -210,8 +222,8 @@
                         <h6><i class="fas fa-chart-bar me-2 text-success"></i>Statistiche</h6>
                         <ul class="list-unstyled">
                             <li><strong>Versamenti totali:</strong> {{ versamenti|length }}</li>
-                            <li><strong>Importo totale versato:</strong> {{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(conto.saldo_iniziale - conto.saldo_corrente) }}</li>
-                            <li><strong>Percentuale utilizzata:</strong> {{ "%.1f"|format(((conto.saldo_iniziale - conto.saldo_corrente) / conto.saldo_iniziale * 100) if conto.saldo_iniziale > 0 else 0) }}%</li>
+                            <li><strong>Importo totale versato:</strong> {{ config.CONTO_PERSONALE_FORMATO_VALUTA.format(totale_versato) }}</li>
+                            <li><strong>Percentuale utilizzata:</strong> {{ "%.1f"|format(((totale_versato / conto.saldo_iniziale * 100) if conto.saldo_iniziale > 0 else 0)) }}%</li>
                         </ul>
                         
                         <hr>
@@ -370,5 +382,190 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-<script id="conto-personale-data" type="application/json">{{ {'saldo_iniziale': conto.saldo_iniziale, 'saldo_corrente': conto.saldo_corrente} | tojson }}</script>
+<script id="conto-personale-data" type="application/json">{{ {'saldo_iniziale': conto.saldo_iniziale, 'saldo_corrente': saldo_calcolato} | tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// AJAX submit for Nuovo Versamento + AJAX delete: submit forms via fetch and update fragments (versamenti table, count, top cards)
+document.addEventListener('DOMContentLoaded', function(){
+    var form = document.getElementById('form-nuovo-versamento');
+    var btnShow = document.getElementById('btn-nuovo-versamento');
+    var btnCancel = document.getElementById('btn-cancella-versamento');
+    var card = document.getElementById('card-nuovo-versamento');
+    var tableContainer = document.getElementById('versamenti-table-container');
+    var countBadge = document.getElementById('versamenti-count');
+    var topCards = document.getElementById('top-cards');
+    // If the card is not rendered, insert it from the template when needed
+    var template = document.getElementById('tmpl-nuovo-versamento');
+    function ensureCardPresent() {
+        var existing = document.getElementById('card-nuovo-versamento');
+        if (existing) return existing;
+        if (!template) return null;
+        // insert the cloned template just above the Versamenti card
+        var versamentiCard = document.getElementById('table-versamenti') ? document.getElementById('table-versamenti').closest('.card') : null;
+        var clone = template.content.cloneNode(true);
+        if (versamentiCard && versamentiCard.parentNode) {
+            versamentiCard.parentNode.insertBefore(clone, versamentiCard);
+        } else {
+            // fallback: append to main container
+            document.querySelector('main .container')?.appendChild(clone);
+        }
+        return document.getElementById('card-nuovo-versamento');
+    }
+
+    if (btnShow) {
+        btnShow.addEventListener('click', function(){
+            card = ensureCardPresent();
+            if (!card) return;
+            // initialize date field to today if empty and set default description
+            try {
+                var dataInput = card.querySelector('#data');
+                if (dataInput && !dataInput.value) {
+                    dataInput.value = new Date().toISOString().split('T')[0];
+                }
+                var descInput = card.querySelector('#descrizione');
+                if (descInput && !descInput.value) {
+                    var mesi = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+                    var oggi = new Date();
+                    var mese = mesi[oggi.getMonth()];
+                    var anno = oggi.getFullYear();
+                    descInput.value = 'Versamento ' + mese + ' ' + anno;
+                }
+            } catch(e){}
+            try { card.querySelector('input,select,textarea').focus(); } catch(e){}
+            setTimeout(function(){ card.scrollIntoView({behavior: 'smooth', block: 'center'}); }, 100);
+            // rebind close handler on header
+            var btnClose = document.getElementById('btn-close-nuovo-versamento');
+            if (btnClose) {
+                btnClose.addEventListener('click', function(){
+                    var c = document.getElementById('card-nuovo-versamento');
+                    if (c) c.remove();
+                });
+            }
+        });
+    }
+    // Delegated submit handler for dynamically inserted form
+    document.addEventListener('submit', function(e){
+        if (!e.target || e.target.id !== 'form-nuovo-versamento') return;
+        e.preventDefault();
+        var theForm = e.target;
+        var submitBtn = theForm.querySelector('#btn-salva-versamento');
+        var origHtml = null;
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            origHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salva';
+        }
+        var url = theForm.action;
+        var formData = new FormData(theForm);
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(function(resp){
+            if (resp.ok) {
+                // remove the card if present
+                var currentCard = document.getElementById('card-nuovo-versamento');
+                if (currentCard) currentCard.remove();
+                // fetch the current page HTML and replace only the versamenti table container and badge
+                fetch(window.location.href, {credentials: 'same-origin'})
+                    .then(function(r){ return r.text(); })
+                    .then(function(html){
+                        try {
+                            var parser = new DOMParser();
+                            var doc = parser.parseFromString(html, 'text/html');
+                            var newContainer = doc.getElementById('versamenti-table-container');
+                            var newCount = doc.getElementById('versamenti-count');
+                            if (newContainer && tableContainer) {
+                                tableContainer.innerHTML = newContainer.innerHTML;
+                            }
+                            if (newCount && countBadge) {
+                                countBadge.textContent = newCount.textContent;
+                            }
+                            // update top statistic cards if present
+                            var newTop = doc.getElementById('top-cards');
+                            if (newTop && topCards) {
+                                topCards.innerHTML = newTop.innerHTML;
+                            }
+                        } catch (err) {
+                            // fallback to full reload
+                            setTimeout(function(){ location.reload(); }, 250);
+                        }
+                    }).catch(function(){ setTimeout(function(){ location.reload(); }, 250); });
+            } else {
+                // server returned error - show alert
+                resp.text().then(function(txt){
+                    alert('Errore nel salvataggio: ' + txt);
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+                });
+            }
+        }).catch(function(err){
+            alert('Errore di rete: ' + err);
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+        });
+    });
+
+    // Delegated submit handler for delete forms (class form-elimina-versamento)
+    document.addEventListener('submit', function(e){
+        var tgt = e.target;
+        if (!tgt || !tgt.classList || !tgt.classList.contains('form-elimina-versamento')) return;
+        e.preventDefault();
+        // confirm deletion (forms had an inline confirm originally)
+        if (!confirm('Sei sicuro di voler eliminare questo versamento?')) return;
+        var submitBtn = tgt.querySelector('button[type=submit]');
+        var origHtml = null;
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            origHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+        }
+        var url = tgt.action;
+        fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(function(resp){
+            if (resp.ok) {
+                // fetch the current page and update fragments
+                fetch(window.location.href, {credentials: 'same-origin'})
+                    .then(function(r){ return r.text(); })
+                    .then(function(html){
+                        try {
+                            var parser = new DOMParser();
+                            var doc = parser.parseFromString(html, 'text/html');
+                            var newContainer = doc.getElementById('versamenti-table-container');
+                            var newCount = doc.getElementById('versamenti-count');
+                            var newTop = doc.getElementById('top-cards');
+                            if (newContainer && tableContainer) {
+                                tableContainer.innerHTML = newContainer.innerHTML;
+                            }
+                            if (newCount && countBadge) {
+                                countBadge.textContent = newCount.textContent;
+                            }
+                            if (newTop && topCards) {
+                                topCards.innerHTML = newTop.innerHTML;
+                            }
+                        } catch (err) {
+                            setTimeout(function(){ location.reload(); }, 250);
+                        }
+                    }).catch(function(){ setTimeout(function(){ location.reload(); }, 250); });
+            } else {
+                resp.text().then(function(txt){
+                    alert('Errore durante l\'eliminazione: ' + txt);
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+                });
+            }
+        }).catch(function(err){
+            alert('Errore di rete: ' + err);
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+        });
+    });
+});
+</script>
 {% endblock %}
