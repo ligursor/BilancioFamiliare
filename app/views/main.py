@@ -36,96 +36,43 @@ def index():
         saldo_iniziale = SaldoIniziale.query.first()
         saldo_iniziale_importo = saldo_iniziale.importo if saldo_iniziale else 0.0
     
-    # Calcola i prossimi N mesi con saldo progressivo
+    # Calcola i prossimi N mesi usando il servizio centrale di dettaglio
     mesi = []
-    saldo_corrente = saldo_iniziale_importo
-    
     # Usa il valore di configurazione o default a 6
     MESI_PROIEZIONE = 6
-    
+
     for i in range(MESI_PROIEZIONE):
         data_mese = oggi + relativedelta(months=i)
         start_date, end_date = get_month_boundaries(data_mese)
-        
-        # Calcola entrate e uscite per questo mese (logica corretta per madri/figlie)
-        tutte_transazioni_mese = Transazione.query.filter(
-            Transazione.data >= start_date,
-            Transazione.data <= end_date,
-            Transazione.categoria_id.isnot(None)  # Escludi transazioni PayPal (senza categoria)
-        ).all()
-        
-        # Filtra per evitare duplicazioni
-        entrate = 0
-        uscite = 0
-        for t in tutte_transazioni_mese:
-            includi = False
-            if t.ricorrente == 0:  # Figlie e manuali: sempre incluse
-                includi = True
-            elif t.ricorrente == 1:  # Madri: includi solo se non hanno figlie nello stesso mese
-                ha_figlie_stesso_mese = any(
-                    f.transazione_madre_id == t.id and 
-                    f.data.month == t.data.month and 
-                    f.data.year == t.data.year
-                    for f in tutte_transazioni_mese if f.ricorrente == 0 and f.transazione_madre_id
-                )
-                if not ha_figlie_stesso_mese:
-                    includi = True
-            
-            if includi:
-                if t.tipo == 'entrata':
-                    entrate += t.importo
-                else:
-                    uscite += t.importo
-        
-        bilancio = entrate - uscite
-        saldo_finale_mese = saldo_corrente + bilancio
-        
-        # Calcola saldo attuale per il mese corrente (considera solo transazioni già effettuate)
-        saldo_attuale_mese = saldo_corrente
-        if i == 0:  # Solo per il mese corrente
-            # Filtra transazioni già effettuate (data <= oggi)
-            entrate_effettuate = 0
-            uscite_effettuate = 0
-            for t in tutte_transazioni_mese:
-                if t.data <= oggi:  # Solo transazioni già effettuate
-                    includi = False
-                    if t.ricorrente == 0:  # Figlie e manuali: sempre incluse
-                        includi = True
-                    elif t.ricorrente == 1:  # Madri: includi solo se non hanno figlie nello stesso mese
-                        ha_figlie_stesso_mese = any(
-                            f.transazione_madre_id == t.id and 
-                            f.data.month == t.data.month and 
-                            f.data.year == t.data.year
-                            for f in tutte_transazioni_mese if f.ricorrente == 0 and f.transazione_madre_id
-                        )
-                        if not ha_figlie_stesso_mese:
-                            includi = True
-                    
-                    if includi:
-                        if t.tipo == 'entrata':
-                            entrate_effettuate += t.importo
-                        else:
-                            uscite_effettuate += t.importo
-            
-            saldo_attuale_mese = saldo_corrente + entrate_effettuate - uscite_effettuate
-        
+
+        # Usa il servizio centrale per calcolare il dettaglio del mese
+        try:
+            dettaglio = servizio_dettaglio.dettaglio_periodo_interno(start_date, end_date)
+            entrate = float(dettaglio.get('entrate', 0.0) or 0.0)
+            uscite = float(dettaglio.get('uscite', 0.0) or 0.0)
+            bilancio = float(dettaglio.get('bilancio', 0.0) or 0.0)
+            saldo_iniziale_mese = float(dettaglio.get('saldo_iniziale_mese', 0.0) or 0.0)
+            saldo_finale_mese = float(dettaglio.get('saldo_finale_mese', 0.0) or 0.0)
+            saldo_attuale_mese = float(dettaglio.get('saldo_attuale_mese', 0.0) or 0.0)
+        except Exception:
+            # In caso di errore, fallback a zeri per non rompere la dashboard
+            entrate = uscite = bilancio = saldo_iniziale_mese = saldo_finale_mese = saldo_attuale_mese = 0.0
+
         mesi.append({
             'nome': get_current_month_name(data_mese),
             'start_date': start_date,
             'end_date': end_date,
-            'anno_target': end_date.year,  # Usa end_date per il link corretto
-            'mese_target': end_date.month,  # Usa end_date per il link corretto
+            'anno_target': end_date.year,
+            'mese_target': end_date.month,
             'entrate': entrate,
             'uscite': uscite,
             'bilancio': bilancio,
-            'saldo_iniziale_mese': saldo_corrente,
+            'saldo_iniziale_mese': saldo_iniziale_mese,
             'saldo_finale_mese': saldo_finale_mese,
             'saldo_attuale_mese': saldo_attuale_mese,
-            'mese_corrente': i == 0
+            # Non selezionare/ evidenziare alcun mese di default nella dashboard
+            'mese_corrente': False
         })
-        
-        # Il saldo finale di questo mese diventa il saldo iniziale del prossimo
-        saldo_corrente = saldo_finale_mese
     
     # Ottieni le transazioni del periodo corrente (primo elemento di mesi)
     if mesi:
@@ -171,36 +118,11 @@ def index():
                          saldo_iniziale=saldo_iniziale_importo,
                          categorie=categorie_dict)
 
-@main_bp.route('/saldo_iniziale')
-def saldo_iniziale():
-    """Gestione saldo iniziale"""
-    saldo = SaldoIniziale.query.first()
-    return render_template('saldo_iniziale.html', saldo=saldo)
-
-@main_bp.route('/saldo_iniziale/aggiorna', methods=['POST'])
-def aggiorna_saldo_iniziale():
-    """Aggiorna il saldo iniziale"""
-    from flask import request, flash, redirect, url_for
-    
-    try:
-        nuovo_importo = float(request.form['importo'])
-        
-        saldo = SaldoIniziale.query.first()
-        if not saldo:
-            saldo = SaldoIniziale(importo=nuovo_importo)
-            from app import db
-            db.session.add(saldo)
-            db.session.commit()
-        else:
-            saldo.importo = nuovo_importo
-            from app import db
-            db.session.commit()
-        
-        flash('Saldo iniziale aggiornato con successo!', 'success')
-    except Exception as e:
-        flash(f'Errore nell\'aggiornamento: {str(e)}', 'error')
-    
-    return redirect(url_for('main.saldo_iniziale'))
+# Route and management UI for 'saldo_iniziale' removed from the main menu.
+# The template and explicit management routes were intentionally removed
+# to avoid manual edits to the persisted initial balance. The data model
+# (`SaldoIniziale`) remains in case it's needed programmatically; any updates
+# should now be performed via the application logic / administrative scripts.
 
 @main_bp.route('/forza_rollover')
 def forza_rollover():

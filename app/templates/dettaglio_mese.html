@@ -1191,7 +1191,23 @@ document.addEventListener('DOMContentLoaded', function(){
         editor.appendChild(saveBtn);
         editor.appendChild(cancelBtn);
 
+        // Nascondi il valore e TUTTI i pulsanti di modifica presenti nel TD
+        // mentre l'editor è aperto. Usiamo style.display per non dipendere da
+        // classi di utilità esterne (più robusto se bootstrap non è caricato).
         initSpan.style.display = 'none';
+        const editButtons = td.querySelectorAll('.btn-edit-budget');
+        console.debug('[budget-editor] found edit buttons:', editButtons.length, editButtons);
+        editButtons.forEach((b, idx) => {
+            try {
+                // Forza il nascondimento con inline style important (più robusto)
+                b.style.setProperty('display', 'none', 'important');
+                b.setAttribute('aria-hidden', 'true');
+                b.setAttribute('data-hidden-by-js', '1');
+                console.debug(`[budget-editor] hid button ${idx}`, b);
+            } catch(e) {
+                console.debug('[budget-editor] hide error', e);
+            }
+        });
         td.appendChild(editor);
         requestAnimationFrame(() => {
             editor.style.opacity = '1';
@@ -1204,6 +1220,21 @@ document.addEventListener('DOMContentLoaded', function(){
             setTimeout(() => {
                 editor.remove();
                 initSpan.style.display = '';
+                // Ripristina tutti i pulsanti edit nel TD che avevamo nascosto
+                const editButtonsRestore = td.querySelectorAll('.btn-edit-budget');
+                console.debug('[budget-editor] restoring edit buttons:', editButtonsRestore.length);
+                editButtonsRestore.forEach((b, idx) => {
+                    try {
+                        if (b.getAttribute('data-hidden-by-js')) {
+                            b.style.removeProperty('display');
+                            b.removeAttribute('data-hidden-by-js');
+                        }
+                        b.removeAttribute('aria-hidden');
+                        console.debug(`[budget-editor] restored button ${idx}`, b);
+                    } catch(e) {
+                        console.debug('[budget-editor] restore error', e);
+                    }
+                });
             }, 200);
         };
 
@@ -1226,6 +1257,8 @@ document.addEventListener('DOMContentLoaded', function(){
                 const data = await resp.json();
                 if (!data || !data.success) {
                     alert('Errore durante l\'aggiornamento: ' + (data && data.error ? data.error : 'unknown'));
+                    // ripristina UI editor / pulsante anche in caso di errore
+                    cleanup();
                     return;
                 }
 
@@ -1257,6 +1290,8 @@ document.addEventListener('DOMContentLoaded', function(){
             } catch (err) {
                 /* console.error removed */
                 alert('Errore durante l\'aggiornamento. Controlla la console.');
+                // assicurati di ripristinare il pulsante se qualcosa va storto
+                try { cleanup(); } catch(e) {}
             }
         });
     });

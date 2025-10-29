@@ -8,6 +8,7 @@ from app import db
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from flask import current_app
+from app.services.monthly_summary_service import MonthlySummaryService
 
 class TransazioneService(BaseService):
     """Servizio per la gestione delle transazioni"""
@@ -113,6 +114,12 @@ class TransazioneService(BaseService):
             if success and ricorrente and frequenza_giorni > 0:
                 # Crea istanze future per transazioni ricorrenti
                 self._create_recurring_instances(transazione)
+            # aggiorna i monthly summary per riflettere la nuova transazione
+            try:
+                MonthlySummaryService().update_for_transaction(transazione)
+            except Exception:
+                # non blocchiamo la creazione se l'aggiornamento del summary fallisce
+                db.session.rollback()
             
             return success, message, transazione
             
@@ -159,6 +166,12 @@ class TransazioneService(BaseService):
             
             transazione.data_effettiva = date.today()
             success, message = self.update(transazione)
+
+            # aggiorna monthly summary per il mese della transazione
+            try:
+                MonthlySummaryService().update_for_transaction(transazione)
+            except Exception:
+                db.session.rollback()
             
             return success, message
             
@@ -191,3 +204,23 @@ class TransazioneService(BaseService):
         
         # Ordina e limita
         return sorted(transazioni_filtrate, key=lambda x: (x.data, x.id), reverse=True)[:limit]
+
+    def delete(self, obj):
+        """Override delete per aggiornare i monthly summary dopo l'eliminazione."""
+        try:
+            # keep a copy of the transaction date before deletion
+            tx_date = getattr(obj, 'data', None)
+            super_resp = super().delete(obj)
+            # if deletion successful, update monthly summaries for the month
+            if super_resp[0] and tx_date:
+                try:
+                    MonthlySummaryService().update_for_transaction(obj)
+                except Exception:
+                    db.session.rollback()
+            return super_resp
+        except Exception as e:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            return False, str(e)

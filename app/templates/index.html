@@ -143,4 +143,38 @@ window.addEventListener('load', function() {
     filtraCategorie();
 });
 </script>
+<style>
+/* Hover and selected styles for month cards (dashboard) */
+.card.month-card.hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(13,110,253,0.12);
+    transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.card.month-card.selected {
+    border: 2px solid #0d6efd !important;
+    box-shadow: 0 12px 24px rgba(13,110,253,0.18);
+    transform: translateY(-6px) scale(1.01);
+}
+</style>
+
+<script>
+// Add interactive hover and click highlight for month cards (no default selection on load)
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const cards = document.querySelectorAll('.card.month-card');
+        cards.forEach(card => {
+            card.addEventListener('mouseenter', () => card.classList.add('hover'));
+            card.addEventListener('mouseleave', () => card.classList.remove('hover'));
+            card.addEventListener('click', (e) => {
+                // mark this card as selected and clear others
+                document.querySelectorAll('.card.month-card.selected').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                // allow navigation to proceed (the card is wrapped in an <a>)
+            });
+        });
+    } catch (e) {
+        /* ignore if DOM structure changed */
+    }
+});
+</script>
 {% endblock %}
