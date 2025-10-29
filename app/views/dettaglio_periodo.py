@@ -129,18 +129,46 @@ def monthly_budget_update():
         from app.models.monthly_budget import MonthlyBudget
         from app import db
         from app.services.dettaglio_periodo_service import DettaglioPeriodoService
+        from datetime import date
+        from app.services import get_month_boundaries
 
-        mb = MonthlyBudget.query.filter_by(categoria_id=categoria_id, year=year, month=month).first()
+        # Trasforma il year/month ricevuti (riferiti al mese visualizzato)
+        # nella coppia year/month usata per i MonthlyBudget (start_date del mese
+        # finanziario personalizzato, giorno 27). Questo garantisce che il
+        # MonthlyBudget creato/aggiornato sia quello che `DettaglioPeriodoService`
+        # poi legge quando ricostruisce il dettaglio mese.
+        data_mese = date(year, month, 1)
+        start_date, _ = get_month_boundaries(data_mese)
+        mb_year = start_date.year
+        mb_month = start_date.month
+
+        mb = MonthlyBudget.query.filter_by(categoria_id=categoria_id, year=mb_year, month=mb_month).first()
         created = False
         if not mb:
-            mb = MonthlyBudget(categoria_id=categoria_id, year=year, month=month, importo=importo)
-            db.session.add(mb)
-            db.session.commit()
-            created = True
+            mb = MonthlyBudget(categoria_id=categoria_id, year=mb_year, month=mb_month, importo=importo)
+            try:
+                db.session.add(mb)
+                db.session.commit()
+                created = True
+            except Exception as e:
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+                return jsonify({'success': False, 'error': f'Commit error: {str(e)}'}), 500
         else:
             old = float(mb.importo or 0.0)
             mb.importo = importo
-            db.session.commit()
+            try:
+                # ensure object is attached to the session
+                db.session.add(mb)
+                db.session.commit()
+            except Exception as e:
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+                return jsonify({'success': False, 'error': f'Commit error: {str(e)}'}), 500
 
         # Ricalcola il dettaglio del mese per restituire residuo e nuovi totali
         try:

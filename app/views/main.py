@@ -21,9 +21,20 @@ def index():
     
     oggi = datetime.now().date()
     
-    # Ottieni saldo iniziale (potrebbe essere stato aggiornato dalla funzione sopra)
-    saldo_iniziale = SaldoIniziale.query.first()
-    saldo_iniziale_importo = saldo_iniziale.importo if saldo_iniziale else 0.0
+    # Calcola il saldo iniziale del periodo corrente usando la logica del dettaglio
+    # (in modo da ereditare il saldo disponibile del mese precedente invece
+    # che usare il valore fisso iniziale presente nel DB)
+    try:
+        from app.services.dettaglio_periodo_service import DettaglioPeriodoService
+        servizio_dettaglio = DettaglioPeriodoService()
+        # ottieni i confini del periodo corrente
+        start_date, end_date = get_month_boundaries(oggi)
+        dettaglio_corrente = servizio_dettaglio.dettaglio_periodo_interno(start_date, end_date)
+        saldo_iniziale_importo = float(dettaglio_corrente.get('saldo_iniziale_mese', 0.0) or 0.0)
+    except Exception:
+        # Fallback: usa il valore persistito in SaldoIniziale
+        saldo_iniziale = SaldoIniziale.query.first()
+        saldo_iniziale_importo = saldo_iniziale.importo if saldo_iniziale else 0.0
     
     # Calcola i prossimi N mesi con saldo progressivo
     mesi = []

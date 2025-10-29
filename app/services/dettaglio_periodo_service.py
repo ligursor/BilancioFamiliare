@@ -87,22 +87,45 @@ class DettaglioPeriodoService:
         saldo_base_importo = saldo_base.importo if saldo_base else 0.0
         
         # Calcola tutti i bilanci dei mesi precedenti a questo
-        oggi = datetime.now().date()
+        # In passato si partiva da `oggi`, il che causava che per il cambio mese
+        # (giorno 27) il saldo iniziale venisse preso dal valore fisso di
+        # `SaldoIniziale.importo`. Ora partiamo dall'ancora temporale del
+        # `SaldoIniziale.data_aggiornamento` (se disponibile) o dalla prima
+        # transazione esistente, così il saldo iniziale del mese richiesto
+        # risulterà dall'accumulazione delle variazioni fino al periodo
+        # precedente (cioè dal saldo disponibile del mese precedente).
         saldo_iniziale_mese = saldo_base_importo
-        
-        # Ottieni i confini del mese corrente
+
+        # Determina la data di partenza per l'accumulazione
+        if saldo_base and getattr(saldo_base, 'data_aggiornamento', None):
+            try:
+                anchor_date = saldo_base.data_aggiornamento.date()
+            except Exception:
+                anchor_date = None
+        else:
+            anchor_date = None
+
+        if not anchor_date:
+            # Se non abbiamo una data nell'oggetto SaldoIniziale, usiamo la
+            # prima transazione disponibile come punto di partenza
+            first_trans = Transazione.query.order_by(Transazione.data.asc()).first()
+            anchor_date = first_trans.data if first_trans else start_date
+
+        # Ottieni i confini del mese dell'ancora
+        mese_corrente = anchor_date
+
+        # Confini del "mese odierno" (usati per decidere cosa considerare effettuato)
+        oggi = datetime.now().date()
         mese_oggi_start, mese_oggi_end = get_month_boundaries(oggi)
-        
-        # Itera sui mesi dal mese corrente fino al mese richiesto
-        mese_corrente = oggi
-        
+
+        # Itera sui mesi cronologicamente dall'ancora fino al mese target
         while True:
             mese_corrente_start, mese_corrente_end = get_month_boundaries(mese_corrente)
-            
-            # Se siamo arrivati al mese target, fermiamoci
+
+            # Se siamo arrivati al mese target (o oltre), fermiamoci
             if mese_corrente_start >= start_date:
                 break
-                
+
             # Calcola il bilancio di questo mese e aggiungilo al saldo
             tutte_transazioni_mese = Transazione.query.filter(
                 Transazione.data >= mese_corrente_start,
