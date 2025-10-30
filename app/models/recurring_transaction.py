@@ -1,32 +1,29 @@
-"""
-Modello per le transazioni ricorrenti (entrate/uscite)
-
-Contiene le informazioni necessarie per pianificare addebiti / accrediti ricorrenti:
-- descrizione
-- tipo: 'entrata' o 'uscita'
-- importo
-- giorno: giorno del mese in cui avviene l'addebito/accredito (1-31)
-- prossima_data: data opzionale della prossima occorrenza (date)
-- attivo: flag per abilitare/disabilitare la ricorrenza
-"""
-from datetime import date
 from app import db
+from datetime import date, datetime
 
 
 class RecurringTransaction(db.Model):
-    __tablename__ = 'recurring_transaction'
+	"""Rappresenta una transazione ricorrente (configurazione di spesa/entrata)."""
+	__tablename__ = 'recurring_transaction'
 
-    id = db.Column(db.Integer, primary_key=True)
-    descrizione = db.Column(db.String(200), nullable=False)
-    tipo = db.Column(db.String(20), nullable=False)  # 'entrata' o 'uscita'
-    importo = db.Column(db.Float, nullable=False)
-    giorno = db.Column(db.Integer, nullable=True)  # giorno del mese (1-31)
-    prossima_data = db.Column(db.Date, nullable=True)  # data della prossima occorrenza
-    attivo = db.Column(db.Boolean, default=True)
-    cadenza = db.Column(db.String(20), nullable=False, default='mensile')  # 'mensile' o 'annuale'
-    categoria_id = db.Column(db.Integer, db.ForeignKey('categoria.id'), nullable=True)
+	id = db.Column(db.Integer, primary_key=True)
+	descrizione = db.Column(db.String(200), nullable=False)
+	importo = db.Column(db.Float, nullable=False)
+	categoria_id = db.Column(db.Integer, db.ForeignKey('categoria.id'), nullable=True)
+	tipo = db.Column(db.String(20), nullable=False)  # 'entrata' o 'uscita'
+	# giorno del mese (1..31) usato per mappare la ricorrenza sul mese di riferimento
+	giorno = db.Column(db.Integer, nullable=False, default=1)
+	# frequenza: per ora supportiamo 'monthly', possibile estendere
+	frequenza = db.Column(db.String(20), nullable=False, default='monthly')
+	data_inizio = db.Column(db.Date, nullable=True)
+	data_fine = db.Column(db.Date, nullable=True)
+	attivo = db.Column(db.Boolean, default=True)
+	note = db.Column(db.String(500), nullable=True)
+	created_at = db.Column(db.DateTime, default=datetime.utcnow)
+	# se True: per questo recurring mensile NON generare la riga nel mese se
+	# esiste un recurring annuale equivalente (es. stipendio mensile vs stipendio dicembre)
+	skip_month_if_annual = db.Column(db.Integer, nullable=False, default=0)
 
-    categoria = db.relationship('Categoria', backref=db.backref('recurring_transactions', lazy=True))
+	def __repr__(self):
+		return f"<RecurringTransaction {self.descrizione} {self.importo} giorno={self.giorno} freq={self.frequenza}>"
 
-    def __repr__(self):
-        return f"<RecurringTransaction {self.descrizione} ({self.tipo}) {self.importo}>"

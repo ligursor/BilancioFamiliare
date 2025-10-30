@@ -14,8 +14,9 @@ class Config:
     """Configurazione principale dell'applicazione"""
     
     # Database
-    # Usa un path assoluto per il database in sviluppo
-    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+    # Usa un path assoluto per il database in sviluppo. Puntiamo alla root del repository
+    # così da usare la cartella `db/` presente nella root del progetto.
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     SQLALCHEMY_DATABASE_URI = f'sqlite:///{os.path.join(BASE_DIR, "db", "bilancio.db")}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     

@@ -37,82 +37,11 @@
                                     </h6>
                                 </div>
                                 <div class="card-body">
-                                    <div class="row text-center">
-                                        <div class="col-6 mb-2">
-                                            <small class="text-muted">Saldo Iniziale</small><br>
-                                            <span class="h6 text-info">€ {{ "%.2f"|format(mese.saldo_iniziale_mese) }}</span>
-                                        </div>
-                                        <div class="col-6 mb-2">
-                                            <small class="text-muted">Bilancio Mensile</small><br>
-                                            <span class="h6 {% if mese.bilancio >= 0 %}positive{% else %}negative{% endif %}">
-                                                {% if mese.bilancio >= 0 %}+{% endif %}€ {{ "%.2f"|format(mese.bilancio) }}
-                                            </span>
-                                        </div>
-                                        <div class="col-6 mb-2">
-                                            <small class="text-muted">Entrate</small><br>
-                                            <span class="h5 positive">€ {{ "%.2f"|format(mese.entrate) }}</span>
-                                        </div>
-                                        <div class="col-6 mb-2">
-                                            <small class="text-muted">Uscite</small><br>
-                                            <span class="h5 negative">€ {{ "%.2f"|format(mese.uscite) }}</span>
-                                        </div>
-                                        <div class="col-12">
-                                            <hr>
-                                            {% if mese.mese_corrente %}
-                                            <div class="row">
-                                                <div class="col-6">
-                                                    <small class="text-muted"><i class="fas fa-calendar-day me-1"></i>Saldo Attuale</small><br>
-                                                    <span class="h5 {% if mese.saldo_attuale_mese >= 0 %}text-primary{% else %}text-warning{% endif %} fw-bold">
-                                                        € {{ "%.2f"|format(mese.saldo_attuale_mese) }}
-                                                    </span>
-                                                </div>
-                                                <div class="col-6">
-                                                    <small class="text-muted">Saldo Finale</small><br>
-                                                    <span class="h4 {% if mese.saldo_finale_mese >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                                        € {{ "%.2f"|format(mese.saldo_finale_mese) }}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            {% else %}
-                                            <small class="text-muted">Saldo Finale</small><br>
-                                            <span class="h4 {% if mese.saldo_finale_mese >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                                € {{ "%.2f"|format(mese.saldo_finale_mese) }}
-                                            </span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </a>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Grafico e transazioni rimosse dalla dashboard principale per semplificare l'interfaccia -->
-
-<!-- Inserimento transazioni disabilitato in dashboard: usa il dettaglio mensile -->
-{% endblock %}
-
-<!-- Keep only categorie-data and modal JS; mesi-data and Chart initialization removed -->
-<script id="categorie-data" type="application/json">[
-{% for categoria in categorie %}
-    {"id": {{ categoria.id }}, "nome": "{{ categoria.nome | replace('"','\"') }}", "tipo": "{{ categoria.tipo }}" }{% if not loop.last %},{% endif %}
-{% endfor %}
-]</script>
-
-{% block scripts %}
-<script>
-// Funzioni per il modal nuova transazione
-const categorie = JSON.parse(document.getElementById('categorie-data').textContent || '[]');
-
 function filtraCategorie() {
     const tipo = document.getElementById('tipo').value;
     const categoriaSelect = document.getElementById('categoria_id');
     
+                    {% include 'bilancio/index.html' %}
     // Svuota le opzioni esistenti
     categoriaSelect.innerHTML = '<option value="">Seleziona categoria</option>';
     
@@ -141,40 +70,6 @@ function toggleFrequenza() {
 // Prima inizializzazione: filtra le categorie al caricamento della pagina
 window.addEventListener('load', function() {
     filtraCategorie();
-});
-</script>
-<style>
-/* Hover and selected styles for month cards (dashboard) */
-.card.month-card.hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 20px rgba(13,110,253,0.12);
-    transition: transform 160ms ease, box-shadow 160ms ease;
-}
-.card.month-card.selected {
-    border: 2px solid #0d6efd !important;
-    box-shadow: 0 12px 24px rgba(13,110,253,0.18);
-    transform: translateY(-6px) scale(1.01);
-}
-</style>
-
-<script>
-// Add interactive hover and click highlight for month cards (no default selection on load)
-document.addEventListener('DOMContentLoaded', function() {
-    try {
-        const cards = document.querySelectorAll('.card.month-card');
-        cards.forEach(card => {
-            card.addEventListener('mouseenter', () => card.classList.add('hover'));
-            card.addEventListener('mouseleave', () => card.classList.remove('hover'));
-            card.addEventListener('click', (e) => {
-                // mark this card as selected and clear others
-                document.querySelectorAll('.card.month-card.selected').forEach(c => c.classList.remove('selected'));
-                card.classList.add('selected');
-                // allow navigation to proceed (the card is wrapped in an <a>)
-            });
-        });
-    } catch (e) {
-        /* ignore if DOM structure changed */
-    }
 });
 </script>
 {% endblock %}

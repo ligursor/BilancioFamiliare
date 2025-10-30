@@ -1,18 +1,1 @@
-<!-- Template removed: gestione del Saldo Iniziale spostata nell'interfaccia principale.
-     Questo file è mantenuto vuoto intenzionalmente per compatibilità, ma la
-     voce di menu e le route sono state rimosse. -->
-
-{% extends "base.html" %}
-
-{% block title %}Saldo Iniziale - Rimosso{% endblock %}
-
-{% block content %}
-<div class="alert alert-info">
-    <h5>Pagina rimossa</h5>
-    <p>La gestione manuale del "Saldo Iniziale" è stata rimossa dall'interfaccia.
-       Le modifiche al saldo vengono ora gestite automaticamente dall'applicazione.
-       Se sei un amministratore e hai bisogno di modificare il valore, contatta
-       lo sviluppatore o utilizza gli strumenti di amministrazione del database.</p>
-    <a class="btn btn-primary" href="{{ url_for('main.index') }}">Torna alla dashboard</a>
-</div>
-{% endblock %}
+{% include 'bilancio/saldo_iniziale.html' %}

@@ -5,7 +5,6 @@ from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from app.models.transazioni import Transazione
 from app.models.base import Categoria, SaldoIniziale
-from app.models.monthly_summary import MonthlySummary
 from app.models.budget import Budget
 from app.models.monthly_budget import MonthlyBudget
 from app.services import get_month_boundaries
@@ -86,120 +85,108 @@ class DettaglioPeriodoService:
         # Calcola il saldo iniziale per questo mese specifico
         saldo_base = SaldoIniziale.query.first()
         saldo_base_importo = saldo_base.importo if saldo_base else 0.0
+        
+        # Calcola tutti i bilanci dei mesi precedenti a questo
+        # In passato si partiva da `oggi`, il che causava che per il cambio mese
+        # (giorno 27) il saldo iniziale venisse preso dal valore fisso di
+        # `SaldoIniziale.importo`. Ora partiamo dall'ancora temporale del
+        # `SaldoIniziale.data_aggiornamento` (se disponibile) o dalla prima
+        # transazione esistente, così il saldo iniziale del mese richiesto
+        # risulterà dall'accumulazione delle variazioni fino al periodo
+        # precedente (cioè dal saldo disponibile del mese precedente).
+        saldo_iniziale_mese = saldo_base_importo
 
-        # Preferiamo i valori pre-calcolati in monthly_summary se presenti
-        ms = MonthlySummary.query.filter_by(year=start_date.year, month=start_date.month).first()
-        use_monthly_summary = False
-        if ms:
-            use_monthly_summary = True
-            saldo_iniziale_mese = float(ms.saldo_iniziale or 0.0)
-            # Override i totali previsti con i valori del summary
-            entrate_totali_previste = float(ms.entrate or entrate_totali_previste)
-            uscite_totali_previste = float(ms.uscite or uscite_totali_previste)
-            bilancio_totale_previsto = entrate_totali_previste - uscite_totali_previste
-            saldo_finale_mese = float(ms.saldo_finale or 0.0)
-        else:
-            # Calcola tutti i bilanci dei mesi precedenti a questo
-            # In passato si partiva da `oggi`, il che causava che per il cambio mese
-            # (giorno 27) il saldo iniziale venisse preso dal valore fisso di
-            # `SaldoIniziale.importo`. Ora partiamo dall'ancora temporale del
-            # `SaldoIniziale.data_aggiornamento` (se disponibile) o dalla prima
-            # transazione esistente, così il saldo iniziale del mese richiesto
-            # risulterà dall'accumulazione delle variazioni fino al periodo
-            # precedente (cioè dal saldo disponibile del mese precedente).
-            saldo_iniziale_mese = saldo_base_importo
-
-            # Determina la data di partenza per l'accumulazione
-            if saldo_base and getattr(saldo_base, 'data_aggiornamento', None):
-                try:
-                    anchor_date = saldo_base.data_aggiornamento.date()
-                except Exception:
-                    anchor_date = None
-            else:
+        # Determina la data di partenza per l'accumulazione
+        if saldo_base and getattr(saldo_base, 'data_aggiornamento', None):
+            try:
+                anchor_date = saldo_base.data_aggiornamento.date()
+            except Exception:
                 anchor_date = None
+        else:
+            anchor_date = None
 
-            if not anchor_date:
-                # Se non abbiamo una data nell'oggetto SaldoIniziale, usiamo la
-                # prima transazione disponibile come punto di partenza
-                first_trans = Transazione.query.order_by(Transazione.data.asc()).first()
-                anchor_date = first_trans.data if first_trans else start_date
+        if not anchor_date:
+            # Se non abbiamo una data nell'oggetto SaldoIniziale, usiamo la
+            # prima transazione disponibile come punto di partenza
+            first_trans = Transazione.query.order_by(Transazione.data.asc()).first()
+            anchor_date = first_trans.data if first_trans else start_date
 
-            # Ottieni i confini del mese dell'ancora
-            mese_corrente = anchor_date
+        # Ottieni i confini del mese dell'ancora
+        mese_corrente = anchor_date
 
-            # Confini del "mese odierno" (usati per decidere cosa considerare effettuato)
-            oggi = datetime.now().date()
-            mese_oggi_start, mese_oggi_end = get_month_boundaries(oggi)
+        # Confini del "mese odierno" (usati per decidere cosa considerare effettuato)
+        oggi = datetime.now().date()
+        mese_oggi_start, mese_oggi_end = get_month_boundaries(oggi)
 
-            # Itera sui mesi cronologicamente dall'ancora fino al mese target
-            while True:
-                mese_corrente_start, mese_corrente_end = get_month_boundaries(mese_corrente)
+        # Itera sui mesi cronologicamente dall'ancora fino al mese target
+        while True:
+            mese_corrente_start, mese_corrente_end = get_month_boundaries(mese_corrente)
 
-                # Se siamo arrivati al mese target (o oltre), fermiamoci
-                if mese_corrente_start >= start_date:
-                    break
+            # Se siamo arrivati al mese target (o oltre), fermiamoci
+            if mese_corrente_start >= start_date:
+                break
 
-                # Calcola il bilancio di questo mese e aggiungilo al saldo
-                tutte_transazioni_mese = Transazione.query.filter(
-                    Transazione.data >= mese_corrente_start,
-                    Transazione.data <= mese_corrente_end,
-                    Transazione.categoria_id.isnot(None)  # Escludi transazioni PayPal (senza categoria)
-                ).all()
-                # Do not apply category filter to monthly aggregates (categoria filtering removed)
-                
-                # Per mesi passati, usa solo transazioni effettuate
-                # Per mese corrente e futuri, includi tutte le transazioni (per saldo finale)
-                filtra_solo_effettuate = mese_corrente_end < mese_oggi_start
-
-                # Separa transazioni effettuate da quelle in attesa per questo mese
-                transazioni_mese_effettuate = []
-                transazioni_mese_in_attesa = []
-                
-                for t in tutte_transazioni_mese:
-                    if t.data_effettiva is not None or t.data <= oggi:
-                        transazioni_mese_effettuate.append(t)
-                    else:
-                        transazioni_mese_in_attesa.append(t)
-                
-                # Filtra per evitare duplicazioni madri/figlie
-                def calcola_bilancio_mese(lista_transazioni):
-                    entrate_mese = 0
-                    uscite_mese = 0
-                    for t in lista_transazioni:
-                        includi = False
-                        if t.ricorrente == 0:  # Figlie e manuali: sempre incluse
-                            includi = True
-                        elif t.ricorrente == 1:  # Madri: includi solo se non hanno figlie nello stesso mese
-                            ha_figlie_stesso_mese = any(
-                                f.transazione_madre_id == t.id and 
-                                f.data.month == t.data.month and 
-                                f.data.year == t.data.year
-                                for f in lista_transazioni if f.ricorrente == 0 and f.transazione_madre_id
-                            )
-                            if not ha_figlie_stesso_mese:
-                                includi = True
-                        
-                        if includi:
-                            if t.tipo == 'entrata':
-                                entrate_mese += t.importo
-                            else:
-                                uscite_mese += t.importo
-                    return entrate_mese - uscite_mese
-                
-                # Per mesi passati: usa solo transazioni effettuate
-                # Per mese corrente/futuri: usa saldo finale (effettuate + in attesa)
-                if filtra_solo_effettuate:
-                    bilancio_mese = calcola_bilancio_mese(transazioni_mese_effettuate)
+            # Calcola il bilancio di questo mese e aggiungilo al saldo
+            tutte_transazioni_mese = Transazione.query.filter(
+                Transazione.data >= mese_corrente_start,
+                Transazione.data <= mese_corrente_end,
+                Transazione.categoria_id.isnot(None)  # Escludi transazioni PayPal (senza categoria)
+            ).all()
+            # Do not apply category filter to monthly aggregates (categoria filtering removed)
+            
+            # Per mesi passati, usa solo transazioni effettuate
+            # Per mese corrente e futuri, includi tutte le transazioni (per saldo finale)
+            filtra_solo_effettuate = mese_corrente_end < mese_oggi_start
+            
+            # Separa transazioni effettuate da quelle in attesa per questo mese
+            transazioni_mese_effettuate = []
+            transazioni_mese_in_attesa = []
+            
+            for t in tutte_transazioni_mese:
+                if t.data_effettiva is not None or t.data <= oggi:
+                    transazioni_mese_effettuate.append(t)
                 else:
-                    # Per mese corrente e futuri, usa il saldo finale previsto
-                    bilancio_effettuato = calcola_bilancio_mese(transazioni_mese_effettuate)
-                    bilancio_in_attesa = calcola_bilancio_mese(transazioni_mese_in_attesa)
-                    bilancio_mese = bilancio_effettuato + bilancio_in_attesa
-                
-                saldo_iniziale_mese += bilancio_mese
-                
-                # Passa al mese successivo
-                mese_corrente = mese_corrente + relativedelta(months=1)
+                    transazioni_mese_in_attesa.append(t)
+            
+            # Filtra per evitare duplicazioni madri/figlie
+            def calcola_bilancio_mese(lista_transazioni):
+                entrate_mese = 0
+                uscite_mese = 0
+                for t in lista_transazioni:
+                    includi = False
+                    if t.ricorrente == 0:  # Figlie e manuali: sempre incluse
+                        includi = True
+                    elif t.ricorrente == 1:  # Madri: includi solo se non hanno figlie nello stesso mese
+                        ha_figlie_stesso_mese = any(
+                            f.transazione_madre_id == t.id and 
+                            f.data.month == t.data.month and 
+                            f.data.year == t.data.year
+                            for f in lista_transazioni if f.ricorrente == 0 and f.transazione_madre_id
+                        )
+                        if not ha_figlie_stesso_mese:
+                            includi = True
+                    
+                    if includi:
+                        if t.tipo == 'entrata':
+                            entrate_mese += t.importo
+                        else:
+                            uscite_mese += t.importo
+                return entrate_mese - uscite_mese
+            
+            # Per mesi passati: usa solo transazioni effettuate
+            # Per mese corrente/futuri: usa saldo finale (effettuate + in attesa)
+            if filtra_solo_effettuate:
+                bilancio_mese = calcola_bilancio_mese(transazioni_mese_effettuate)
+            else:
+                # Per mese corrente e futuri, usa il saldo finale previsto
+                bilancio_effettuato = calcola_bilancio_mese(transazioni_mese_effettuate)
+                bilancio_in_attesa = calcola_bilancio_mese(transazioni_mese_in_attesa)
+                bilancio_mese = bilancio_effettuato + bilancio_in_attesa
+            
+            saldo_iniziale_mese += bilancio_mese
+            
+            # Passa al mese successivo
+            mese_corrente = mese_corrente + relativedelta(months=1)
         
         # Calcola saldo attuale (solo transazioni già effettuate) se il periodo include la data odierna
         saldo_attuale_mese = saldo_iniziale_mese
@@ -222,10 +209,18 @@ class DettaglioPeriodoService:
             saldo_attuale_mese = saldo_iniziale_mese + bilancio_effettuato
         
         # Calcola il saldo finale (previsione di fine mese)
-        # Saldo finale = saldo attuale + bilancio delle transazioni in attesa
-        bilancio_in_attesa = entrate_in_attesa - uscite_in_attesa
-        
-        saldo_finale_mese = saldo_attuale_mese + bilancio_in_attesa
+        # Per coerenza con la dashboard, il saldo finale viene calcolato
+        # come saldo iniziale del mese + il bilancio totale previsto
+        # (ovvero entrate previste - uscite previste). In questo modo
+        # dettaglio e dashboard useranno la stessa regola.
+        try:
+            bilancio_totale_previsto = entrate_totali_previste - uscite_totali_previste
+        except Exception:
+            # Fallback: se per qualche motivo le variabili non sono disponibili,
+            # ricadiamo sul vecchio calcolo basato sulle transazioni in attesa
+            bilancio_totale_previsto = (entrate_in_attesa - uscite_in_attesa) if ('entrate_in_attesa' in locals() and 'uscite_in_attesa' in locals()) else 0.0
+
+        saldo_finale_mese = saldo_iniziale_mese + bilancio_totale_previsto
 
         # --- Calcolo budget totale e residuo ---
         # Calcolo breakdown budget per categoria: iniziale, spese effettuate, pianificate, residuo
@@ -305,6 +300,12 @@ class DettaglioPeriodoService:
         # Aggiorna le uscite previste includendo i residui positivi
         uscite_adjusted = (uscite_totali_previste if 'uscite_totali_previste' in locals() else uscite_totali_previste) + somma_residui_positivi
         bilancio_adjusted = entrate_totali_previste - uscite_adjusted
+        # Allinea il saldo finale con il bilancio "adjusted" (inclusi residui positivi)
+        try:
+            saldo_finale_mese = saldo_iniziale_mese + bilancio_adjusted
+        except Exception:
+            # se qualcosa manca, ricadiamo sul valore già calcolato in precedenza
+            pass
         
         # Crea un nome per il periodo
         nome_periodo = f"{start_date.strftime('%d/%m')} - {end_date.strftime('%d/%m/%Y')}"
