@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}Reset Dati - Gestione{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title"><i class="fas fa-undo me-2"></i>Reset Dati</h4>
+    <p class="card-text">Questa operazione imposterà il saldo iniziale e ricostruirà le transazioni generate e i riepiloghi mensili per i prossimi mesi. Eseguire con cautela.</p>
+
+    <form method="POST" action="{{ url_for('main.reset') }}">
+      <div class="mb-3">
+        <label for="importo" class="form-label">Saldo iniziale (€)</label>
+        <input type="number" step="0.01" class="form-control" id="importo" name="importo" required value="{{ (saldo.importo if saldo else 0.0) | round(2) }}">
+      </div>
+
+      <div class="mb-3">
+        <label for="months" class="form-label">Numero di mesi (orizzonte)</label>
+  <input type="number" class="form-control" id="months" name="months" min="1" max="36" value="6">
+        <div class="form-text">Numero di mesi a partire dal mese corrente per cui ricreare le transazioni e i riepiloghi.</div>
+      </div>
+
+      <div class="mb-3 form-check">
+        <input type="checkbox" class="form-check-input" id="full_wipe" name="full_wipe">
+        <label class="form-check-label" for="full_wipe">Elimina completamente tutte le transazioni e i riepiloghi (full wipe)</label>
+      </div>
+
+      <!-- Preview mode removed: reset now always executes real changes. -->
+
+      <div class="mb-3 form-check">
+        <input type="checkbox" class="form-check-input" id="confirm" required>
+        <label class="form-check-label" for="confirm">Confermo di voler eseguire il reset per l'orizzonte selezionato</label>
+      </div>
+
+      <button type="submit" class="btn btn-danger">Esegui Reset</button>
+      <a href="{{ url_for('main.index') }}" class="btn btn-secondary ms-2">Annulla</a>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

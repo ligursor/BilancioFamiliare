@@ -21,10 +21,32 @@
 .month-card { transition: transform 0.2s; }
 .month-card:hover { transform: translateY(-2px); }
 
+/* Remove text selection and focus outline when clicking month cards in the dashboard */
+.month-card, .month-card * {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Remove browser focus outline for anchor-wrapped month cards for mouse interaction.
+   Keep :focus-visible for keyboard users to preserve accessibility. */
+a.text-decoration-none:focus,
+a.text-decoration-none:active {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.month-card:focus,
+.month-card:active {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
 /* Current month highlight */
 .current-month {
-    border: 2px solid #007bff;
-    box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+    /* Border removed per request; keep a subtle shadow for emphasis */
+    box-shadow: 0 4px 8px rgba(0,123,255,0.12);
 }
 
 /* Footer */

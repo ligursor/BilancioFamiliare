@@ -19,73 +19,11 @@ def main(argv=None):
 
     app = create_app()
     with app.app_context():
-        from app.services.bilancio.generated_transaction_service import GeneratedTransactionService
-        from app.services.bilancio.monthly_summary_service import MonthlySummaryService
-        from app.services import get_month_boundaries
-        from datetime import date
-        from dateutil.relativedelta import relativedelta
-        from app.models.transazioni import Transazione
-        from app import db
-        from sqlalchemy import text
+        from app.services.bilancio.monthly_rollover_service import do_monthly_rollover
 
-        svc_gt = GeneratedTransactionService()
-        svc_ms = MonthlySummaryService()
-
-        oggi = date.today()
-        start_date, end_date = get_month_boundaries(oggi)
-
-        # target representative date: start from the current financial month start
-        # so that the generated horizon begins with the next calendar month inside
-        # the financial month (e.g. start_date=27/10 -> first generated month = Nov).
-        target_date = start_date
-
-        # Se --force è attivo, eliminiamo le transazioni generate (id_recurring_tx non NULL)
-        if args.force:
-            # calcola confini per l'intervallo da eliminare (copre tutti i mesi che andremo a generare)
-            first_start, _ = get_month_boundaries(target_date)
-            # fine dell'ultimo mese dell'orizzonte
-            last_period = target_date + relativedelta(months=args.months - 1)
-            _, last_end = get_month_boundaries(last_period)
-            try:
-                deleted = db.session.query(Transazione).filter(
-                    Transazione.id_recurring_tx.isnot(None),
-                    Transazione.data >= first_start,
-                    Transazione.data <= last_end
-                ).delete(synchronize_session=False)
-                db.session.commit()
-                print(f"Deleted {deleted} generated transazioni for period {first_start} - {last_end}")
-            except Exception as e:
-                db.session.rollback()
-                print(f"Error deleting generated transazioni: {e}")
-
-        # 1) popola le transazioni ricorrenti per i mesi richiesti
-        created = svc_gt.populate_horizon_from_recurring(months=args.months, base_date=target_date)
-        print(f"Generated transazioni created for next {args.months} month(s): {created}")
-
-        # 2) per ciascun mese dell'orizzonte, rigenera/aggiorna il monthly_summary
-        from dateutil.relativedelta import relativedelta
-        regenerated_periods = []
-        for i in range(args.months):
-            period = target_date + relativedelta(months=i)
-            _, period_end = get_month_boundaries(period)
-            y = period_end.year
-            m = period_end.month
-            ok, result = svc_ms.regenerate_month_summary(y, m)
-            if ok:
-                print(f"MonthlySummary updated: {result}")
-                regenerated_periods.append((y, m))
-            else:
-                print(f"MonthlySummary error for {y}-{m}: {result}")
-
-        # 3) se abbiamo rigenerato più mesi, applichiamo il chaining saldo_finale -> saldo_iniziale
-        #    delegando al servizio MonthlySummaryService per avere la logica centralizzata
-        if regenerated_periods:
-            regenerated_periods_sorted = sorted(regenerated_periods)
-            ok_chain, info = svc_ms.chain_saldo_across(regenerated_periods_sorted)
-            if ok_chain:
-                print(f'Chaining applied for {info} gap(s) across regenerated horizon')
-            else:
-                print('Chaining error:', info)
+        # call the service: force -> args.force, months -> args.months
+        res = do_monthly_rollover(force=args.force, months=args.months)
+        print('Monthly rollover result:', res)
 
 
 if __name__ == '__main__':

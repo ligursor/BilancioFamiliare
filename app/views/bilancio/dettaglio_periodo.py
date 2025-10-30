@@ -9,6 +9,7 @@ from app.models.transazioni import Transazione
 from app import db
 from app.services.categorie.categorie_service import CategorieService
 from flask import request, jsonify
+from app.models.monthly_summary import MonthlySummary
 
 dettaglio_periodo_bp = Blueprint('dettaglio_periodo', __name__)
 
@@ -40,6 +41,13 @@ def mese(anno, mese):
 		service_cat = CategorieService()
 		categorie_dict = service_cat.get_categories_dict(exclude_paypal=True)
 
+		# Recupera la lista dei mesi esistenti in monthly_summary per limitare la navigazione client-side
+		try:
+			summaries = MonthlySummary.query.order_by(MonthlySummary.year.asc(), MonthlySummary.month.asc()).all()
+			available_months = [{'year': s.year, 'month': s.month} for s in summaries]
+		except Exception:
+			available_months = []
+
 		# Calcola mese precedente e successivo
 		if mese == 1:
 			mese_prec, anno_prec = 12, anno - 1
@@ -53,16 +61,17 @@ def mese(anno, mese):
 
 		# Usa il template originale (già corretto l'endpoint)
 		return render_template('bilancio/dettaglio_mese.html',
-					 # Spacchetta il dizionario dettaglio per compatibilità template
-					 **dettaglio,
-					 stats_categorie=stats_categorie,
-					 categorie=categorie_dict,
-					 anno=anno,
-					 mese=mese,
-					 mese_prec=mese_prec,
-					 anno_prec=anno_prec,
-					 mese_succ=mese_succ,
-					 anno_succ=anno_succ)
+			     # Spacchetta il dizionario dettaglio per compatibilità template
+			     **dettaglio,
+			     stats_categorie=stats_categorie,
+			     categorie=categorie_dict,
+			     anno=anno,
+			     mese=mese,
+			     mese_prec=mese_prec,
+			     anno_prec=anno_prec,
+			     mese_succ=mese_succ,
+			     anno_succ=anno_succ,
+			     available_months=available_months)
 
 	except Exception as e:
 		flash(f'Errore nel caricamento dettaglio periodo: {str(e)}', 'error')
@@ -107,11 +116,20 @@ def dettaglio_periodo(start_date, end_date):
 			stats_categorie = service.get_statistiche_per_categoria(anno, mese)
 		except Exception:
 			stats_categorie = []
+
+		# Recupera available_months per limitare la navigazione client-side
+		try:
+			summaries = MonthlySummary.query.order_by(MonthlySummary.year.asc(), MonthlySummary.month.asc()).all()
+			available_months = [{'year': s.year, 'month': s.month} for s in summaries]
+		except Exception:
+			available_months = []
+
 		return render_template('bilancio/dettaglio_mese.html', **result,
 					   stats_categorie=stats_categorie,
 					   anno=anno, mese=mese,
 					   mese_prec=mese_prec, anno_prec=anno_prec,
-					   mese_succ=mese_succ, anno_succ=anno_succ)
+					   mese_succ=mese_succ, anno_succ=anno_succ,
+					   available_months=available_months)
 	except ValueError:
 		return "Date non valide", 400
 	except Exception as e:

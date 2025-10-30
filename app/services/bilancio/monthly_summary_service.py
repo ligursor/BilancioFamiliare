@@ -99,68 +99,63 @@ class MonthlySummaryService(BaseService):
 			except Exception:
 				return False
 
-		if 'bilancio' in cols:
-			# Safe to use ORM model which includes bilancio
+		has_saldo_finale_col = 'saldo_finale' in cols
+		has_bilancio_col = 'bilancio' in cols
+
+		if has_saldo_finale_col:
 			ms = MonthlySummary.query.filter_by(year=year, month=month).first()
 			if not ms:
-				ms = MonthlySummary(year=year, month=month, entrate=entrate, uscite=uscite, bilancio=bilancio)
+				ms = MonthlySummary(year=year, month=month)
 				db.session.add(ms)
-				# if the DB schema includes saldo_iniziale and there is a global value,
-				# apply it to the first monthly_summary (no prior summaries exist)
-				if has_saldo_iniziale_col and (saldo_init_val is not None) and (not _has_prior_summary(year, month)):
-					try:
-						db.session.execute(
-							text("UPDATE monthly_summary SET saldo_iniziale = :s WHERE year = :y AND month = :m"),
-							{'s': saldo_init_val, 'y': year, 'm': month}
-						)
-					except Exception:
-						# best-effort: ignore if update fails
-						pass
+				if has_saldo_iniziale_col and (ms.saldo_iniziale is None or ms.saldo_iniziale == 0.0):
+					if (saldo_init_val is not None) and (not _has_prior_summary(year, month)):
+						ms.saldo_iniziale = saldo_init_val
 			else:
-				ms.entrate = entrate
-				ms.uscite = uscite
-				ms.bilancio = bilancio
+				# Ensure saldo_iniziale is at least zero to avoid None math
+				if has_saldo_iniziale_col and ms.saldo_iniziale is None:
+					ms.saldo_iniziale = 0.0
+
+			ms.entrate = entrate
+			ms.uscite = uscite
+			base_saldo = float(ms.saldo_iniziale or 0.0) if has_saldo_iniziale_col else 0.0
+			ms.saldo_finale = base_saldo + bilancio
 		else:
-			# Fallback raw SQL upsert into legacy schema (use saldo_finale for bilancio)
+			# Schema legacy senza saldo_finale: usa SQL diretto e gestisci eventuale colonna bilancio
 			try:
-				# ensure sqlite waits briefly if DB is locked by another connection
 				try:
 					db.session.execute(text("PRAGMA busy_timeout=5000"))
 				except Exception:
 					pass
 
-				existing = db.session.execute(text("SELECT id FROM monthly_summary WHERE year=:y AND month=:m"), {'y': year, 'm': month}).fetchone()
+				existing = db.session.execute(
+					text("SELECT id FROM monthly_summary WHERE year=:y AND month=:m"),
+					{'y': year, 'm': month}
+				).fetchone()
+
 				if existing:
-					# compute saldo_finale as saldo_iniziale + bilancio (where bilancio = entrate - uscite)
-					# use COALESCE to handle possible NULL saldo_iniziale values.
-					db.session.execute(
-						text("UPDATE monthly_summary SET entrate=:entrate, uscite=:uscite, saldo_finale=(COALESCE(saldo_iniziale,0.0) + :bilancio) WHERE id=:id"),
-						{'entrate': entrate, 'uscite': uscite, 'bilancio': bilancio, 'id': existing[0]}
-					)
-				else:
-					# Build insert with available columns. Some legacy schemas require saldo_iniziale NOT NULL,
-					# include it with a safe default when present to avoid IntegrityError.
-					has_saldo_iniziale = 'saldo_iniziale' in cols
-					if has_saldo_iniziale:
-						# if this is the first monthly_summary for the dataset and we have a global
-						# saldo_iniziale value, use it; otherwise default to 0.0
-						use_saldo = saldo_init_val if (saldo_init_val is not None and not _has_prior_summary(year, month)) else 0.0
-						# compute saldo_finale = saldo_iniziale + bilancio
-						saldo_finale_val = (use_saldo or 0.0) + bilancio
+					if has_bilancio_col:
 						db.session.execute(
-							text("INSERT INTO monthly_summary (year, month, entrate, uscite, saldo_finale, saldo_iniziale) VALUES (:y, :m, :entrate, :uscite, :saldo, :saldo_iniziale)"),
-							{'y': year, 'm': month, 'entrate': entrate, 'uscite': uscite, 'saldo': saldo_finale_val, 'saldo_iniziale': use_saldo}
+							text("UPDATE monthly_summary SET entrate=:entrate, uscite=:uscite, bilancio=:bilancio WHERE id=:id"),
+							{'entrate': entrate, 'uscite': uscite, 'bilancio': bilancio, 'id': existing[0]}
 						)
 					else:
-						# legacy schema with no saldo_iniziale column: continue storing bilancio
-						# in saldo_finale (best-effort for older schemas)
 						db.session.execute(
-							text("INSERT INTO monthly_summary (year, month, entrate, uscite, saldo_finale) VALUES (:y, :m, :entrate, :uscite, :saldo)"),
-							{'y': year, 'm': month, 'entrate': entrate, 'uscite': uscite, 'saldo': bilancio}
+							text("UPDATE monthly_summary SET entrate=:entrate, uscite=:uscite WHERE id=:id"),
+							{'entrate': entrate, 'uscite': uscite, 'id': existing[0]}
+						)
+				else:
+					if has_bilancio_col:
+						db.session.execute(
+							text("INSERT INTO monthly_summary (year, month, entrate, uscite, bilancio) VALUES (:y, :m, :entrate, :uscite, :bilancio)"),
+							{'y': year, 'm': month, 'entrate': entrate, 'uscite': uscite, 'bilancio': bilancio}
+						)
+					else:
+						db.session.execute(
+							text("INSERT INTO monthly_summary (year, month, entrate, uscite) VALUES (:y, :m, :entrate, :uscite)"),
+							{'y': year, 'm': month, 'entrate': entrate, 'uscite': uscite}
 						)
 			except Exception as e:
 				return False, str(e)
-			# For legacy schema, return a lightweight dict as result
 			ms = {'year': year, 'month': month, 'entrate': entrate, 'uscite': uscite, 'bilancio': bilancio}
 
 		try:

@@ -410,11 +410,120 @@ function modificaTransazioneAttr(btn) {
         </div>
     </div>
 </div>
+<!-- Modal per modificare una transazione (usato sia per transazioni normali che in attesa) -->
+<div class="modal fade" id="editTransactionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Modifica Transazione</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="editTransactionForm">
+                <input type="hidden" name="redirect_to" value="dettaglio_periodo">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_data" class="form-label">Data</label>
+                        <input type="date" class="form-control" id="edit_data" name="data" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_descrizione" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" id="edit_descrizione" name="descrizione" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_tipo" class="form-label">Tipo</label>
+                        <select class="form-control" id="edit_tipo" name="tipo" required>
+                            <option value="">Seleziona tipo...</option>
+                            <option value="entrata">Entrata</option>
+                            <option value="uscita">Uscita</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_categoria_id" class="form-label">Categoria</label>
+                        <select class="form-control" id="edit_categoria_id" name="categoria_id" required>
+                            <option value="">Seleziona categoria...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_importo" class="form-label">Importo (€)</label>
+                        <input type="number" class="form-control" id="edit_importo" name="importo" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input class="form-check-input" type="checkbox" id="edit_ricorrente" name="ricorrente">
+                        <label class="form-check-label" for="edit_ricorrente">Transazione ricorrente</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                    <button type="submit" class="btn btn-primary">Salva</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
+<!-- JSON con le categorie per l'uso lato client (popola il select usato dall'editor) -->
+<script id="categorie-data" type="application/json">[
+{% for categoria in categorie %}
+    {"id": {{ categoria.id }}, "nome": "{{ categoria.nome | replace('\"','\\\"') }}", "tipo": "{{ categoria.tipo }}" }{% if not loop.last %},{% endif %}
+{% endfor %}]
+</script>
+<script id="available-months-data" type="application/json">{{ available_months|tojson }}</script>
 {% endblock %}
 
 {% block scripts %}
 <script>
+    // Carica le categorie per l'editor (usato da modificaTransazione)
+    const categorie = JSON.parse(document.getElementById('categorie-data') ? document.getElementById('categorie-data').textContent : '[]');
+    // Carica i mesi disponibili per la navigazione (passati dal server)
+    const availableMonths = JSON.parse(document.getElementById('available-months-data') ? document.getElementById('available-months-data').textContent : '[]');
+
+    // Implementazione di navigateMonth che rispetta i confini di availableMonths
+    (function(){
+        try {
+            const currentYear = Number({{ anno|default(0) }});
+            const currentMonth = Number({{ mese|default(0) }});
+
+            function monthExists(y, m) {
+                return (availableMonths || []).some(x => Number(x.year) === Number(y) && Number(x.month) === Number(m));
+            }
+
+            window.navigateMonth = function(direction) {
+                let y = currentYear;
+                let m = currentMonth + Number(direction);
+                if (m < 1) { m = 12; y = y - 1; }
+                if (m > 12) { m = 1; y = y + 1; }
+                if (!monthExists(y,m)) return; // out of bounds
+                window.location.href = `/dettaglio/${y}/${m}`;
+            };
+
+            // Disabilita o meno i bottoni di navigazione in base ai mesi disponibili
+            document.addEventListener('DOMContentLoaded', function(){
+                try {
+                    const prevBtn = document.querySelector('.nav-arrow[data-direction="-1"]');
+                    const nextBtn = document.querySelector('.nav-arrow[data-direction="1"]');
+                    if (prevBtn) {
+                        let py = currentYear; let pm = currentMonth - 1;
+                        if (pm < 1) { pm = 12; py -= 1; }
+                        if (!monthExists(py, pm)) {
+                            prevBtn.disabled = true;
+                            prevBtn.setAttribute('aria-disabled', 'true');
+                        }
+                    }
+                    if (nextBtn) {
+                        let ny = currentYear; let nm = currentMonth + 1;
+                        if (nm > 12) { nm = 1; ny += 1; }
+                        if (!monthExists(ny, nm)) {
+                            nextBtn.disabled = true;
+                            nextBtn.setAttribute('aria-disabled', 'true');
+                        }
+                    }
+                } catch (e) { /* ignore */ }
+            });
+
+        } catch (e) {
+            // non rompere la pagina
+        }
+    })();
     // Inizializza il grafico a torta per le uscite per categoria
     (function(){
         try {
