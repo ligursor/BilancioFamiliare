@@ -50,7 +50,7 @@ def mese(anno, mese):
             mese_succ, anno_succ = mese + 1, anno
 
         # Usa il template originale (già corretto l'endpoint)
-        return render_template('dettaglio_mese.html',
+        return render_template('bilancio/dettaglio_mese.html',
                      # Spacchetta il dizionario dettaglio per compatibilità template
                      **dettaglio,
                      stats_categorie=stats_categorie,
@@ -105,7 +105,7 @@ def dettaglio_periodo(start_date, end_date):
             stats_categorie = service.get_statistiche_per_categoria(anno, mese)
         except Exception:
             stats_categorie = []
-        return render_template('dettaglio_mese.html', **result,
+        return render_template('bilancio/dettaglio_mese.html', **result,
                        stats_categorie=stats_categorie,
                        anno=anno, mese=mese,
                        mese_prec=mese_prec, anno_prec=anno_prec,

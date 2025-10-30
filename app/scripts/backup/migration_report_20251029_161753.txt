@@ -1,0 +1,2 @@
+Backup: /app/app/scripts/backup/bilancio_backup_for_migration_20251029_161753.db
+Renamed transazione -> transazione_legacy_20251029_161753

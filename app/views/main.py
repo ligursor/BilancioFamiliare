@@ -163,7 +163,7 @@ def index():
     service_cat = CategorieService()
     categorie_dict = service_cat.get_categories_dict(exclude_paypal=True)
     
-    return render_template('index.html', 
+    return render_template('bilancio/index.html', 
                          mesi=mesi, 
                          ultime_transazioni=ultime_transazioni,
                          saldo_iniziale=saldo_iniziale_importo,
@@ -173,7 +173,7 @@ def index():
 def saldo_iniziale():
     """Gestione saldo iniziale"""
     saldo = SaldoIniziale.query.first()
-    return render_template('saldo_iniziale.html', saldo=saldo)
+    return render_template('bilancio/saldo_iniziale.html', saldo=saldo)
 
 @main_bp.route('/saldo_iniziale/aggiorna', methods=['POST'])
 def aggiorna_saldo_iniziale():
