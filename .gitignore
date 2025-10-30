@@ -28,3 +28,17 @@ build/
 *.pyc
 
 scripts
+ 
+# Local virtual environments and rollovers
+.venv/
+.venv_rollover/
+env/
+
+# Python caches and test artifacts
+.pytest_cache/
+.mypy_cache/
+.tox/
+
+# Database files and local backups
+db/bilanncio_*.db
+scripts/backup/*.db
