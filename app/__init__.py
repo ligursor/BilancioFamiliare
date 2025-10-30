@@ -44,7 +44,6 @@ def create_app(config_name='default'):
     
     # Importa e registra i blueprint
     from app.views.main import main_bp
-    from app.views.bilancio.transazioni import transazioni_bp
     from app.views.bilancio.categorie import categorie_bp
     from app.views.bilancio.dettaglio_periodo import dettaglio_periodo_bp
     from app.views.bilancio.dashboard import dashboard_bp
@@ -55,7 +54,7 @@ def create_app(config_name='default'):
     from app.views.appunti import appunti_bp
     
     app.register_blueprint(main_bp)
-    app.register_blueprint(transazioni_bp, url_prefix='/transazioni')
+    # transazioni blueprint removed: /transazioni route deprecated
     app.register_blueprint(categorie_bp, url_prefix='/categorie')
     app.register_blueprint(dettaglio_periodo_bp, url_prefix='/dettaglio')
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
