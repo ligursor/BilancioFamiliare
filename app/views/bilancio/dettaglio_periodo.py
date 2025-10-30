@@ -5,6 +5,8 @@ Gestisce le visualizzazioni dettagliate per mese/periodo
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from datetime import datetime
 from app.services.bilancio.dettaglio_periodo_service import DettaglioPeriodoService
+from app.models.transazioni import Transazione
+from app import db
 from app.services.categorie.categorie_service import CategorieService
 from flask import request, jsonify
 
@@ -115,3 +117,90 @@ def dettaglio_periodo(start_date, end_date):
 	except Exception as e:
 		flash(f'Errore nel caricamento dettaglio periodo: {str(e)}', 'error')
 		return redirect(url_for('main.index'))
+
+
+@dettaglio_periodo_bp.route('/<start_date>/<end_date>/elimina_transazione/<int:id>', methods=['POST'])
+def elimina_transazione_periodo(start_date, end_date, id):
+	"""Elimina la transazione indicata e ritorna al dettaglio del periodo."""
+	try:
+		tx = Transazione.query.get_or_404(id)
+		db.session.delete(tx)
+		db.session.commit()
+		flash('Transazione eliminata con successo', 'success')
+	except Exception as e:
+		try:
+			db.session.rollback()
+		except Exception:
+			pass
+		flash(f'Errore durante l\'eliminazione della transazione: {str(e)}', 'error')
+
+	return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
+
+
+@dettaglio_periodo_bp.route('/<start_date>/<end_date>/aggiungi_transazione', methods=['POST'])
+def aggiungi_transazione_periodo(start_date, end_date):
+	"""Aggiunge una nuova transazione per il periodo specificato e ritorna al dettaglio."""
+	try:
+		data_str = request.form.get('data')
+		data_obj = datetime.strptime(data_str, '%Y-%m-%d').date() if data_str else None
+
+		descrizione = request.form.get('descrizione', '')
+		tipo = request.form.get('tipo', 'uscita')
+		importo = float(request.form.get('importo') or 0.0)
+		categoria_id = int(request.form.get('categoria_id')) if request.form.get('categoria_id') else None
+		ricorrente = True if request.form.get('ricorrente') else False
+
+		transazione = Transazione(
+			data=data_obj,
+			data_effettiva=data_obj if data_obj and data_obj <= datetime.now().date() else None,
+			descrizione=descrizione or '',
+			importo=importo,
+			categoria_id=categoria_id,
+			tipo=tipo,
+			ricorrente=ricorrente
+		)
+
+		db.session.add(transazione)
+		db.session.commit()
+		flash('Transazione aggiunta con successo', 'success')
+	except Exception as e:
+		try:
+			db.session.rollback()
+		except Exception:
+			pass
+		flash(f'Errore durante l\'aggiunta della transazione: {str(e)}', 'error')
+
+	return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
+
+
+@dettaglio_periodo_bp.route('/<start_date>/<end_date>/modifica_transazione/<int:id>', methods=['POST'])
+def modifica_transazione_periodo(start_date, end_date, id):
+	"""Modifica una transazione esistente e ritorna al dettaglio del periodo."""
+	tx = Transazione.query.get_or_404(id)
+	try:
+		data_str = request.form.get('data')
+		if data_str:
+			tx.data = datetime.strptime(data_str, '%Y-%m-%d').date()
+			tx.data_effettiva = tx.data if tx.data <= datetime.now().date() else None
+
+		if 'descrizione' in request.form:
+			tx.descrizione = request.form.get('descrizione') or tx.descrizione
+		if 'importo' in request.form:
+			tx.importo = float(request.form.get('importo') or tx.importo)
+		if 'categoria_id' in request.form:
+			tx.categoria_id = int(request.form.get('categoria_id')) if request.form.get('categoria_id') else None
+		if 'tipo' in request.form:
+			tx.tipo = request.form.get('tipo') or tx.tipo
+		# Ricorrente checkbox
+		tx.ricorrente = True if request.form.get('ricorrente') else False
+
+		db.session.commit()
+		flash('Transazione modificata con successo', 'success')
+	except Exception as e:
+		try:
+			db.session.rollback()
+		except Exception:
+			pass
+		flash(f'Errore durante la modifica della transazione: {str(e)}', 'error')
+
+	return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))

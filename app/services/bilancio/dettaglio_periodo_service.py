@@ -104,6 +104,11 @@ class DettaglioPeriodoService:
         # Ottieni i confini del mese dell'ancora
         mese_corrente = anchor_date
 
+        # Inizializza il saldo iniziale del mese a partire dal valore base
+        # (se presente) — serve come punto di partenza per l'accumulazione
+        # nei cicli successivi.
+        saldo_iniziale_mese = float(saldo_base_importo or 0.0)
+
         # Confini del "mese odierno" (usati per decidere cosa considerare effettuato)
         oggi = datetime.now().date()
         mese_oggi_start, mese_oggi_end = get_month_boundaries(oggi)
@@ -333,3 +338,58 @@ class DettaglioPeriodoService:
             'start_date': start_date,
             'end_date': end_date
         }
+
+    def get_statistiche_per_categoria(self, anno, mese):
+        """Ritorna statistiche (totali uscita) per categoria per il mese richiesto.
+
+        Restituisce una lista di dizionari con chiavi:
+            - categoria_id
+            - categoria_nome
+            - importo  (somma delle uscite per quella categoria nel mese)
+
+        Il formato è pensato per essere consumato direttamente dal template/JS
+        che disegna il grafico delle uscite per categoria.
+        """
+        try:
+            from datetime import date
+
+            data_mese = date(anno, mese, 1)
+            start_date, end_date = get_month_boundaries(data_mese)
+
+            # Consideriamo solo le transazioni di tipo 'uscita' con categoria
+            transazioni = Transazione.query.filter(
+                Transazione.data >= start_date,
+                Transazione.data <= end_date,
+                Transazione.categoria_id.isnot(None),
+                Transazione.tipo == 'uscita'
+            ).all()
+
+            # Somma per categoria
+            totals = {}
+            for t in transazioni:
+                cid = t.categoria_id
+                try:
+                    val = float(t.importo or 0.0)
+                except Exception:
+                    val = 0.0
+                totals[cid] = totals.get(cid, 0.0) + val
+
+            # Recupera nomi categorie
+            categoria_lookup = {c.id: c for c in Categoria.query.all()}
+
+            stats = []
+            for cid, val in totals.items():
+                cat = categoria_lookup.get(cid)
+                nome = cat.nome if cat else f'Categoria {cid}'
+                stats.append({
+                    'categoria_id': cid,
+                    'categoria_nome': nome,
+                    'importo': float(val)
+                })
+
+            # Ordina per importo decrescente
+            stats.sort(key=lambda x: x.get('importo', 0.0), reverse=True)
+            return stats
+        except Exception:
+            # In caso di problemi, restituiamo una lista vuota per non rompere la view
+            return []

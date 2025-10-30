@@ -412,3 +412,66 @@ function modificaTransazioneAttr(btn) {
 </div>
 
 {% endblock %}
+
+{% block scripts %}
+<script>
+    // Inizializza il grafico a torta per le uscite per categoria
+    (function(){
+        try {
+            const stats = {{ stats_categorie|tojson }} || [];
+            const canvas = document.getElementById('uscitePieChart');
+            const noDataEl = document.getElementById('uscitePieNoData');
+            if (!canvas) return;
+
+            if (!stats || stats.length === 0) {
+                if (noDataEl) noDataEl.style.display = 'block';
+                canvas.style.display = 'none';
+                return;
+            }
+
+            if (noDataEl) noDataEl.style.display = 'none';
+            canvas.style.display = 'block';
+
+            const labels = stats.map(s => s.categoria_nome || 'Categoria');
+            const data = stats.map(s => Math.abs(Number(s.importo) || 0));
+
+            const palette = ['#3366CC','#DC3912','#FF9900','#109618','#990099','#0099C6','#DD4477','#66AA00','#B82E2E','#316395'];
+            const bg = labels.map((_,i) => palette[i % palette.length]);
+
+            const ctx = canvas.getContext('2d');
+            // Destroy existing chart instance if any (avoid duplicates when Turbolinks-like navigation used)
+            if (canvas.__chart_instance) {
+                try { canvas.__chart_instance.destroy(); } catch(e){}
+                canvas.__chart_instance = null;
+            }
+
+            const chart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: bg
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        datalabels: {
+                            formatter: (value, ctx) => {
+                                const sum = ctx.chart.data.datasets[0].data.reduce((a,b) => a + b, 0);
+                                return sum ? (value / sum * 100).toFixed(1) + '%' : '';
+                            },
+                            color: '#ffffff'
+                        }
+                    }
+                }
+            });
+            canvas.__chart_instance = chart;
+        } catch (e) {
+            // Non rompere la pagina se qualcosa va storto
+            console && console.error && console.error('Errore inizializzazione grafico uscite:', e);
+        }
+    })();
+</script>
+{% endblock %}

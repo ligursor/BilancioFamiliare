@@ -2,7 +2,7 @@
 Blueprint per la gestione PayPal
 Replica l'implementazione originale da app.py
 """
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from datetime import datetime, timedelta
 from app.models.paypal import PaypalPiano, PaypalRata
 from app.models.transazioni import Transazione
@@ -113,18 +113,61 @@ def dashboard():
             PaypalRata.data_scadenza >= oggi,
             PaypalRata.data_scadenza <= prossimo_mese
         ).order_by(PaypalRata.data_scadenza).all()
-        
-        return render_template('paypal_dashboard.html', 
-                             piani=piani, 
-                             totale_piani=totale_piani,
-                             piani_attivi=piani_attivi,
-                             importo_rimanente_totale=importo_rimanente_totale,
-                             rate_non_pagate_totali=rate_non_pagate_totali,
-                             rate_in_scadenza=rate_in_scadenza)
-        
+
+        return render_template('paypal/paypal_dashboard.html',
+                               piani=piani,
+                               totale_piani=totale_piani,
+                               piani_attivi=piani_attivi,
+                               importo_rimanente_totale=importo_rimanente_totale,
+                               rate_non_pagate_totali=rate_non_pagate_totali,
+                               rate_in_scadenza=rate_in_scadenza)
+
     except Exception as e:
+        # Log the full exception so the real cause is visible in the server logs
+        try:
+            current_app.logger.exception('Errore durante il caricamento della dashboard PayPal')
+        except Exception:
+            pass
         flash(f'Errore nel caricamento dashboard PayPal: {str(e)}', 'error')
         return redirect(url_for('main.index'))
+
+
+@paypal_bp.route('/_debug_update')
+def _debug_update():
+    """Temporary debug endpoint: runs the PayPal update routine and returns traceback on error.
+
+    Call this only in a development environment. It returns JSON with a 'status' field
+    and a 'trace' when an exception occurs so you can inspect the underlying error.
+    """
+    try:
+        aggiorna_importi_rimanenti_paypal()
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        import traceback
+        trace = traceback.format_exc()
+        # Also log it server-side
+        try:
+            current_app.logger.exception('Exception from _debug_update')
+        except Exception:
+            pass
+        return jsonify({'status': 'error', 'error': str(e), 'trace': trace}), 500
+
+
+@paypal_bp.route('/piano/<int:piano_id>')
+def dettaglio(piano_id):
+    """Mostra il dettaglio di un piano PayPal e le sue rate."""
+    try:
+        piano = PaypalPiano.query.get_or_404(piano_id)
+        # carica le rate associate ordinandole per numero
+        rate = sorted(piano.rate or [], key=lambda r: getattr(r, 'numero_rata', 0))
+        return render_template('paypal/paypal_dettaglio.html', piano=piano, rate=rate)
+    except Exception as e:
+        try:
+            current_app.logger.exception('Errore nel dettaglio piano PayPal')
+        except Exception:
+            pass
+        flash(f'Impossibile caricare il dettaglio del piano: {str(e)}', 'error')
+        return redirect(url_for('paypal.dashboard'))
 
 @paypal_bp.route('/nuovo', methods=['GET', 'POST'])
 def nuovo():
@@ -137,11 +180,11 @@ def nuovo():
             
             if not descrizione:
                 flash('La descrizione è obbligatoria', 'error')
-                return render_template('paypal_nuovo.html')
+                return render_template('paypal/paypal_nuovo.html')
             
             if importo_totale <= 0:
                 flash('L\'importo totale deve essere maggiore di zero', 'error')
-                return render_template('paypal_nuovo.html')
+                return render_template('paypal/paypal_nuovo.html')
             
             # Parsing della data
             data_prima_rata = datetime.strptime(data_prima_rata_str, '%Y-%m-%d').date()
@@ -195,7 +238,7 @@ def nuovo():
             flash(f'Errore nella creazione del piano: {str(e)}', 'error')
             db.session.rollback()
     
-    return render_template('paypal_nuovo.html')
+    return render_template('paypal/paypal_nuovo.html')
 
 # Dettaglio route rimossa: i dettagli vengono gestiti nella dashboard o nella pagina di modifica.
 
@@ -254,7 +297,7 @@ def modifica(piano_id):
             db.session.rollback()
             flash(f'Errore durante la modifica: {str(e)}', 'error')
     
-    return render_template('paypal_modifica.html', piano=piano)
+    return render_template('paypal/paypal_modifica.html', piano=piano)
 
 @paypal_bp.route('/piano/<int:piano_id>/elimina', methods=['POST'])
 def elimina(piano_id):
