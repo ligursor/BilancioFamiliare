@@ -2,7 +2,7 @@
 Blueprint principale per le route di base
 """
 from flask import Blueprint, render_template, current_app
-from app.services.transazioni_service import TransazioneService
+from app.services.bilancio.transazioni_service import TransazioneService
 from app.models.base import Categoria, SaldoIniziale
 from app.services import get_month_boundaries, get_current_month_name
 
@@ -21,50 +21,59 @@ def index():
     
     oggi = datetime.now().date()
     
-    # Ottieni saldo iniziale (potrebbe essere stato aggiornato dalla funzione sopra)
-    saldo_iniziale = SaldoIniziale.query.first()
-    saldo_iniziale_importo = saldo_iniziale.importo if saldo_iniziale else 0.0
+    # Calcola il saldo iniziale del periodo corrente usando la logica del dettaglio
+    # (in modo da ereditare il saldo disponibile del mese precedente invece
+    # che usare il valore fisso iniziale presente nel DB)
+    try:
+        from app.services.bilancio.dettaglio_periodo_service import DettaglioPeriodoService
+        servizio_dettaglio = DettaglioPeriodoService()
+        # ottieni i confini del periodo corrente
+        start_date, end_date = get_month_boundaries(oggi)
+        dettaglio_corrente = servizio_dettaglio.dettaglio_periodo_interno(start_date, end_date)
+        saldo_iniziale_importo = float(dettaglio_corrente.get('saldo_iniziale_mese', 0.0) or 0.0)
+    except Exception:
+        # Fallback: usa il valore persistito in SaldoIniziale
+        saldo_iniziale = SaldoIniziale.query.first()
+        saldo_iniziale_importo = saldo_iniziale.importo if saldo_iniziale else 0.0
     
     # Calcola i prossimi N mesi con saldo progressivo
     mesi = []
     saldo_corrente = saldo_iniziale_importo
     
     # Usa il valore di configurazione o default a 6
-    MESI_PROIEZIONE = current_app.config.get('MESI_PROIEZIONE', 6)
+    MESI_PROIEZIONE = 6
     
     for i in range(MESI_PROIEZIONE):
         data_mese = oggi + relativedelta(months=i)
         start_date, end_date = get_month_boundaries(data_mese)
         
-        # Calcola entrate e uscite per questo mese (logica corretta per madri/figlie)
+        # Calcola entrate e uscite per questo mese (transazioni effettive)
         tutte_transazioni_mese = Transazione.query.filter(
             Transazione.data >= start_date,
             Transazione.data <= end_date,
             Transazione.categoria_id.isnot(None)  # Escludi transazioni PayPal (senza categoria)
         ).all()
-        
-        # Filtra per evitare duplicazioni
-        entrate = 0
-        uscite = 0
+
+        # Somme da transazioni effettive (ora includiamo anche le transazioni
+        # generate dalla ricorrenza che sono memorizzate in `transazione` con
+        # `id_recurring_tx` non nullo). Evitiamo duplicati tramite controlli
+        # successivi.
+        entrate_eff = 0
+        uscite_eff = 0
         for t in tutte_transazioni_mese:
-            includi = False
-            if t.ricorrente == 0:  # Figlie e manuali: sempre incluse
-                includi = True
-            elif t.ricorrente == 1:  # Madri: includi solo se non hanno figlie nello stesso mese
-                ha_figlie_stesso_mese = any(
-                    f.transazione_madre_id == t.id and 
-                    f.data.month == t.data.month and 
-                    f.data.year == t.data.year
-                    for f in tutte_transazioni_mese if f.ricorrente == 0 and f.transazione_madre_id
-                )
-                if not ha_figlie_stesso_mese:
-                    includi = True
-            
+            includi = True
             if includi:
                 if t.tipo == 'entrata':
-                    entrate += t.importo
+                    entrate_eff += t.importo
                 else:
-                    uscite += t.importo
+                    uscite_eff += t.importo
+
+        # Totali usati per la proiezione: usiamo le transazioni effettive.
+        # Le transazioni generate dalle ricorrenze sono ora inserite nella tabella
+        # `transazione` come figli (ricorrente=0, transazione_madre_id != NULL) e
+        # sono quindi già presenti in `tutte_transazioni_mese`.
+        entrate = entrate_eff
+        uscite = uscite_eff
         
         bilancio = entrate - uscite
         saldo_finale_mese = saldo_corrente + bilancio
@@ -149,11 +158,12 @@ def index():
     else:
         ultime_transazioni = []
     
-    # Ottieni categorie per il modal (escludi PayPal)
-    categorie = Categoria.query.filter(Categoria.nome != 'PayPal').all()
-    categorie_dict = [{'id': c.id, 'nome': c.nome, 'tipo': c.tipo} for c in categorie]
+    # Ottieni categorie per il modal (escludi PayPal) usando il servizio
+    from app.services.categorie.categorie_service import CategorieService
+    service_cat = CategorieService()
+    categorie_dict = service_cat.get_categories_dict(exclude_paypal=True)
     
-    return render_template('index.html', 
+    return render_template('bilancio/index.html', 
                          mesi=mesi, 
                          ultime_transazioni=ultime_transazioni,
                          saldo_iniziale=saldo_iniziale_importo,
@@ -163,7 +173,7 @@ def index():
 def saldo_iniziale():
     """Gestione saldo iniziale"""
     saldo = SaldoIniziale.query.first()
-    return render_template('saldo_iniziale.html', saldo=saldo)
+    return render_template('bilancio/saldo_iniziale.html', saldo=saldo)
 
 @main_bp.route('/saldo_iniziale/aggiorna', methods=['POST'])
 def aggiorna_saldo_iniziale():

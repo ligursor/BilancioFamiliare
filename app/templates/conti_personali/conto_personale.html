@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+
+{% block title %}Conto {{ nome_persona }} - Gestione Bilancio Familiare{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4 d-flex align-items-center gap-2">
+                    <i class="fas fa-user-circle me-2 text-primary"></i>
+                    <span>Conto {{ nome_persona }}</span>
+                    <button type="button" class="btn btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center ms-2 shadow-none" style="width:28px;height:28px;padding:0;border-width:1px;font-size:12px;" data-bs-toggle="modal" data-bs-target="#infoModal" aria-label="Informazioni conto">
+                        <i class="fas fa-info-circle" style="font-size:12px;color:inherit;"></i>
+                    </button>
+                </h1>
+                {% set totale_versato = (versamenti | map(attribute='importo') | sum) if versamenti else 0.0 %}
+                {% set saldo_calcolato = (conto.saldo_iniziale | default(0.0)) - (totale_versato | default(0.0)) %}
+
+                <div id="top-cards">
+                <div class="row mb-4">
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card bg-info text-white">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h4 class="card-title">
+                                            <span class="text-white">{{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(conto.saldo_iniziale | default(0.0)) }}</span>
+                                        </h4>
+                                        <p class="card-text">Saldo Iniziale</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card {% if saldo_calcolato >= 0 %}bg-primary{% else %}bg-danger{% endif %} text-white">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h4 class="card-title">{{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(saldo_calcolato | default(0.0)) }}</h4>
+                                        <p class="card-text">Saldo Attuale</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card bg-success text-white">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h4 class="card-title">{{ versamenti|length }}</h4>
+                                        <p class="card-text">Versamenti Totali</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card bg-warning text-white">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h4 class="card-title">{{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(totale_versato | default(0.0)) }}</h4>
+                                        <p class="card-text">Totale Versato</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+                <style>
+                /* remove number input spinners for the inline Nuovo Versamento card */
+                #card-nuovo-versamento input[type=number]::-webkit-outer-spin-button,
+                #card-nuovo-versamento input[type=number]::-webkit-inner-spin-button {
+                    -webkit-appearance: none;
+                    margin: 0;
+                }
+                #card-nuovo-versamento input[type=number] {
+                    -moz-appearance: textfield;
+                    appearance: textfield;
+                }
+                </style>
+
+                <template id="tmpl-nuovo-versamento">
+                    <div id="card-nuovo-versamento" class="card mb-4">
+                        <div class="card-header d-flex align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-plus-circle me-2"></i>Nuovo Versamento
+                            </h5>
+                            <button type="button" class="btn btn-link ms-auto p-0" aria-label="Chiudi" id="btn-close-nuovo-versamento">
+                                <i class="fas fa-times" style="font-size:1.25rem;color:#fff;"></i>
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <form id="form-nuovo-versamento" method="POST" action="{{ url_for('conti.aggiungi_versamento', nome_conto=nome_persona) }}">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label for="data" class="form-label">Data</label>
+                                        <input type="date" class="form-control" id="data" name="data" required>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label for="descrizione" class="form-label">Descrizione</label>
+                                        <input type="text" class="form-control" id="descrizione" name="descrizione" placeholder="Descrizione del versamento..." required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label for="importo" class="form-label">Importo (€)</label>
+                                        <input type="number" step="0.01" min="0.01" inputmode="decimal" value="100.00" class="form-control" id="importo" name="importo" required>
+                                    </div>
+                                    <div class="col-md-2 d-flex align-items-end">
+                                        <button type="submit" id="btn-salva-versamento" class="btn btn-success w-100">
+                                            <i class="fas fa-save me-1"></i>Salva
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </template>
+
+<!-- Modal Modifica Saldo Iniziale -->
+<div class="modal fade" id="modificaSaldoModal" tabindex="-1" aria-labelledby="modificaSaldoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modificaSaldoModalLabel">
+                    <i class="fas fa-edit me-2"></i>Modifica Saldo Iniziale - {{ nome_persona }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('conti.aggiorna_saldo_iniziale', nome_conto=nome_persona) }}">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Saldo iniziale attuale:</strong> {{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(conto.saldo_iniziale | default(0.0)) }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="nuovo_saldo_iniziale" class="form-label">
+                            <i class="fas fa-euro-sign me-1"></i>Nuovo Saldo Iniziale
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">€</span>
+                            <input type="number" step="0.01" min="0.01" class="form-control" 
+                                   id="nuovo_saldo_iniziale" name="nuovo_saldo_iniziale" 
+                                   value="{{ conto.saldo_iniziale }}" required>
+                        </div>
+                        <div class="form-text">
+                            Inserisci il nuovo saldo iniziale. Il saldo corrente verrà aggiornato di conseguenza.
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Attenzione:</strong> Modificando il saldo iniziale, il saldo corrente verrà aggiornato automaticamente mantenendo tutti i versamenti già registrati.
+                    </div>
+                    
+                    <div id="preview-saldo" class="mt-3 p-3 bg-light rounded" style="display: none;">
+                        <h6><i class="fas fa-calculator me-2"></i>Anteprima modifiche:</h6>
+                        <ul class="list-unstyled mb-0">
+                            <li><strong>Saldo iniziale attuale:</strong> <span id="saldo-attuale">{{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(conto.saldo_iniziale | default(0.0)) }}</span></li>
+                            <li><strong>Nuovo saldo iniziale:</strong> <span id="nuovo-saldo">-</span></li>
+                            <li><strong>Differenza:</strong> <span id="differenza">-</span></li>
+                            <li><strong>Saldo corrente risultante:</strong> <span id="saldo-risultante">-</span></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Aggiorna Saldo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Tabella Versamenti -->
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-list me-2"></i>Versamenti
+            {% if versamenti %}
+            <span id="versamenti-count" class="badge bg-primary ms-2">{{ versamenti|length }}</span>
+            {% endif %}
+        </h5>
+        <div>
+            <button type="button" id="btn-nuovo-versamento" class="btn btn-success btn-sm">
+                <i class="fas fa-plus me-1"></i>Nuovo Versamento
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if versamenti and versamenti|length > 0 %}
+        <div class="table-responsive" id="versamenti-table-container">
+            <table id="table-versamenti" class="table table-striped">
+                <thead>
+                    <tr>
+                        <th class="text-start">Descrizione</th>
+                        <th class="text-center">Data</th>
+                        <th class="text-center">Importo</th>
+                        <th class="text-center">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for versamento in versamenti %}
+                    <tr>
+                        <td class="text-start">{{ versamento.descrizione }}</td>
+                        <td class="text-center">{{ versamento.data.strftime('%d/%m/%Y') }}</td>
+                        <td class="text-center text-danger"><strong>{{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(versamento.importo | default(0.0)) }}</strong></td>
+                        <td class="text-center">
+                            <form class="form-elimina-versamento" method="POST" action="{{ url_for('conti.elimina_versamento', versamento_id=versamento.id) }}" style="display:inline">
+                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina versamento">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-inbox fa-3x mb-3"></i>
+            <h5>Nessun versamento registrato</h5>
+            <p>Inizia aggiungendo il tuo primo versamento utilizzando il pulsante "Nuovo Versamento".</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal Info -->
+<div class="modal fade" id="infoModal" tabindex="-1" aria-labelledby="infoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="infoModalLabel"><i class="fas fa-info-circle me-2"></i>Informazioni Conto {{ nome_persona }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="list-unstyled">
+                    <li><strong>Proprietario:</strong> {{ nome_persona }}</li>
+                    <li><strong>Saldo iniziale:</strong> {{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(conto.saldo_iniziale | default(0.0)) }}</li>
+                    <li><strong>Saldo corrente:</strong> {{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(saldo_calcolato | default(0.0)) }}</li>
+                    <li><strong>Data creazione:</strong> {{ conto.data_creazione.strftime('%d/%m/%Y %H:%M') }}</li>
+                    <li><strong>Ultimo aggiornamento:</strong> {{ conto.data_aggiornamento.strftime('%d/%m/%Y %H:%M') }}</li>
+                </ul>
+                <hr>
+                <h6><i class="fas fa-exclamation-triangle me-2 text-warning"></i>Note Importanti</h6>
+                <ul class="list-unstyled small text-muted">
+                    <li>• Questo conto è completamente separato dal bilancio familiare</li>
+                    <li>• I versamenti riducono il saldo disponibile</li>
+                    <li>• Il reset elimina tutti i versamenti e ripristina il saldo iniziale</li>
+                    <li>• I dati sono salvati nel database locale dell'applicazione</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-focus sul campo descrizione quando la pagina è caricata
+document.addEventListener('DOMContentLoaded', function() {
+    const descrizioneField = document.getElementById('descrizione');
+    if (descrizioneField) {
+        descrizioneField.focus();
+    }
+    
+    // Aggiorna automaticamente la data di oggi
+    const dataField = document.getElementById('data');
+    if (dataField && !dataField.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dataField.value = today;
+    }
+    
+    // Gestione anteprima modifica saldo
+    const nuovoSaldoField = document.getElementById('nuovo_saldo_iniziale');
+    const previewDiv = document.getElementById('preview-saldo');
+    // Parse numeric values from embedded JSON to avoid template-in-JS warnings
+    (function(){
+        var _data = document.getElementById('conto-personale-data');
+        var __obj = _data ? JSON.parse(_data.textContent || '{}') : {};
+        var saldoAttuale = parseFloat(__obj.saldo_iniziale || 0);
+        var saldoCorrente = parseFloat(__obj.saldo_corrente || 0);
+
+        function formatEuro(amount) {
+            return '€ ' + amount.toFixed(2);
+        }
+
+        function aggiornaAnteprima() {
+            const nuovoSaldo = parseFloat(nuovoSaldoField.value) || 0;
+            const differenza = nuovoSaldo - saldoAttuale;
+            const nuovoSaldoCorrente = saldoCorrente + differenza;
+
+            if (nuovoSaldo > 0 && nuovoSaldo !== saldoAttuale) {
+                previewDiv.style.display = 'block';
+                document.getElementById('nuovo-saldo').textContent = formatEuro(nuovoSaldo);
+                document.getElementById('differenza').textContent = formatEuro(differenza);
+                document.getElementById('differenza').className = differenza >= 0 ? 'text-success' : 'text-danger';
+                document.getElementById('saldo-risultante').textContent = formatEuro(nuovoSaldoCorrente);
+                document.getElementById('saldo-risultante').className = nuovoSaldoCorrente >= 0 ? 'text-success' : 'text-danger';
+            } else {
+                previewDiv.style.display = 'none';
+            }
+        }
+
+        if (nuovoSaldoField) {
+            nuovoSaldoField.addEventListener('input', aggiornaAnteprima);
+            nuovoSaldoField.addEventListener('keyup', aggiornaAnteprima);
+        }
+    })();
+
+    // IIFE above sets up preview listeners and safely accesses DOM elements.
+});
+</script>
+<script id="conto-personale-data" type="application/json">{{ {
+    'saldo_iniziale': (conto.saldo_iniziale | default(0.0)),
+    'saldo_corrente': (saldo_calcolato | default(0.0))
+} | tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// AJAX submit per Nuovo Versamento + AJAX delete: submit forms via fetch and update fragments (versamenti table, count, top cards)
+document.addEventListener('DOMContentLoaded', function(){
+    var form = document.getElementById('form-nuovo-versamento');
+    var btnShow = document.getElementById('btn-nuovo-versamento');
+    var btnCancel = document.getElementById('btn-cancella-versamento');
+    var card = document.getElementById('card-nuovo-versamento');
+    var tableContainer = document.getElementById('versamenti-table-container');
+    var countBadge = document.getElementById('versamenti-count');
+    var topCards = document.getElementById('top-cards');
+    // If the card is not rendered, insert it from the template when needed
+    var template = document.getElementById('tmpl-nuovo-versamento');
+    function ensureCardPresent() {
+        var existing = document.getElementById('card-nuovo-versamento');
+        if (existing) return existing;
+        if (!template) return null;
+        // insert the cloned template just above the Versamenti card
+        var versamentiCard = document.getElementById('table-versamenti') ? document.getElementById('table-versamenti').closest('.card') : null;
+        var clone = template.content.cloneNode(true);
+        if (versamentiCard && versamentiCard.parentNode) {
+            versamentiCard.parentNode.insertBefore(clone, versamentiCard);
+        } else {
+            // fallback: append to main container
+            document.querySelector('main .container')?.appendChild(clone);
+        }
+        return document.getElementById('card-nuovo-versamento');
+    }
+    // Attach click handler to show the inline Nuovo Versamento card
+    if (btnShow) {
+        btnShow.addEventListener('click', function(){
+            var c = ensureCardPresent();
+            if (!c) return;
+            // initialize fields if empty
+            try {
+                var dataInput = c.querySelector('#data');
+                if (dataInput && !dataInput.value) {
+                    dataInput.value = new Date().toISOString().split('T')[0];
+                }
+                var descInput = c.querySelector('#descrizione');
+                if (descInput && !descInput.value) {
+                    var mesi = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+                    var oggi = new Date();
+                    descInput.value = 'Versamento ' + mesi[oggi.getMonth()] + ' ' + oggi.getFullYear();
+                }
+            } catch(e){}
+            try { c.querySelector('input,select,textarea').focus(); } catch(e){}
+            // bind close button
+            var btnClose = document.getElementById('btn-close-nuovo-versamento');
+            if (btnClose) {
+                btnClose.addEventListener('click', function(){
+                    var card = document.getElementById('card-nuovo-versamento');
+                    if (card) card.remove();
+                });
+            }
+            // smooth scroll into view
+            setTimeout(function(){ c.scrollIntoView({behavior: 'smooth', block: 'center'}); }, 50);
+        });
+    }
+    // Minimal delegated submit handler for the generated form (graceful fallback if more advanced handlers missing)
+    document.addEventListener('submit', function(e){
+        if (!e.target || e.target.id !== 'form-nuovo-versamento') return;
+        // allow normal submit (server will handle) but prevent double submits
+        var submitBtn = e.target.querySelector('#btn-salva-versamento');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            // let the form submit normally
+        }
+    });
+    });
+</script>
+{% endblock %}
+    }

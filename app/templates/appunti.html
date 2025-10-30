@@ -43,18 +43,20 @@
                         <td>{{ appunto.note if appunto.note else "-" }}</td>
                         <td><small>{{ appunto.data_creazione.strftime('%d/%m/%Y %H:%M') }}</small></td>
                         <td>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-primary" data-action="modifica-appunto" data-id="{{ appunto.id }}">
-                                    <i class="fas fa-edit"></i>
+                            <div class="d-inline-flex align-items-center">
+                                <button type="button" class="btn btn-outline-primary btn-sm me-1" data-action="modifica-appunto" data-id="{{ appunto.id }}">
+                                    <i class="fas fa-edit" aria-hidden="true"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-success" data-action="trasferisci-appunto" data-id="{{ appunto.id }}">
-                                    <i class="fas fa-arrow-right"></i>
+                                <button type="button" class="btn btn-outline-success btn-sm me-1" data-action="trasferisci-appunto" data-id="{{ appunto.id }}">
+                                    <i class="fas fa-arrow-right" aria-hidden="true"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-danger" 
+                                <button type="button" class="btn btn-outline-danger btn-sm" 
+                                        title="Elimina appunto" aria-label="Elimina appunto"
                                         data-id="{{ appunto.id }}" 
                                         data-titolo="{{ appunto.titolo }}"
                                         data-action="elimina-appunto">
-                                    <i class="fas fa-trash"></i>
+                                    <i class="fas fa-trash" aria-hidden="true"></i>
+                                    <span class="visually-hidden">Elimina appunto</span>
                                 </button>
                             </div>
                         </td>
@@ -217,7 +219,7 @@
 function modificaAppunto(id) {
     // Recupera i dati dell'appunto tramite AJAX
     const url = '/appunti/' + id + '/dati';
-    // debug logging removed
+    
     fetch(url)
         .then(response => response.json())
         .then(data => {

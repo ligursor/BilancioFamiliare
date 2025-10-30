@@ -17,9 +17,10 @@ class Transazione(db.Model):
     categoria = db.relationship('Categoria', backref=db.backref('transazioni', lazy=True))
     tipo = db.Column(db.String(20), nullable=False)  # 'entrata' o 'uscita'
     ricorrente = db.Column(db.Boolean, default=False)
-    frequenza_giorni = db.Column(db.Integer, default=0)  # 30=mensile, 365=annuale
-    transazione_madre_id = db.Column(db.Integer, db.ForeignKey('transazione.id'), nullable=True)
-    figli = db.relationship('Transazione', backref=db.backref('madre', remote_side=[id]), lazy='dynamic')
+    # Nota: il campo `frequenza_giorni` e `transazione_madre_id` sono stati rimossi
+    # in favore di un riferimento diretto alla ricorrenza (se presente) tramite
+    # `id_recurring_tx` che punta alla tabella `recurring_transaction`.
+    id_recurring_tx = db.Column(db.Integer, nullable=True)
     
     @property
     def e_programmata(self):

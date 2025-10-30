@@ -24,55 +24,61 @@
 
 <div class="row mt-4">
     <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Statistiche Conto</h5>
+        <!-- Cards delle statistiche -->
+        <div class="row mb-4">
+            <div class="col-12 mb-3">
+                <div class="card {% if conto.saldo_corrente >= 0 %}bg-primary{% else %}bg-danger{% endif %} text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="card-title">€{{ "%.2f"|format(conto.saldo_corrente) }}</h4>
+                                <p class="card-text">Saldo Attuale</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                {% if stats %}
-                <div class="row text-center">
-                    <div class="col-12 mb-3">
-                        <h3 class="{% if conto.saldo_corrente >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            €{{ "%.2f"|format(conto.saldo_corrente) }}
-                        </h3>
-                        <p class="text-muted mb-0">Saldo Attuale</p>
+
+            {% if stats %}
+            <div class="col-12 mb-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="card-title">€{{ "%.2f"|format(stats.saldo_iniziale) }}</h4>
+                                <p class="card-text">Saldo Iniziale</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
-                <hr>
-                
-                <div class="row text-center">
-                    <div class="col-6 mb-2">
-                        <strong class="text-info">€{{ "%.2f"|format(stats.saldo_iniziale) }}</strong><br>
-                        <small class="text-muted">Saldo Iniziale</small>
-                    </div>
-                    <div class="col-6 mb-2">
-                        <strong class="text-primary">{{ stats.num_versamenti }}</strong><br>
-                        <small class="text-muted">Versamenti</small>
-                    </div>
-                    <div class="col-6 mb-2">
-                        <strong class="text-success">+€{{ "%.2f"|format(stats.versamenti_positivi) }}</strong><br>
-                        <small class="text-muted">Entrate</small>
-                    </div>
-                    <div class="col-6 mb-2">
-                        <strong class="text-danger">-€{{ "%.2f"|format(stats.versamenti_negativi) }}</strong><br>
-                        <small class="text-muted">Uscite</small>
-                    </div>
-                </div>
-                
-                {% if stats.ultimo_versamento %}
-                <hr>
-                <div class="text-center">
-                    <h6 class="text-muted">Ultimo Versamento</h6>
-                    <p class="mb-1"><strong>{{ stats.ultimo_versamento.descrizione }}</strong></p>
-                    <p class="mb-1">
-                        {% if stats.ultimo_versamento.importo >= 0 %}+{% endif %}€{{ "%.2f"|format(stats.ultimo_versamento.importo) }}
-                    </p>
-                    <small class="text-muted">{{ stats.ultimo_versamento.data.strftime('%d/%m/%Y') }}</small>
-                </div>
-                {% endif %}
-                {% endif %}
             </div>
+
+            <div class="col-12 mb-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="card-title">+€{{ "%.2f"|format(stats.versamenti_positivi) }}</h4>
+                                <p class="card-text">Entrate Totali</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 mb-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="card-title">-€{{ "%.2f"|format(stats.versamenti_negativi) }}</h4>
+                                <p class="card-text">Uscite Totali</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
         
         <!-- Form nuovo versamento -->
@@ -114,9 +120,9 @@
     <div class="col-lg-8">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Storico Versamenti</h5>
-                {% if pagination and pagination.total > 0 %}
-                <small class="text-muted">{{ pagination.total }} versamenti totali</small>
+                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Versamenti</h5>
+                {% if versamenti and versamenti|length > 0 %}
+                <small class="text-muted">{{ versamenti|length }} versamenti totali</small>
                 {% endif %}
             </div>
             <div class="card-body">
@@ -125,36 +131,33 @@
                         <table class="table table-striped">
                             <thead>
                                 <tr>
-                                    <th>Data</th>
-                                    <th>Descrizione</th>
-                                    <th class="text-end">Importo</th>
-                                    <th class="text-end">Saldo Dopo</th>
+                                    <th class="text-center">Descrizione</th>
+                                    <th class="text-center">Data</th>
+                                    <th class="text-center">Importo</th>
                                     <th class="text-center">Azioni</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for versamento in versamenti %}
                                 <tr>
-                                    <td>{{ versamento.data.strftime('%d/%m/%Y') }}</td>
-                                    <td>{{ versamento.descrizione }}</td>
-                                    <td class="text-end">
+                                    <td class="text-start">{{ versamento.descrizione }}</td>
+                                    <td class="text-center">{{ versamento.data.strftime('%d/%m/%Y') }}</td>
+                                    <td class="text-center">
                                         <span class="{% if versamento.importo >= 0 %}text-success{% else %}text-danger{% endif %}">
                                             {% if versamento.importo >= 0 %}+{% endif %}€{{ "%.2f"|format(versamento.importo) }}
                                         </span>
                                     </td>
-                                    <td class="text-end">
-                                        <span class="{% if versamento.saldo_dopo_versamento >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                            €{{ "%.2f"|format(versamento.saldo_dopo_versamento) }}
-                                        </span>
-                                    </td>
                                     <td class="text-center">
-                                        <form method="POST" action="{{ url_for('conti.elimina_versamento', versamento_id=versamento.id) }}" 
-                                              class="d-inline"
-                                              onsubmit="return confirm('Sei sicuro di voler eliminare questo versamento?')">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
+                                        <div class="d-inline-flex align-items-center">
+                                            <form method="POST" action="{{ url_for('conti.elimina_versamento', versamento_id=versamento.id) }}"
+                                                  class="d-inline"
+                                                  onsubmit="return confirm('Sei sicuro di voler eliminare questo versamento?')">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina versamento" aria-label="Elimina versamento">
+                                                    <i class="fas fa-trash" aria-hidden="true"></i>
+                                                    <span class="visually-hidden">Elimina versamento</span>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -162,44 +165,7 @@
                         </table>
                     </div>
                     
-                    <!-- Paginazione -->
-                    {% if pagination and pagination.pages > 1 %}
-                    <nav aria-label="Paginazione versamenti">
-                        <ul class="pagination pagination-sm justify-content-center">
-                            {% if pagination.has_prev %}
-                            <li class="page-item">
-                                <a class="page-link" href="{{ url_for('conti.dettaglio', conto_id=conto.id, page=pagination.prev_num) }}">
-                                    <i class="fas fa-chevron-left"></i>
-                                </a>
-                            </li>
-                            {% endif %}
-                            
-                            {% for page_num in range(1, pagination.pages + 1) %}
-                                {% if page_num == pagination.page %}
-                                    <li class="page-item active">
-                                        <span class="page-link">{{ page_num }}</span>
-                                    </li>
-                                {% elif page_num <= 2 or page_num > pagination.pages - 2 or (page_num >= pagination.page - 1 and page_num <= pagination.page + 1) %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="{{ url_for('conti.dettaglio', conto_id=conto.id, page=page_num) }}">{{ page_num }}</a>
-                                    </li>
-                                {% elif page_num == 3 or page_num == pagination.pages - 2 %}
-                                    <li class="page-item disabled">
-                                        <span class="page-link">...</span>
-                                    </li>
-                                {% endif %}
-                            {% endfor %}
-                            
-                            {% if pagination.has_next %}
-                            <li class="page-item">
-                                <a class="page-link" href="{{ url_for('conti.dettaglio', conto_id=conto.id, page=pagination.next_num) }}">
-                                    <i class="fas fa-chevron-right"></i>
-                                </a>
-                            </li>
-                            {% endif %}
-                        </ul>
-                    </nav>
-                    {% endif %}
+                    <!-- Paginazione rimossa: tutti i versamenti vengono mostrati nella stessa lista -->
                 {% else %}
                     <div class="text-center py-5">
                         <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>

@@ -18,7 +18,7 @@ from app.config import config
 # Istanze globali
 db = SQLAlchemy()
 
-def create_app(config_name=None):
+def create_app(config_name='default'):
     """Factory pattern per creare l'applicazione Flask"""
     # Calcola i path corretti per template e static
     import os
@@ -31,10 +31,7 @@ def create_app(config_name=None):
                 template_folder=template_dir,
                 static_folder=static_dir)
     
-    # Carica la configurazione
-    if config_name is None:
-        config_name = os.environ.get('FLASK_ENV', 'default')
-    
+    # Carica la configurazione di default (app gira in locale con DEBUG disabilitato)
     app.config.from_object(config[config_name])
     
     # Inizializza le estensioni
@@ -47,13 +44,13 @@ def create_app(config_name=None):
     
     # Importa e registra i blueprint
     from app.views.main import main_bp
-    from app.views.transazioni import transazioni_bp
-    from app.views.categorie import categorie_bp
-    from app.views.dettaglio_periodo import dettaglio_periodo_bp
-    from app.views.dashboard import dashboard_bp
+    from app.views.bilancio.transazioni import transazioni_bp
+    from app.views.bilancio.categorie import categorie_bp
+    from app.views.bilancio.dettaglio_periodo import dettaglio_periodo_bp
+    from app.views.bilancio.dashboard import dashboard_bp
     from app.views.paypal import paypal_bp
     from app.views.conti_personali import conti_bp
-    from app.views.auto import auto_bp
+    from app.views.garage.auto import auto_bp
     from app.views.ppay_evolution import ppay_bp
     from app.views.appunti import appunti_bp
     
@@ -67,5 +64,6 @@ def create_app(config_name=None):
     app.register_blueprint(auto_bp, url_prefix='/auto')
     app.register_blueprint(ppay_bp, url_prefix='/ppay_evolution')
     app.register_blueprint(appunti_bp, url_prefix='/appunti')
+    # database import/export blueprint removed (archived in _backup/obsolete)
     
     return app
