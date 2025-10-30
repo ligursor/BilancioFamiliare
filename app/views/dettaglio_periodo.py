@@ -7,16 +7,8 @@ from datetime import datetime
 from app.services.bilancio.dettaglio_periodo_service import DettaglioPeriodoService
 from app.services.categorie.categorie_service import CategorieService
 from flask import request, jsonify
-
-dettaglio_periodo_bp = Blueprint('dettaglio_periodo', __name__)
-
-@dettaglio_periodo_bp.route('/')
-def index():
-    """Pagina principale dettaglio periodo - mostra mese corrente"""
-    oggi = datetime.now()
-    return redirect(url_for('dettaglio_periodo.mese', 
-                          anno=oggi.year, 
-                          mese=oggi.month))
+# shim to new location
+from app.views.bilancio.dettaglio_periodo import *  # re-export from the bilancio package
 
 @dettaglio_periodo_bp.route('/<int:anno>/<int:mese>')
 def mese(anno, mese):

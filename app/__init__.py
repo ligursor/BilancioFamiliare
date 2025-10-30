@@ -44,10 +44,10 @@ def create_app(config_name='default'):
     
     # Importa e registra i blueprint
     from app.views.main import main_bp
-    from app.views.transazioni import transazioni_bp
-    from app.views.categorie import categorie_bp
-    from app.views.dettaglio_periodo import dettaglio_periodo_bp
-    from app.views.dashboard import dashboard_bp
+    from app.views.bilancio.transazioni import transazioni_bp
+    from app.views.bilancio.categorie import categorie_bp
+    from app.views.bilancio.dettaglio_periodo import dettaglio_periodo_bp
+    from app.views.bilancio.dashboard import dashboard_bp
     from app.views.paypal import paypal_bp
     from app.views.conti_personali import conti_bp
     from app.views.garage.auto import auto_bp
