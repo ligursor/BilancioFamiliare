@@ -4,7 +4,7 @@ Gestisce le visualizzazioni dettagliate per mese/periodo
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from datetime import datetime
-from app.services.dettaglio_periodo_service import DettaglioPeriodoService
+from app.services.bilancio.dettaglio_periodo_service import DettaglioPeriodoService
 from app.services.categorie_service import CategorieService
 from flask import request, jsonify
 
@@ -128,7 +128,7 @@ def monthly_budget_update():
         importo = float(data.get('importo'))
         from app.models.monthly_budget import MonthlyBudget
         from app import db
-        from app.services.dettaglio_periodo_service import DettaglioPeriodoService
+        from app.services.bilancio.dettaglio_periodo_service import DettaglioPeriodoService
         from datetime import date
         from app.services import get_month_boundaries
 

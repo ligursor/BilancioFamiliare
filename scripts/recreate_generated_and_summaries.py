@@ -46,7 +46,7 @@ def main(months=6, initial_year=2025, initial_month=11, initial_saldo=1000.0):
 
         # 2) popola generated_transaction da recurring_transaction per l'orizzonte
         # First try existing service (may handle modern schema)
-        from app.services.generated_transaction_service import GeneratedTransactionService
+        from app.services.bilancio.generated_transaction_service import GeneratedTransactionService
         svc = GeneratedTransactionService()
         created = svc.populate_horizon_from_recurring(months=months, base_date=start_date)
         print(f"GeneratedTransaction created by service: {created}")

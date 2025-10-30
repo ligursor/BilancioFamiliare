@@ -19,8 +19,8 @@ def main(argv=None):
 
     app = create_app()
     with app.app_context():
-        from app.services.generated_transaction_service import GeneratedTransactionService
-        from app.services.monthly_summary_service import MonthlySummaryService
+        from app.services.bilancio.generated_transaction_service import GeneratedTransactionService
+        from app.services.bilancio.monthly_summary_service import MonthlySummaryService
         from app.services import get_month_boundaries
         from datetime import date
         from dateutil.relativedelta import relativedelta

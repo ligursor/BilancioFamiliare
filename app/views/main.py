@@ -2,7 +2,7 @@
 Blueprint principale per le route di base
 """
 from flask import Blueprint, render_template, current_app
-from app.services.transazioni_service import TransazioneService
+from app.services.bilancio.transazioni_service import TransazioneService
 from app.models.base import Categoria, SaldoIniziale
 from app.services import get_month_boundaries, get_current_month_name
 
@@ -25,7 +25,7 @@ def index():
     # (in modo da ereditare il saldo disponibile del mese precedente invece
     # che usare il valore fisso iniziale presente nel DB)
     try:
-        from app.services.dettaglio_periodo_service import DettaglioPeriodoService
+        from app.services.bilancio.dettaglio_periodo_service import DettaglioPeriodoService
         servizio_dettaglio = DettaglioPeriodoService()
         # ottieni i confini del periodo corrente
         start_date, end_date = get_month_boundaries(oggi)

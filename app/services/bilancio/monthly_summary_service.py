@@ -28,7 +28,7 @@ class MonthlySummaryService(BaseService):
 		# adjusted values (including budget residui). This keeps dashboard,
 		# dettaglio and monthly_summary consistent.
 		try:
-			from app.services.dettaglio_periodo_service import DettaglioPeriodoService
+			from app.services.bilancio.dettaglio_periodo_service import DettaglioPeriodoService
 			# DettaglioPeriodoService expects start/end dates; use its get_dettaglio_mese
 			# to obtain entrate/uscite adjusted for this financial month.
 			try:
@@ -209,4 +209,3 @@ class MonthlySummaryService(BaseService):
 			except Exception:
 				pass
 			return False, str(e)
-

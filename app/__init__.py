@@ -50,7 +50,7 @@ def create_app(config_name='default'):
     from app.views.dashboard import dashboard_bp
     from app.views.paypal import paypal_bp
     from app.views.conti_personali import conti_bp
-    from app.views.auto import auto_bp
+    from app.views.garage.auto import auto_bp
     from app.views.ppay_evolution import ppay_bp
     from app.views.appunti import appunti_bp
     

@@ -5,8 +5,8 @@ to create/update/delete transactions and verify monthly summary changes.
 This runs inside the repository and uses the same DB the app uses.
 """
 from app import create_app
-from app.services.transazioni_service import TransazioneService
-from app.services.monthly_summary_service import MonthlySummaryService
+from app.services.bilancio.transazioni_service import TransazioneService
+from app.services.bilancio.monthly_summary_service import MonthlySummaryService
 from datetime import date
 
 

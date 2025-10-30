@@ -2,7 +2,7 @@
 Blueprint per la gestione delle transazioni
 """
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
-from app.services.transazioni_service import TransazioneService
+from app.services.bilancio.transazioni_service import TransazioneService
 from app.models.base import Categoria
 from app.models.transazioni import Transazione
 from datetime import datetime, date

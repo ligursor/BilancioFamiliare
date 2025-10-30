@@ -12,7 +12,6 @@ conti_bp = Blueprint('conti', __name__)
 def lista():
     """Reindirizza alla lista - non più utilizzato, manteniamo per compatibilità"""
     return redirect(url_for('conti.maurizio'))
-
 @conti_bp.route('/maurizio')
 def maurizio():
     """Dashboard per il conto di Maurizio (replica dell'implementazione originale)"""
@@ -24,11 +23,11 @@ def maurizio():
             flash('Errore nel caricamento conto di Maurizio', 'error')
             return redirect(url_for('main.index'))
         
-        return render_template('conto_personale.html',
-                             conto=conto,
-                             versamenti=versamenti,
-                             nome_persona='Maurizio',
-                             config=current_app.config)
+        return render_template('conti_personali/conto_personale.html',
+                               conto=conto,
+                               versamenti=versamenti,
+                               nome_persona='Maurizio',
+                               config=current_app.config)
         
     except Exception as e:
         flash(f'Errore nel caricamento conto: {str(e)}', 'error')
@@ -45,11 +44,11 @@ def antonietta():
             flash('Errore nel caricamento conto di Antonietta', 'error')
             return redirect(url_for('main.index'))
         
-        return render_template('conto_personale.html',
-                             conto=conto,
-                             versamenti=versamenti,
-                             nome_persona='Antonietta',
-                             config=current_app.config)
+        return render_template('conti_personali/conto_personale.html',
+                               conto=conto,
+                               versamenti=versamenti,
+                               nome_persona='Antonietta',
+                               config=current_app.config)
         
     except Exception as e:
         flash(f'Errore nel caricamento conto: {str(e)}', 'error')

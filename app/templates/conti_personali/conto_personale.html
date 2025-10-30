@@ -90,6 +90,162 @@
         -webkit-appearance: none;
         margin: 0;
     }
+    
+    if (btnShow) {
+        btnShow.addEventListener('click', function(){
+            card = ensureCardPresent();
+            if (!card) return;
+            // initialize date field to today if empty and set default description
+            try {
+                var dataInput = card.querySelector('#data');
+                if (dataInput && !dataInput.value) {
+                    dataInput.value = new Date().toISOString().split('T')[0];
+                }
+                var descInput = card.querySelector('#descrizione');
+                if (descInput && !descInput.value) {
+                    var mesi = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+                    var oggi = new Date();
+                    var mese = mesi[oggi.getMonth()];
+                    var anno = oggi.getFullYear();
+                    descInput.value = 'Versamento ' + mese + ' ' + anno;
+                }
+            } catch(e){}
+            try { card.querySelector('input,select,textarea').focus(); } catch(e){}
+            setTimeout(function(){ card.scrollIntoView({behavior: 'smooth', block: 'center'}); }, 100);
+            // rebind close handler on header
+            var btnClose = document.getElementById('btn-close-nuovo-versamento');
+            if (btnClose) {
+                btnClose.addEventListener('click', function(){
+                    var c = document.getElementById('card-nuovo-versamento');
+                    if (c) c.remove();
+                });
+            }
+        });
+    }
+    // Delegated submit handler for dynamically inserted form
+    document.addEventListener('submit', function(e){
+        if (!e.target || e.target.id !== 'form-nuovo-versamento') return;
+        e.preventDefault();
+        var theForm = e.target;
+        var submitBtn = theForm.querySelector('#btn-salva-versamento');
+        var origHtml = null;
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            origHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salva';
+        }
+        var url = theForm.action;
+        var formData = new FormData(theForm);
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(function(resp){
+            if (resp.ok) {
+                // remove the card if present
+                var currentCard = document.getElementById('card-nuovo-versamento');
+                if (currentCard) currentCard.remove();
+                // fetch the current page HTML and replace only the versamenti table container and badge
+                fetch(window.location.href, {credentials: 'same-origin'})
+                    .then(function(r){ return r.text(); })
+                    .then(function(html){
+                        try {
+                            var parser = new DOMParser();
+                            var doc = parser.parseFromString(html, 'text/html');
+                            var newContainer = doc.getElementById('versamenti-table-container');
+                            var newCount = doc.getElementById('versamenti-count');
+                            if (newContainer && tableContainer) {
+                                tableContainer.innerHTML = newContainer.innerHTML;
+                            }
+                            if (newCount && countBadge) {
+                                countBadge.textContent = newCount.textContent;
+                            }
+                            // update top statistic cards if present
+                            var newTop = doc.getElementById('top-cards');
+                            if (newTop && topCards) {
+                                topCards.innerHTML = newTop.innerHTML;
+                            }
+                        } catch (err) {
+                            // fallback to full reload
+                            setTimeout(function(){ location.reload(); }, 250);
+                        }
+                    }).catch(function(){ setTimeout(function(){ location.reload(); }, 250); });
+            } else {
+                // server returned error - show alert
+                resp.text().then(function(txt){
+                    alert('Errore nel salvataggio: ' + txt);
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+                });
+            }
+        }).catch(function(err){
+            alert('Errore di rete: ' + err);
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+        });
+    });
+
+    // Delegated submit handler for delete forms (class form-elimina-versamento)
+    document.addEventListener('submit', function(e){
+        var tgt = e.target;
+        if (!tgt || !tgt.classList || !tgt.classList.contains('form-elimina-versamento')) return;
+        e.preventDefault();
+        // confirm deletion (forms had an inline confirm originally)
+        if (!confirm('Sei sicuro di voler eliminare questo versamento?')) return;
+        var submitBtn = tgt.querySelector('button[type=submit]');
+        var origHtml = null;
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            origHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+        }
+        var url = tgt.action;
+        fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(function(resp){
+            if (resp.ok) {
+                // fetch the current page and update fragments
+                fetch(window.location.href, {credentials: 'same-origin'})
+                    .then(function(r){ return r.text(); })
+                    .then(function(html){
+                        try {
+                            var parser = new DOMParser();
+                            var doc = parser.parseFromString(html, 'text/html');
+                            var newContainer = doc.getElementById('versamenti-table-container');
+                            var newCount = doc.getElementById('versamenti-count');
+                            var newTop = doc.getElementById('top-cards');
+                            if (newContainer && tableContainer) {
+                                tableContainer.innerHTML = newContainer.innerHTML;
+                            }
+                            if (newCount && countBadge) {
+                                countBadge.textContent = newCount.textContent;
+                            }
+                            if (newTop && topCards) {
+                                topCards.innerHTML = newTop.innerHTML;
+                            }
+                        } catch (err) {
+                            setTimeout(function(){ location.reload(); }, 250);
+                        }
+                    }).catch(function(){ setTimeout(function(){ location.reload(); }, 250); });
+            } else {
+                resp.text().then(function(txt){
+                    alert('Errore durante l\'eliminazione: ' + txt);
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+                });
+            }
+        }).catch(function(err){
+            alert('Errore di rete: ' + err);
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
+        });
+    });
+});
+</script>
+{% endblock %}
     #card-nuovo-versamento input[type=number] {
         -moz-appearance: textfield;
         appearance: textfield;
@@ -384,7 +540,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% block scripts %}
 <script>
-// AJAX submit for Nuovo Versamento + AJAX delete: submit forms via fetch and update fragments (versamenti table, count, top cards)
+// AJAX submit per Nuovo Versamento + AJAX delete: submit forms via fetch and update fragments (versamenti table, count, top cards)
 document.addEventListener('DOMContentLoaded', function(){
     var form = document.getElementById('form-nuovo-versamento');
     var btnShow = document.getElementById('btn-nuovo-versamento');
@@ -410,159 +566,3 @@ document.addEventListener('DOMContentLoaded', function(){
         }
         return document.getElementById('card-nuovo-versamento');
     }
-
-    if (btnShow) {
-        btnShow.addEventListener('click', function(){
-            card = ensureCardPresent();
-            if (!card) return;
-            // initialize date field to today if empty and set default description
-            try {
-                var dataInput = card.querySelector('#data');
-                if (dataInput && !dataInput.value) {
-                    dataInput.value = new Date().toISOString().split('T')[0];
-                }
-                var descInput = card.querySelector('#descrizione');
-                if (descInput && !descInput.value) {
-                    var mesi = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
-                    var oggi = new Date();
-                    var mese = mesi[oggi.getMonth()];
-                    var anno = oggi.getFullYear();
-                    descInput.value = 'Versamento ' + mese + ' ' + anno;
-                }
-            } catch(e){}
-            try { card.querySelector('input,select,textarea').focus(); } catch(e){}
-            setTimeout(function(){ card.scrollIntoView({behavior: 'smooth', block: 'center'}); }, 100);
-            // rebind close handler on header
-            var btnClose = document.getElementById('btn-close-nuovo-versamento');
-            if (btnClose) {
-                btnClose.addEventListener('click', function(){
-                    var c = document.getElementById('card-nuovo-versamento');
-                    if (c) c.remove();
-                });
-            }
-        });
-    }
-    // Delegated submit handler for dynamically inserted form
-    document.addEventListener('submit', function(e){
-        if (!e.target || e.target.id !== 'form-nuovo-versamento') return;
-        e.preventDefault();
-        var theForm = e.target;
-        var submitBtn = theForm.querySelector('#btn-salva-versamento');
-        var origHtml = null;
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            origHtml = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salva';
-        }
-        var url = theForm.action;
-        var formData = new FormData(theForm);
-        fetch(url, {
-            method: 'POST',
-            body: formData,
-            credentials: 'same-origin',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        }).then(function(resp){
-            if (resp.ok) {
-                // remove the card if present
-                var currentCard = document.getElementById('card-nuovo-versamento');
-                if (currentCard) currentCard.remove();
-                // fetch the current page HTML and replace only the versamenti table container and badge
-                fetch(window.location.href, {credentials: 'same-origin'})
-                    .then(function(r){ return r.text(); })
-                    .then(function(html){
-                        try {
-                            var parser = new DOMParser();
-                            var doc = parser.parseFromString(html, 'text/html');
-                            var newContainer = doc.getElementById('versamenti-table-container');
-                            var newCount = doc.getElementById('versamenti-count');
-                            if (newContainer && tableContainer) {
-                                tableContainer.innerHTML = newContainer.innerHTML;
-                            }
-                            if (newCount && countBadge) {
-                                countBadge.textContent = newCount.textContent;
-                            }
-                            // update top statistic cards if present
-                            var newTop = doc.getElementById('top-cards');
-                            if (newTop && topCards) {
-                                topCards.innerHTML = newTop.innerHTML;
-                            }
-                        } catch (err) {
-                            // fallback to full reload
-                            setTimeout(function(){ location.reload(); }, 250);
-                        }
-                    }).catch(function(){ setTimeout(function(){ location.reload(); }, 250); });
-            } else {
-                // server returned error - show alert
-                resp.text().then(function(txt){
-                    alert('Errore nel salvataggio: ' + txt);
-                    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
-                });
-            }
-        }).catch(function(err){
-            alert('Errore di rete: ' + err);
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
-        });
-    });
-
-    // Delegated submit handler for delete forms (class form-elimina-versamento)
-    document.addEventListener('submit', function(e){
-        var tgt = e.target;
-        if (!tgt || !tgt.classList || !tgt.classList.contains('form-elimina-versamento')) return;
-        e.preventDefault();
-        // confirm deletion (forms had an inline confirm originally)
-        if (!confirm('Sei sicuro di voler eliminare questo versamento?')) return;
-        var submitBtn = tgt.querySelector('button[type=submit]');
-        var origHtml = null;
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            origHtml = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-        }
-        var url = tgt.action;
-        fetch(url, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        }).then(function(resp){
-            if (resp.ok) {
-                // fetch the current page and update fragments
-                fetch(window.location.href, {credentials: 'same-origin'})
-                    .then(function(r){ return r.text(); })
-                    .then(function(html){
-                        try {
-                            var parser = new DOMParser();
-                            var doc = parser.parseFromString(html, 'text/html');
-                            var newContainer = doc.getElementById('versamenti-table-container');
-                            var newCount = doc.getElementById('versamenti-count');
-                            var newTop = doc.getElementById('top-cards');
-                            if (newContainer && tableContainer) {
-                                tableContainer.innerHTML = newContainer.innerHTML;
-                            }
-                            if (newCount && countBadge) {
-                                countBadge.textContent = newCount.textContent;
-                            }
-                            if (newTop && topCards) {
-                                topCards.innerHTML = newTop.innerHTML;
-                            }
-                        } catch (err) {
-                            setTimeout(function(){ location.reload(); }, 250);
-                        }
-                    }).catch(function(){ setTimeout(function(){ location.reload(); }, 250); });
-            } else {
-                resp.text().then(function(txt){
-                    alert('Errore durante l\'eliminazione: ' + txt);
-                    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
-                });
-            }
-        }).catch(function(err){
-            alert('Errore di rete: ' + err);
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; }
-        });
-    });
-});
-</script>
-{% endblock %}
