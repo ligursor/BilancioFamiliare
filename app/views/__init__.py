@@ -12,3 +12,5 @@ from app.views.bilancio import transazioni as transazioni
 from app.views.bilancio import categorie as categorie
 
 from app.views.paypal import paypal as paypal
+
+from app.views.ppay_evolution import ppay_evolution as ppay_evolution

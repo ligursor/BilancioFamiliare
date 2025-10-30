@@ -20,3 +20,53 @@ def index():
 		flash(f'Errore nel caricamento delle categorie: {str(e)}', 'error')
 		return redirect(url_for('main.index'))
 
+
+@categorie_bp.route('/lista')
+def lista():
+	"""Compatibilità: vecchio endpoint 'lista' -> reusa index"""
+	return index()
+
+
+@categorie_bp.route('/aggiungi', methods=['POST'])
+def aggiungi():
+	"""Aggiunge una nuova categoria (richiesto da template)"""
+	try:
+		nome = request.form.get('nome', '').strip()
+		tipo = request.form.get('tipo', '').strip()
+		if not nome or not tipo:
+			flash('Nome e tipo sono obbligatori', 'error')
+			return redirect(url_for('categorie.index'))
+
+		service = CategorieService()
+		ok, msg = service.create_categoria(nome, tipo)
+		flash(msg, 'success' if ok else 'error')
+	except Exception as e:
+		flash(f'Errore durante l\'aggiunta della categoria: {str(e)}', 'error')
+	return redirect(url_for('categorie.index'))
+
+
+@categorie_bp.route('/modifica/<int:categoria_id>', methods=['POST'])
+def modifica(categoria_id):
+	"""Modifica una categoria esistente"""
+	try:
+		nome = request.form.get('nome', '').strip()
+		tipo = request.form.get('tipo', '').strip()
+		service = CategorieService()
+		ok, msg = service.update_categoria(categoria_id, nome=nome or None, tipo=tipo or None)
+		flash(msg, 'success' if ok else 'error')
+	except Exception as e:
+		flash(f'Errore nella modifica della categoria: {str(e)}', 'error')
+	return redirect(url_for('categorie.index'))
+
+
+@categorie_bp.route('/elimina/<int:categoria_id>', methods=['POST'])
+def elimina(categoria_id):
+	"""Elimina una categoria"""
+	try:
+		service = CategorieService()
+		ok, msg = service.delete_categoria(categoria_id)
+		flash(msg, 'success' if ok else 'error')
+	except Exception as e:
+		flash(f'Errore nell\'eliminazione della categoria: {str(e)}', 'error')
+	return redirect(url_for('categorie.index'))
+
