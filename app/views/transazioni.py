@@ -25,7 +25,7 @@ def lista():
         )
         
         # Categorie per i filtri - usa il servizio per leggere dal DB
-        from app.services.categorie_service import CategorieService
+        from app.services.categorie.categorie_service import CategorieService
         service_cat = CategorieService()
         categorie_dict = service_cat.get_categories_dict(exclude_paypal=True)
         
@@ -41,7 +41,7 @@ def lista():
 def nuova():
     """Crea una nuova transazione"""
     if request.method == 'GET':
-        from app.services.categorie_service import CategorieService
+        from app.services.categorie.categorie_service import CategorieService
         service_cat = CategorieService()
         categorie = service_cat.get_all_categories()
         return render_template('transazioni/nuova.html', categorie=categorie)
@@ -86,7 +86,7 @@ def nuova():
         flash(f'Errore imprevisto: {str(e)}', 'error')
     
     # Ricarica form in caso di errore
-    from app.services.categorie_service import CategorieService
+        from app.services.categorie.categorie_service import CategorieService
     service_cat = CategorieService()
     categorie = service_cat.get_all_categories()
     return render_template('transazioni/nuova.html', categorie=categorie)
@@ -153,7 +153,7 @@ def modifica(transazione_id):
     transazione = Transazione.query.get_or_404(transazione_id)
     
     if request.method == 'GET':
-        from app.services.categorie_service import CategorieService
+        from app.services.categorie.categorie_service import CategorieService
         service_cat = CategorieService()
         categorie = service_cat.get_all_categories()
         return render_template('transazioni/modifica.html', 
@@ -198,7 +198,7 @@ def modifica(transazione_id):
         flash(f'Errore: {str(e)}', 'error')
     
     # Ricarica form in caso di errore
-    from app.services.categorie_service import CategorieService
+        from app.services.categorie.categorie_service import CategorieService
     service_cat = CategorieService()
     categorie = service_cat.get_all_categories()
     return render_template('transazioni/modifica.html', 

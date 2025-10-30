@@ -2,7 +2,7 @@
 Blueprint per la gestione delle categorie
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from app.services.categorie_service import CategorieService
+from app.services.categorie.categorie_service import CategorieService
 
 categorie_bp = Blueprint('categorie', __name__)
 

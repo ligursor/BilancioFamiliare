@@ -159,7 +159,7 @@ def index():
         ultime_transazioni = []
     
     # Ottieni categorie per il modal (escludi PayPal) usando il servizio
-    from app.services.categorie_service import CategorieService
+    from app.services.categorie.categorie_service import CategorieService
     service_cat = CategorieService()
     categorie_dict = service_cat.get_categories_dict(exclude_paypal=True)
     

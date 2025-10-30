@@ -5,7 +5,7 @@ Gestisce le visualizzazioni dettagliate per mese/periodo
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from datetime import datetime
 from app.services.bilancio.dettaglio_periodo_service import DettaglioPeriodoService
-from app.services.categorie_service import CategorieService
+from app.services.categorie.categorie_service import CategorieService
 from flask import request, jsonify
 
 dettaglio_periodo_bp = Blueprint('dettaglio_periodo', __name__)

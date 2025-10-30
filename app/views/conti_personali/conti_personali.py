@@ -4,7 +4,7 @@ Replica l'implementazione originale con i due conti fissi
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from datetime import datetime, date
-from app.services.conti_personali_service import ContiPersonaliService
+from app.services.conti_personali.conti_personali_service import ContiPersonaliService
 
 conti_bp = Blueprint('conti', __name__)
 
