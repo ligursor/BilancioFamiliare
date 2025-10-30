@@ -1,6 +1,872 @@
 {% extends "base.html" %}
 
+{% block title %}PostePay Evolution{% endblock %}
+
 {% block content %}
-<h3>PostePay Evolution</h3>
-<p>Contenuto PPay Evolution</p>
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-credit-card me-2"></i>PostePay Evolution</h2>
+    </div>
+
+    <!-- Cards delle statistiche -->
+    <div id="top-cards" class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">
+                                <a href="#" class="text-white text-decoration-none" data-bs-toggle="modal" data-bs-target="#modalModificaSaldo" title="Clicca per modificare">                                                                                                              {{ config.FORMATO_VALUTA.format(postepay.saldo_attuale if postepay else 0) }}
+                                    <i class="fas fa-edit ms-1" style="font-size: 0.8rem;"></i>
+                                </a>
+                            </h4>
+                            <p class="card-text">Saldo Attuale</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ abbonamenti|length }}</h4>
+                            <p class="card-text">Abbonamenti Attivi</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">{{ config.FORMATO_VALUTA.format(spesa_mensile) }}</h4>
+                            <p class="card-text">Spesa Mensile</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container for inline forms inserted below top-cards -->
+    <div id="inline-forms-container" class="mb-3"></div>
+
+    <style>
+    /* hide number input spinners for inputs with .no-spin */
+    input.no-spin::-webkit-inner-spin-button,
+    input.no-spin::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    input.no-spin {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+    /* readonly fields styling for inline edit forms */
+    .form-control[readonly], .form-control[aria-readonly="true"] {
+        background-color: #f8f9fa; /* light gray */
+        opacity: 1;
+    }
+    .inline-edit-badge { font-size: 0.75rem; }
+
+    </style>
+
+        <!-- Inline Nuovo Movimento template (replaces modal) -->
+            <template id="tmpl-nuovo-movimento">
+    <div id="card-nuovo-movimento" class="card mb-2">
+        <div class="card-header d-flex align-items-center py-2">
+            <h5 class="mb-0 fs-6"><i class="fas fa-plus me-2"></i>Nuovo Movimento</h5>
+            <button type="button" class="btn btn-link p-0 ms-auto" aria-label="Chiudi" id="btn-close-nuovo-movimento">
+                <i class="fas fa-times" style="font-size:1.1rem;color:#fff;"></i>
+            </button>
+        </div>
+        <div class="card-body py-2">
+            <form id="form-nuovo-movimento" method="POST" action="{{ url_for('ppay.aggiungi_movimento') }}">
+                <div class="row g-2 align-items-center">
+                    <div class="col-auto" style="min-width:110px;">
+                        <input type="date" class="form-control form-control-sm" id="mov_data" name="data" placeholder="Data" required aria-label="Data">                                                                                                                    </div>
+                    <div class="col">
+                        <input type="text" class="form-control form-control-sm" id="mov_descrizione" name="descrizione" plac
+eholder="Descrizione" required aria-label="Descrizione">                                                                                        </div>
+                    <div class="col-auto" style="min-width:120px;">
+                        <select class="form-control form-control-sm" id="mov_tipo" name="tipo" required aria-label="Tipo">
+                            <option value="entrata">Entrata (+)</option>
+                            <option value="uscita">Uscita (-)</option>
+                        </select>
+                    </div>
+                    <div class="col-auto" style="min-width:120px;">
+                        <input type="number" step="0.01" class="form-control form-control-sm text-end" id="mov_importo" name
+="importo" placeholder="Importo" required aria-label="Importo">                                                                                 </div>
+                    <div class="col-auto" style="min-width:120px;">
+                        <select class="form-control form-control-sm" id="mov_tipo_movimento" name="tipo_movimento" aria-labe
+l="Categoria">                                                                                                                                          <option value="ricarica">Ricarica</option>
+                            <option value="pagamento">Pagamento</option>
+                            <option value="altro">Altro</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" id="btn-salva-movimento" class="btn btn-success btn-sm">Aggiungi</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</template>
+    <!-- Tabelle -->
+    <div class="row align-items-start">
+        <!-- Abbonamenti -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-sync-alt me-2"></i>Abbonamenti</h5>
+                    <div>
+                        <button id="btn-nuovo-abbonamento" class="btn btn-primary btn-sm" type="button" aria-controls="tmpl-
+nuovo-abbonamento">                                                                                                                                     <i class="fas fa-plus me-1"></i>Nuovo Abbonamento
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if abbonamenti %}
+                        <div id="abbonamenti-table-container">
+                    <div class="table-responsive">
+                        <table id="table-abbonamenti" class="table table-striped" data-page-size="3" tabindex="-1">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Importo</th>
+                                    <th>Giorno</th>
+                                    <th>Prossimo</th>
+                                    <th>Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for abbonamento in abbonamenti %}
+                                <tr class="{% if not abbonamento.attivo %}table-secondary{% endif %}">
+                                    <td>
+                                        <strong>{{ abbonamento.nome }}</strong>
+                                        {% if abbonamento.descrizione %}
+                                        <br><small class="text-muted">{{ abbonamento.descrizione }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ config.FORMATO_VALUTA.format(abbonamento.importo) }}</td>
+                                    <td>{{ abbonamento.giorno_addebito }}</td>
+                                    <td>
+                                        {% if abbonamento.attivo %}
+                                        {{ abbonamento.prossimo_addebito.strftime('%d/%m/%Y') }}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-inline-flex align-items-center">
+                                            <button class="btn btn-outline-primary btn-sm me-1 btn-edit-abbonamento" 
+                                                    data-abbonamento-id="{{ abbonamento.id }}"
+                                                    data-nome="{{ abbonamento.nome|e }}"
+                                                    data-descrizione="{{ (abbonamento.descrizione or '')|e }}"
+                                                    data-importo="{{ '%.2f'|format(abbonamento.importo) }}"
+                                                    data-giorno-addebito="{{ abbonamento.giorno_addebito }}"
+                                            >
+                                                <i class="fas fa-edit" aria-hidden="true"></i>
+                                            </button>
+                                            <form method="POST" action="{{ url_for('ppay.elimina_abbonamento', abbonamento_id=abbonamento.id) }}" style="display: inline;" onsubmit="return confirm('Sei sicuro di voler eliminare questo abbonamento?')">                                                                                                                                                                          <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina a
+bbonamento" aria-label="Elimina abbonamento">                                                                                                                                   <i class="fas fa-trash" aria-hidden="true"></i>
+                                                    <span class="visually-hidden">Elimina abbonamento</span>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <nav id="pagination-abbonamenti" class="mt-2 d-flex justify-content-center" aria-label="Paginazione abbonamenti"></nav>
+                    
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Nessun abbonamento configurato.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Prossimi addebiti -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-clock me-2"></i>Prossimi Addebiti</h5>
+                </div>
+                <div class="card-body">
+                    {% if prossimi_addebiti %}
+                    {% for addebito in prossimi_addebiti[:5] %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded {% if not addebito.saldo_sufficiente %}bg-danger bg-gradient text-white fw-bold border-danger{% else %}bg-success bg-gradient text-white fw-bold border-success{% endif %}">
+                        <div>
+                            <strong>{{ addebito.abbonamento.nome }}</strong><br>
+                            <small class="text-white">{{ addebito.data.strftime('%d/%m/%Y') }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge {% if not addebito.saldo_sufficiente %}bg-danger{% else %}bg-success{% endif %} text-white">{{ addebito.giorni }} giorni</span><br>
+                            <small class="text-white">{{ config.FORMATO_VALUTA.format(addebito.abbonamento.importo) }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted">Nessun addebito in programma.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Movimenti recenti -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div id="inline-movimenti-container" class="mb-2"></div>
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Movimenti</h5>
+                    <div class="d-flex align-items-center">
+                        <button id="btn-nuovo-movimento" class="btn btn-success btn-sm me-2" type="button" aria-controls="tmpl-nuovo-movimento">
+                            <i class="fas fa-plus me-1"></i>Nuovo Movimento
+                        </button>
+                        <button id="toggle-movimenti" class="btn btn-sm d-flex" type="button" data-bs-toggle="collapse" data-bs-target="#movimentiCollapse" aria-expanded="true" aria-controls="movimentiCollapse" aria-label="Mostra o nascondi movimenti" style="background: transparent; color: inherit; border: none; box-shadow: none; width:32px; height:32px; padding:0; align-items:center; justify-content:center;">
+                            <span id="toggle-icon-movimenti"><i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i></span>
+                        </button>
+                    </div>
+                </div>
+                <div id="movimentiCollapse" class="collapse">
+                    <div class="card-body">
+                        {% if movimenti %}
+                        <div id="movimenti-table-container">
+                        <div class="table-responsive">
+                            <table id="table-movimenti-recenti" class="table table-striped" data-page-size="5" tabindex="-1">
+                            <thead>
+                                    <tr>
+                                        <th>Descrizione</th>
+                                        <th>Data</th>
+                                        <th>Tipo</th>
+                                        <th>Importo</th>
+                                        <th>Azioni</th>
+                                    </tr>
+                            </thead>
+                            <tbody>
+                                {% for movimento in movimenti %}
+                                <tr>
+                                    <td class="text-start">{{ movimento.descrizione }}</td>
+                                    <td>{{ movimento.data.strftime('%d/%m/%Y') }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if movimento.tipo == 'ricarica' %}success{% elif movimento.tipo == 'abbonamento' %}info{% else %}secondary{% endif %}">
+                                            {{ movimento.tipo.title() }}
+                                        </span>
+                                    </td>
+                                    <td class="{% if movimento.importo > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ config.FORMATO_VALUTA.format(movimento.importo) }}
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-outline-primary btn-sm btn-edit-movimento" 
+                                                data-movimento-id="{{ movimento.id }}"
+                                                data-movimento-descrizione="{{ movimento.descrizione|e }}"
+                                                data-movimento-data="{{ movimento.data.strftime('%Y-%m-%d') }}"
+                                                data-movimento-tipo="{{ 'entrata' if movimento.importo>0 else 'uscita' }}"
+                                                data-movimento-importo="{{ '%.2f'|format(movimento.importo|abs) }}"
+                                                data-movimento-tipo_movimento="{{ movimento.tipo }}"
+                                        ><i class="fas fa-edit"></i></button>
+                                        <form method="POST" action="{{ url_for('ppay.elimina_movimento', movimento_id=movimento.id) }}" class="form-delete-movimento" style="display:inline;" onsubmit="return confirm('Sei sicuro di eliminare questo movimento?')">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina movimento" aria-label="Elimina movimento">
+                                                <i class="fas fa-trash" aria-hidden="true"></i>
+                                                <span class="visually-hidden">Elimina movimento</span>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            </table>
+                        </div>
+                        </div>
+                        <nav id="pagination-movimenti" class="mt-2 d-flex justify-content-center" aria-label="Paginazione movimenti recenti"></nav>
+                        {% else %}
+                        <p class="text-muted">Nessun movimento registrato.</p>
+                        {% endif %}
+
+                        <!-- Inline Nuovo Abbonamento template (replaces modal) -->
+                        <template id="tmpl-nuovo-abbonamento">
+                            <div id="card-nuovo-abbonamento" class="card mb-3">
+                                <div class="card-header d-flex align-items-center">
+                                    <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Nuovo Abbonamento</h5>
+                                    <button type="button" class="btn btn-link p-0 ms-auto" aria-label="Chiudi" id="btn-close
+-nuovo-abbonamento">                                                                                                                                                <i class="fas fa-times" style="font-size:1.25rem;color:#fff;"></i>
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <form id="form-nuovo-abbonamento" method="POST" action="{{ url_for('ppay.aggiungi_abbonamento') }}">
+                                                    <div class="row g-2 align-items-center">
+                                                        <div class="col-auto" style="min-width:140px;">
+                                                            <input type="text" class="form-control form-control-sm" id="nome
+" name="nome" placeholder="Nome" required aria-label="Nome">                                                                                                                        </div>
+                                                        <div class="col">
+                                                            <input type="text" class="form-control form-control-sm" id="desc
+rizione" name="descrizione" placeholder="Descrizione" aria-label="Descrizione">                                                                                                     </div>
+                                                        <div class="col-auto" style="min-width:110px;">
+                                                            <input type="number" step="0.01" class="form-control form-contro
+l-sm text-end no-spin" id="importo" name="importo" placeholder="Importo" required aria-label="Importo" inputmode="decimal">                                                         </div>
+                                                        <div class="col-auto" style="min-width:110px;">
+                                                            <input type="number" min="1" max="31" class="form-control form-c
+ontrol-sm" id="giorno_addebito" name="giorno_addebito" placeholder="Giorno" required aria-label="Giorno addebito">                                                                  </div>
+                                                        <div class="col-auto">
+                                                            <button type="submit" id="btn-salva-abbonamento" class="btn btn-
+primary btn-sm">Salva</button>                                                                                                                                                      </div>
+                                                    </div>
+                                                </form>
+                                </div>
+                            </div>
+                        </template>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Modifica Saldo -->
+<div class="modal fade" id="modalModificaSaldo" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modifica Saldo PostePay Evolution</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('ppay.modifica_saldo') }}">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Saldo attuale:</strong> {{ config.FORMATO_VALUTA.format(postepay.saldo_attuale if postepay else 0) }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="nuovo_saldo" class="form-label">Nuovo Saldo (€)</label>
+                        <input type="number" step="0.01" class="form-control" id="nuovo_saldo" name="nuovo_saldo" 
+                               value="{{ postepay.saldo_attuale if postepay else 0 }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="motivo" class="form-label">Motivo della modifica</label>
+                        <input type="text" class="form-control" id="motivo" name="motivo" 
+                               placeholder="es. Correzione saldo, Ricarica manuale..." required>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <small>Verrà creato automaticamente un movimento per tracciare questa modifica.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Aggiorna Saldo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nuovo Abbonamento -->
+<div class="modal fade" id="modalNuovoAbbonamento" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuovo Abbonamento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('ppay.aggiungi_abbonamento') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nome" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="nome" name="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descrizione" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" id="descrizione" name="descrizione">
+                    </div>
+                    <div class="mb-3">
+                        <label for="importo" class="form-label">Importo (€)</label>
+                        <input type="number" step="0.01" class="form-control" id="importo" name="importo" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="giorno_addebito" class="form-label">Giorno Addebito</label>
+                        <input type="number" min="1" max="31" class="form-control" id="giorno_addebito" name="giorno_addebito" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                    <button type="submit" class="btn btn-primary">Salva</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Modifica Abbonamento -->
+<div class="modal fade" id="modalModificaAbbonamento" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modifica Abbonamento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="formModificaAbbonamento">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="mod_nome" class="form-label">Nome</label>
+                        <input type="text" class="form-control" id="mod_nome" name="nome" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mod_descrizione" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" id="mod_descrizione" name="descrizione">
+                    </div>
+                    <div class="mb-3">
+                        <label for="mod_importo" class="form-label">Importo (€)</label>
+                        <input type="number" step="0.01" class="form-control" id="mod_importo" name="importo" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mod_giorno_addebito" class="form-label">Giorno Addebito</label>
+                        <input type="number" min="1" max="31" class="form-control" id="mod_giorno_addebito" name="giorno_addebito" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                    <button type="submit" class="btn btn-primary">Salva Modifiche</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nuovo Movimento -->
+<div class="modal fade" id="modalNuovoMovimento" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuovo Movimento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('ppay.aggiungi_movimento') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="mov_data" class="form-label">Data</label>
+                        <input type="date" class="form-control" id="mov_data" name="data" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mov_descrizione" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" id="mov_descrizione" name="descrizione" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mov_tipo" class="form-label">Tipo</label>
+                        <select class="form-control" id="mov_tipo" name="tipo" required>
+                            <option value="entrata">Entrata (+)</option>
+                            <option value="uscita">Uscita (-)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mov_importo" class="form-label">Importo (€)</label>
+                        <input type="number" step="0.01" class="form-control" id="mov_importo" name="importo" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mov_tipo_movimento" class="form-label">Categoria</label>
+                        <select class="form-control" id="mov_tipo_movimento" name="tipo_movimento">
+                            <option value="ricarica">Ricarica</option>
+                            <option value="pagamento">Pagamento</option>
+                            <option value="altro">Altro</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                    <button type="submit" class="btn btn-success">Aggiungi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Form nascosto per reset -->
+<form id="resetForm" method="POST" action="{{ url_for('ppay.reset') }}" style="display: none;"></form>
+
+{% block scripts %}
+<script type="application/json" id="abbonamenti-data">
+    {{ abbonamenti_json | tojson }}
+</script>
+<script>
+var abbonamentiData = JSON.parse(document.getElementById('abbonamenti-data').textContent);
+function modificaAbbonamento(id) {
+    var abbo = abbonamentiData.find(a => a.id === id);
+    document.getElementById('formModificaAbbonamento').action = '/ppay_evolution/modifica_abbonamento_postepay/' + id;
+    document.getElementById('mod_nome').value = abbo.nome;
+    document.getElementById('mod_descrizione').value = abbo.descrizione;
+    document.getElementById('mod_importo').value = abbo.importo;
+    document.getElementById('mod_giorno_addebito').value = abbo.giorno_addebito;
+    // mostra il modal
+    new bootstrap.Modal(document.getElementById('modalModificaAbbonamento')).show();
+}
+
+// Imposta data odierna nei form
+document.addEventListener('DOMContentLoaded', function() {
+    const oggi = new Date().toISOString().split('T')[0];
+    document.getElementById('mov_data').value = oggi;
+});
+</script>
+<script>
+// Client-side pagination for Movimenti Recenti
+document.addEventListener('DOMContentLoaded', function(){
+    var table = document.getElementById('table-movimenti-recenti');
+    if (!table) return;
+    var pageSize = parseInt(table.dataset.pageSize, 10) || 5;
+    var tbody = table.querySelector('tbody');
+    var rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
+    var totalRows = rows.length;
+    var totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+    var paginationNav = document.getElementById('pagination-movimenti');
+
+    function renderPage(page) {
+        var start = (page - 1) * pageSize;
+        var end = start + pageSize;
+        rows.forEach(function(r, idx){
+            r.style.display = (idx >= start && idx < end) ? '' : 'none';
+        });
+        renderControls(page);
+    }
+
+    function renderControls(activePage){
+        if (!paginationNav) return;
+        paginationNav.innerHTML = '';
+        if (totalPages <= 1) return;
+        var ul = document.createElement('ul');
+        ul.className = 'pagination';
+        for (var i = 1; i <= totalPages; i++) {
+            var li = document.createElement('li');
+            li.className = 'page-item' + (i === activePage ? ' active' : '');
+            var a = document.createElement('a');
+            a.className = 'page-link';
+            a.href = '#';
+            a.textContent = i;
+            (function(page){
+                a.addEventListener('click', function(e){
+                    e.preventDefault();
+                    renderPage(page);
+                });
+            })(i);
+            li.appendChild(a);
+            ul.appendChild(li);
+        }
+        paginationNav.appendChild(ul);
+    }
+
+    // initialize to first page
+    renderPage(1);
+});
+</script>
+<script>
+// Client-side pagination for Abbonamenti (5 per page)
+document.addEventListener('DOMContentLoaded', function(){
+    var table = document.getElementById('table-abbonamenti');
+    if (!table) return;
+    var pageSize = parseInt(table.dataset.pageSize, 10) || 5;
+    var tbody = table.querySelector('tbody');
+    var rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
+    var totalRows = rows.length;
+    var totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+    var paginationNav = document.getElementById('pagination-abbonamenti');
+
+    function renderPage(page) {
+        var start = (page - 1) * pageSize;
+        var end = start + pageSize;
+        rows.forEach(function(r, idx){
+            r.style.display = (idx >= start && idx < end) ? '' : 'none';
+        });
+        renderControls(page);
+    }
+
+    function renderControls(activePage){
+        if (!paginationNav) return;
+        paginationNav.innerHTML = '';
+        if (totalPages <= 1) return;
+        var ul = document.createElement('ul');
+        ul.className = 'pagination';
+        for (var i = 1; i <= totalPages; i++) {
+            var li = document.createElement('li');
+            li.className = 'page-item' + (i === activePage ? ' active' : '');
+            var a = document.createElement('a');
+            a.className = 'page-link';
+            a.href = '#';
+            a.textContent = i;
+            (function(page){
+                a.addEventListener('click', function(e){
+                    e.preventDefault();
+                    renderPage(page);
+                });
+            })(i);
+            li.appendChild(a);
+            ul.appendChild(li);
+        }
+        paginationNav.appendChild(ul);
+    }
+
+    // initialize to first page
+    renderPage(1);
+});
+</script>
+<script>
+// Toggle icon for the movimenti section collapse
+document.addEventListener('DOMContentLoaded', function(){
+    var collapseEl = document.getElementById('movimentiCollapse');
+    var toggleIcon = document.getElementById('toggle-icon-movimenti');
+    var toggleBtn = document.getElementById('toggle-movimenti');
+    if (!collapseEl || !toggleIcon || !toggleBtn) return;
+
+    collapseEl.addEventListener('show.bs.collapse', function(){
+        toggleIcon.innerHTML = '<i class="fas fa-eye" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';
+        var table = document.getElementById('table-movimenti-recenti');
+        if (table) {
+            setTimeout(function(){
+                table.scrollIntoView({behavior: 'smooth', block: 'center'});
+                try { table.focus(); } catch(e){}
+            }, 200);
+        }
+    });
+    collapseEl.addEventListener('hide.bs.collapse', function(){
+        toggleIcon.innerHTML = '<i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';
+    });
+});
+</script>
+<script>
+// Inline Nuovo Movimento handling: insert template, submit via fetch, and partial replace
+document.addEventListener('DOMContentLoaded', function(){
+    const btnNuovoMov = document.getElementById('btn-nuovo-movimento');
+    const btnNuovoAbb = document.getElementById('btn-nuovo-abbonamento');
+    const inlineContainer = document.getElementById('inline-forms-container');
+    const inlineMovContainer = document.getElementById('inline-movimenti-container');
+    if (!inlineContainer) return;
+
+    function hasInlineCard() {
+        return !!document.querySelector('.inline-inserted');
+    }
+
+    function insertTemplateAtTop(tmplId, formClass) {
+        if (hasInlineCard()) {
+            const existing = document.querySelector('.form-nuovo-movimento, .form-nuovo-abbonamento');
+            const first = existing.querySelector('input, select, textarea');
+            if (first) first.focus();
+            return;
+        }
+        const tmpl = document.getElementById(tmplId);
+        if (!tmpl) return;
+        const clone = tmpl.content.cloneNode(true);
+
+        // choose target container: movimenti go above movimenti table if container present
+        const target = (formClass === 'form-nuovo-movimento' && inlineMovContainer) ? inlineMovContainer : inlineContainer;
+        // insert at top of the chosen container
+        target.insertBefore(clone, target.firstChild);
+
+        // find the inserted card and form inside the target
+        const insertedCard = target.querySelector('.card');
+        if (insertedCard) {
+            // remove ids inside inserted card to avoid duplicates
+            insertedCard.querySelectorAll && insertedCard.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+            insertedCard.classList.add('inline-inserted');
+        }
+
+        // mark the form with a class so delegation picks it up
+        const insertedForm = target.querySelector('form');
+            if (insertedForm) {
+            insertedForm.classList.add(formClass);
+            // default date for movimento only
+            if (formClass === 'form-nuovo-movimento') {
+                const dateInput = insertedForm.querySelector('input[type="date"]');
+                const today = new Date().toISOString().split('T')[0];
+                if (dateInput && !dateInput.value) dateInput.value = today;
+            }
+            const focusEl = insertedForm.querySelector('input, select, textarea');
+            if (focusEl) focusEl.focus();
+
+            // wire close button (use delegation fallback below as well)
+            const closeBtn = insertedForm.closest('.card')?.querySelector('button[aria-label="Chiudi"]');
+            if (closeBtn) closeBtn.addEventListener('click', function(){
+                const card = closeBtn.closest('.card'); if (card) card.remove();
+            });
+            // no default initialization for giorno_addebito; user will enter value
+        }
+    }
+
+    if (btnNuovoMov) btnNuovoMov.addEventListener('click', function(){ insertTemplateAtTop('tmpl-nuovo-movimento', 'form-nuovo-movimento'); });
+    if (btnNuovoAbb) btnNuovoAbb.addEventListener('click', function(){ insertTemplateAtTop('tmpl-nuovo-abbonamento', 'form-nuovo-abbonamento'); });
+
+    // Open inline form for editing Abbonamento or Movimento
+    document.addEventListener('click', function(e){
+        // Abbonamento edit
+        var btnAbb = e.target.closest && e.target.closest('.btn-edit-abbonamento');
+        if (btnAbb) {
+            e.preventDefault();
+            insertTemplateAtTop('tmpl-nuovo-abbonamento', 'form-nuovo-abbonamento');
+            // populate the inserted form
+            setTimeout(function(){
+                var form = document.querySelector('.form-nuovo-abbonamento');
+                if (!form) return;
+                // fill values
+                var nome = form.querySelector('[name="nome"]'); if (nome) nome.value = btnAbb.dataset.nome || '';
+                var descr = form.querySelector('[name="descrizione"]'); if (descr) descr.value = btnAbb.dataset.descrizione || '';
+                var imp = form.querySelector('[name="importo"]'); if (imp) { imp.value = btnAbb.dataset.importo || ''; imp.setAttribute('readonly','readonly'); }
+                var giorno = form.querySelector('[name="giorno_addebito"]'); if (giorno) { giorno.value = btnAbb.dataset.giornoAddebito || ''; giorno.setAttribute('readonly','readonly'); }
+                // set form action to modifica endpoint
+                form.action = '/ppay_evolution/modifica_abbonamento_postepay/' + (btnAbb.dataset.abbonamentoId || '');
+                var submit = form.querySelector('#btn-salva-abbonamento'); if (submit) submit.innerHTML = 'Salva Modifiche';
+                // set header to indicate edit mode and add a small badge
+                try {
+                    var card = form.closest('.card');
+                    var hdr = card && card.querySelector('.card-header h5');
+                    if (hdr) hdr.innerHTML = '<i class="fas fa-edit me-2"></i>Modifica Abbonamento <span class="badge bg-warning inline-edit-badge ms-2">Modifica</span>';
+                } catch(e){}
+            }, 30);
+            return;
+        }
+
+        // Movimento edit
+        var btnMov = e.target.closest && e.target.closest('.btn-edit-movimento');
+        if (btnMov) {
+            e.preventDefault();
+            insertTemplateAtTop('tmpl-nuovo-movimento', 'form-nuovo-movimento');
+            setTimeout(function(){
+                var form = document.querySelector('.form-nuovo-movimento');
+                if (!form) return;
+                var data = form.querySelector('[name="data"]'); if (data) data.value = btnMov.dataset.movimentoData || '';
+                var descr = form.querySelector('[name="descrizione"]'); if (descr) descr.value = btnMov.dataset.movimentoDescrizione || '';
+                var tipo = form.querySelector('[name="tipo"]'); if (tipo) tipo.value = btnMov.dataset.movimentoTipo || 'entrata';
+                var importo = form.querySelector('[name="importo"]'); if (importo) importo.value = btnMov.dataset.movimentoImporto || '';
+                var tipo_mov = form.querySelector('[name="tipo_movimento"]'); if (tipo_mov) tipo_mov.value = btnMov.dataset.movimentoTipoMovimento || '';
+                // set action to modifica movimento endpoint (we'll add this route)
+                form.action = '/ppay_evolution/modifica_movimento_postepay/' + (btnMov.dataset.movimentoId || '');
+                var submit = form.querySelector('#btn-salva-movimento'); if (submit) submit.innerHTML = 'Salva Modifiche';
+                // header badge for edit
+                try {
+                    var card = form.closest('.card');
+                    var hdr = card && card.querySelector('.card-header h5');
+                    if (hdr) hdr.innerHTML = '<i class="fas fa-edit me-2"></i>Modifica Movimento <span class="badge bg-warning inline-edit-badge ms-2">Modifica</span>';
+                } catch(e){}
+            }, 30);
+            return;
+        }
+    });
+
+    // Delegate submit for dynamically inserted forms (movimento or abbonamento)
+    document.addEventListener('submit', function(e){
+        const form = e.target;
+        if (!form.classList) return;
+    const isMov = form.classList.contains('form-nuovo-movimento');
+    const isAbb = form.classList.contains('form-nuovo-abbonamento');
+    const isDeleteMov = form.classList.contains('form-delete-movimento');
+    const isAjaxFragment = form.classList.contains('ajax-fragment');
+    if (!isMov && !isAbb && !isDeleteMov && !isAjaxFragment) return;
+
+        // prevent double submission
+        if (form.dataset.submitting === '1') {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return;
+        }
+        form.dataset.submitting = '1';
+
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        // disable submit buttons inside the form
+        const submitButtons = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+        submitButtons.forEach(btn => { btn.disabled = true; });
+
+        const action = form.getAttribute('action') || window.location.href;
+        const fd = new FormData(form);
+
+        fetch(action, {method: 'POST', body: fd})
+        .then(res => {
+            if (!res.ok) throw new Error('server');
+            return fetch(window.location.href);
+        })
+        .then(r => r.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            // replace movimenti table container if present
+            const newMov = doc.getElementById('movimenti-table-container');
+            const oldMov = document.getElementById('movimenti-table-container');
+            if (newMov && oldMov) oldMov.replaceWith(newMov);
+
+            // replace abbonamenti table container if present
+            const newAbb = doc.getElementById('abbonamenti-table-container');
+            const oldAbb = document.getElementById('abbonamenti-table-container');
+            if (newAbb && oldAbb) oldAbb.replaceWith(newAbb);
+
+            // replace top cards
+            const newTop = doc.getElementById('top-cards');
+            const oldTop = document.getElementById('top-cards');
+            if (newTop && oldTop) oldTop.replaceWith(newTop);
+
+            // Show/scroll the relevant section depending on which form was submitted
+            if (isMov || isDeleteMov) {
+                const movCollapseEl = document.getElementById('movimentiCollapse');
+                if (movCollapseEl) {
+                    try {
+                        bootstrap.Collapse.getOrCreateInstance(movCollapseEl).show();
+                    } catch(e) {}
+                }
+
+                // Scroll the movimenti table into view if present
+                const tableAfter = document.getElementById('table-movimenti-recenti');
+                if (tableAfter) {
+                    setTimeout(function(){
+                        try { tableAfter.scrollIntoView({behavior: 'smooth', block: 'center'}); tableAfter.focus(); } catch(e){}
+                    }, 150);
+                }
+            } else if (isAbb) {
+                // For abbonamento updates, focus the abbonamenti table and don't open movimenti
+                const abbTable = document.getElementById('table-abbonamenti');
+                if (abbTable) {
+                    setTimeout(function(){ try { abbTable.scrollIntoView({behavior: 'smooth', block: 'center'}); abbTable.focus(); } catch(e){} }, 120);
+                }
+            }
+
+            // remove inserted form card
+            const inserted = document.querySelector('.inline-inserted');
+            if (inserted) {
+                inserted.remove();
+            }
+
+            // re-enable submit buttons just in case (they're removed with the card)
+            submitButtons.forEach(btn => { btn.disabled = false; });
+
+            // re-run small initializers if needed (pagination)
+        })
+        .catch(err => {
+            console.error('Errore invio nuovo elemento', err);
+            // fallback: try to reload to get consistent state
+            window.location.reload();
+        })
+        .finally(() => {
+            // clear submitting flag after short delay to avoid accidental double clicks
+            setTimeout(() => { try { delete form.dataset.submitting; } catch(e){} }, 1000);
+        });
+    });
+
+    // Delegated click handler to close inline inserted cards (covers cases where direct listener wasn't attached)
+    document.addEventListener('click', function(e){
+        const btn = e.target.closest('button[aria-label="Chiudi"]');
+        if (!btn) return;
+        const card = btn.closest('.card');
+        if (card && card.classList.contains('inline-inserted')) {
+            card.remove();
+        }
+    });
+});
+</script>
 {% endblock %}
+{% endblock %}
+
