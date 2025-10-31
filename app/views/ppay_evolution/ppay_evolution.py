@@ -6,6 +6,7 @@ This module holds the actual blueprint and route handlers.
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from datetime import datetime, date, timedelta
 from app.models.postepay import PostePayEvolution, AbbonamentoPostePay, MovimentoPostePay
+import calendar
 from app import db
 
 ppay_bp = Blueprint('ppay', __name__)
@@ -39,6 +40,65 @@ def evolution():
         abbonamenti_attivi = [a for a in abbonamenti if a.attivo]
         spesa_mensile = sum(a.importo for a in abbonamenti_attivi)
         
+        # --- Generazione automatica movimenti per abbonamenti scaduti oggi ---
+        # Per ogni abbonamento attivo, se il prossimo addebito cade oggi e
+        # non esiste ancora un movimento associato a quell'abbonamento per il
+        # mese corrente, creiamo automaticamente il movimento e aggiorniamo il saldo.
+        try:
+            oggi = date.today()
+            first_of_month = date(oggi.year, oggi.month, 1)
+            ultimo_giorno = calendar.monthrange(oggi.year, oggi.month)[1]
+            last_of_month = date(oggi.year, oggi.month, ultimo_giorno)
+
+            for abbonamento in abbonamenti_attivi:
+                # Calcola la data di addebito per il mese corrente (gestendo
+                # mesi con meno giorni del giorno_addebito impostato)
+                try:
+                    giorno_addebito = int(abbonamento.giorno_addebito)
+                except Exception:
+                    # Se non è valido, salta
+                    continue
+
+                giorno_per_mese = min(giorno_addebito, ultimo_giorno)
+                addebito_this_month = date(oggi.year, oggi.month, giorno_per_mese)
+
+                # Se l'addebito di questo mese è già passato (<= oggi) e non
+                # esiste ancora un movimento per questo abbonamento nel mese,
+                # creiamo comunque il movimento e aggiorniamo il saldo
+                if addebito_this_month <= oggi:
+                    esistente = MovimentoPostePay.query.filter(
+                        MovimentoPostePay.abbonamento_id == abbonamento.id,
+                        MovimentoPostePay.data >= first_of_month,
+                        MovimentoPostePay.data <= last_of_month
+                    ).first()
+
+                    if not esistente:
+                        # Crea il movimento (importo negativo per uscita).
+                        # Usare la data programmata dell'addebito per la
+                        # tracciatura, così il movimento riflette il mese
+                        # corretto anche se l'utente visita in ritardo.
+                        # Descrizione: nome abbonamento + mese/anno; tipo: Pagamento
+                        mov = MovimentoPostePay(
+                            data=addebito_this_month,
+                            descrizione=f"{abbonamento.nome} {addebito_this_month.strftime('%m/%Y')}",
+                            importo=-abs(abbonamento.importo),
+                            tipo='Pagamento',
+                            abbonamento_id=abbonamento.id
+                        )
+                        postepay = PostePayEvolution.query.first()
+                        if postepay:
+                            postepay.saldo_attuale = (postepay.saldo_attuale or 0.0) + mov.importo
+                            postepay.data_ultimo_aggiornamento = datetime.utcnow()
+
+                        db.session.add(mov)
+                        db.session.commit()
+        except Exception:
+            # Non vogliamo rompere la visualizzazione se la generazione automatica fallisce
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+
         # Prossimi addebiti (entro 30 giorni)
         oggi = date.today()
         prossimi_addebiti = []

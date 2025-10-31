@@ -26,13 +26,139 @@ function modificaTransazione(id, descrizione, importo, data, categoriaId) {
     new bootstrap.Modal(document.getElementById('editTransactionModal')).show();
 }
 function modificaTransazioneAttr(btn) {
-    modificaTransazione(
-        btn.getAttribute('data-id'),
-        JSON.parse(btn.getAttribute('data-descrizione')),
-        btn.getAttribute('data-importo'),
-        JSON.parse(btn.getAttribute('data-data')),
-        btn.getAttribute('data-categoria')
-    );
+    // Inline-only edit of importo (fall back to full modal if anything goes wrong)
+    try {
+        const id = btn.getAttribute('data-id');
+        const rawImporto = btn.getAttribute('data-importo') || '0';
+        const startDate = '{{ start_date }}';
+        const endDate = '{{ end_date }}';
+
+        const row = btn.closest('tr');
+        if (!row) {
+            // fallback to modal-based editor
+            return modificaTransazione(
+                btn.getAttribute('data-id'),
+                JSON.parse(btn.getAttribute('data-descrizione') || '""'),
+                btn.getAttribute('data-importo'),
+                JSON.parse(btn.getAttribute('data-data') || '""'),
+                btn.getAttribute('data-categoria')
+            );
+        }
+
+        const tds = row.querySelectorAll('td');
+        const amountCell = tds && tds.length >= 5 ? tds[4] : null;
+        if (!amountCell) return;
+        if (amountCell.querySelector('.inline-edit-form')) return; // already editing
+
+        const originalHtml = amountCell.innerHTML;
+
+    const form = document.createElement('form');
+    form.className = 'd-inline inline-edit-form';
+    form.style.display = 'inline-flex';
+    form.style.alignItems = 'center';
+    form.style.flexWrap = 'nowrap';
+
+    const input = document.createElement('input');
+    input.type = 'number'; input.name = 'importo'; input.step = '0.01'; input.min = '0';
+    input.className = 'form-control form-control-sm no-spinner'; input.style.width = '120px';
+        input.value = parseFloat(rawImporto) || 0;
+
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'submit'; saveBtn.className = 'btn btn-sm btn-outline-success ms-2';
+        saveBtn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button'; cancelBtn.className = 'btn btn-sm btn-outline-danger ms-1';
+        cancelBtn.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
+        cancelBtn.addEventListener('click', function(e){ e.preventDefault(); amountCell.innerHTML = originalHtml; try{ btn.style.display = ''; }catch(e){} });
+
+        form.appendChild(input); form.appendChild(saveBtn); form.appendChild(cancelBtn);
+
+        form.addEventListener('submit', function(evt){
+            evt.preventDefault(); saveBtn.disabled = true; cancelBtn.disabled = true;
+            const fd = new FormData(); fd.append('importo', input.value);
+            fetch(`/dettaglio/${startDate}/${endDate}/modifica_transazione/${id}`, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(response){ if (!response.ok) throw new Error('Errore server'); return response.text(); })
+            .then(function(){
+                const val = parseFloat(input.value) || 0; const formatted = val.toFixed(2);
+                const isEntrata = amountCell.classList.contains('text-success');
+                const sign = isEntrata ? '+' : '-';
+                amountCell.innerHTML = (isEntrata ? '<span class="text-success">' : '<span class="text-danger">') + sign + '€ ' + formatted + '</span>';
+                try { btn.setAttribute('data-importo', String(val)); btn.style.display = ''; } catch(e){}
+            }).catch(function(err){ console.error('Errore salvataggio inline:', err); alert('Errore nel salvataggio. Riprova.'); amountCell.innerHTML = originalHtml; try { btn.style.display = ''; } catch(e) {} })
+            .finally(function(){ saveBtn.disabled = false; cancelBtn.disabled = false; });
+        });
+
+        amountCell.innerHTML = ''; amountCell.appendChild(form);
+        try { btn.style.display = 'none'; } catch(e) {}
+        input.focus(); input.select();
+    } catch (e) {
+        console && console.error && console.error('Errore inline modifica transazione, uso modal fallback', e);
+        // fallback to full modal
+        return modificaTransazione(
+            btn.getAttribute('data-id'),
+            JSON.parse(btn.getAttribute('data-descrizione') || '""'),
+            btn.getAttribute('data-importo'),
+            JSON.parse(btn.getAttribute('data-data') || '""'),
+            btn.getAttribute('data-categoria')
+        );
+    }
+}
+function modificaMonthlyBudget(btn) {
+    // Inline edit of monthly budget iniziale for a category
+    try {
+        const categoria = btn.getAttribute('data-categoria');
+        const startDate = '{{ start_date }}';
+        const endDate = '{{ end_date }}';
+
+        const span = document.querySelector('.iniziale-val[data-categoria-id="' + categoria + '"]');
+        if (!span) return;
+        // Prevent double editors
+        if (span.querySelector('input')) return;
+
+        const parentTd = span.parentElement;
+        const originalHtml = parentTd.innerHTML;
+
+    const form = document.createElement('form');
+    form.className = 'd-inline inline-budget-edit';
+    form.style.display = 'inline-flex';
+    form.style.alignItems = 'center';
+    form.style.flexWrap = 'nowrap';
+
+    const input = document.createElement('input');
+    input.type = 'number'; input.name = 'iniziale'; input.step = '0.01'; input.min = '0';
+    input.className = 'form-control form-control-sm no-spinner'; input.style.width = '120px';
+        input.value = parseFloat(btn.getAttribute('data-iniziale')) || 0;
+
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'submit'; saveBtn.className = 'btn btn-sm btn-outline-success ms-2';
+        saveBtn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button'; cancelBtn.className = 'btn btn-sm btn-outline-danger ms-1';
+        cancelBtn.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
+        cancelBtn.addEventListener('click', function(e){ e.preventDefault(); parentTd.innerHTML = originalHtml; try{ btn.style.display = ''; }catch(e){} });
+
+        form.appendChild(input); form.appendChild(saveBtn); form.appendChild(cancelBtn);
+
+        form.addEventListener('submit', function(evt){
+            evt.preventDefault(); saveBtn.disabled = true; cancelBtn.disabled = true;
+            const fd = new FormData(); fd.append('categoria_id', categoria); fd.append('importo', input.value);
+            fetch(`/dettaglio/${startDate}/${endDate}/modifica_monthly_budget`, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(response){ if (!response.ok) throw new Error('Errore server'); return response.json().catch(function(){ return null; }); })
+            .then(function(json){
+                // Persisted on server — reload page to reflect authoritative data
+                window.location.reload();
+            }).catch(function(err){ console.error('Errore salvataggio budget inline:', err); alert('Errore nel salvataggio del budget. Riprova.'); parentTd.innerHTML = originalHtml; try { btn.style.display = ''; } catch(e) {} })
+            .finally(function(){ saveBtn.disabled = false; cancelBtn.disabled = false; });
+        });
+
+        parentTd.innerHTML = ''; parentTd.appendChild(form);
+        try { btn.style.display = 'none'; } catch(e) {}
+        input.focus(); input.select();
+    } catch (e) {
+        console && console.error && console.error('Errore inline modifica monthly budget', e);
+    }
 }
 </script>
 
@@ -145,14 +271,14 @@ function modificaTransazioneAttr(btn) {
                                     <tr>
                                         <td class="text-start">{{ b.categoria_nome }}</td>
                                         <td class="text-center">
-                                            <span class="iniziale-val">€ {{ "%.2f"|format(b.iniziale) }}</span>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary ms-2 btn-edit-budget" data-categoria="{{ b.categoria_id }}" data-iniziale="{{ '%.2f'|format(b.iniziale) }}" title="Modifica importo mensile">
+                                            <span class="iniziale-val" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.iniziale) }}</span>
+                                            <button type="button" class="btn btn-outline-primary btn-sm ms-2 btn-edit-budget" data-action="modifica-monthly-budget" data-categoria="{{ b.categoria_id }}" data-iniziale="{{ '%.2f'|format(b.iniziale) }}" title="Modifica importo mensile" aria-label="Modifica budget">
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                         </td>
-                                        <td class="text-center text-danger">€ {{ "%.2f"|format(b.spese_effettuate) }}</td>
-                                        <td class="text-center text-warning">€ {{ "%.2f"|format(b.spese_pianificate) }}</td>
-                                        <td class="text-center {% if b.residuo < 0 %}text-danger{% else %}text-success{% endif %}">€ {{ "%.2f"|format(b.residuo) }}</td>
+                                        <td class="text-center text-danger"><span class="spese-effettuate-val" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.spese_effettuate) }}</span></td>
+                                        <td class="text-center text-warning"><span class="spese-pianificate-val" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.spese_pianificate) }}</span></td>
+                                        <td class="text-center {% if b.residuo < 0 %}text-danger{% else %}text-success{% endif %}"><span class="residuo-val" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.residuo) }}</span></td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -389,8 +515,8 @@ function modificaTransazioneAttr(btn) {
                     
                     <div class="mb-3">
                         <label for="add_importo" class="form-label">Importo (€)</label>
-                        <input type="number" class="form-control" id="add_importo" name="importo" 
-                               step="0.01" min="0" required>
+               <input type="number" class="form-control no-spinner" id="add_importo" name="importo" 
+                   step="0.01" min="0" required>
                     </div>
                     
                     <div class="mb-3">
@@ -445,7 +571,7 @@ function modificaTransazioneAttr(btn) {
                     </div>
                     <div class="mb-3">
                         <label for="edit_importo" class="form-label">Importo (€)</label>
-                        <input type="number" class="form-control" id="edit_importo" name="importo" step="0.01" min="0" required>
+                        <input type="number" class="form-control no-spinner" id="edit_importo" name="importo" step="0.01" min="0" required>
                     </div>
                     <div class="mb-3 form-check">
                         <input class="form-check-input" type="checkbox" id="edit_ricorrente" name="ricorrente">

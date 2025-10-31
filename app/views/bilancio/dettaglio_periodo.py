@@ -10,6 +10,8 @@ from app import db
 from app.services.categorie.categorie_service import CategorieService
 from flask import request, jsonify
 from app.models.monthly_summary import MonthlySummary
+from app.models.monthly_budget import MonthlyBudget
+from app.models.base import Categoria
 
 dettaglio_periodo_bp = Blueprint('dettaglio_periodo', __name__)
 
@@ -181,6 +183,19 @@ def aggiungi_transazione_periodo(start_date, end_date):
 		db.session.add(transazione)
 		db.session.commit()
 		flash('Transazione aggiunta con successo', 'success')
+		# If this is an AJAX request, return JSON with the created transaction
+		if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+			tx = Transazione.query.get(transazione.id)
+			return jsonify({'status': 'ok', 'transazione': {
+				'id': tx.id,
+				'data': tx.data.strftime('%Y-%m-%d') if tx.data else None,
+				'descrizione': tx.descrizione,
+				'importo': float(tx.importo or 0.0),
+				'categoria_id': tx.categoria_id,
+				'categoria_nome': tx.categoria.nome if tx.categoria else None,
+				'tipo': tx.tipo,
+				'ricorrente': bool(tx.ricorrente)
+			}})
 	except Exception as e:
 		try:
 			db.session.rollback()
@@ -222,3 +237,64 @@ def modifica_transazione_periodo(start_date, end_date, id):
 		flash(f'Errore durante la modifica della transazione: {str(e)}', 'error')
 
 	return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
+
+
+@dettaglio_periodo_bp.route('/<start_date>/<end_date>/modifica_monthly_budget', methods=['POST'])
+def modifica_monthly_budget(start_date, end_date):
+	"""Aggiorna (o crea) il MonthlyBudget per la categoria/mese indicati e sincronizza
+	una transazione 'budget' corrispondente nella tabella Transazioni per lo stesso mese.
+	Restituisce JSON {status: 'ok'} in caso di successo.
+	"""
+	try:
+		# parse inputs
+		categoria_id = int(request.form.get('categoria_id')) if request.form.get('categoria_id') else None
+		importo_raw = request.form.get('importo')
+		if categoria_id is None or importo_raw is None:
+			return jsonify({'status': 'error', 'message': 'categoria_id o importo mancanti'}), 400
+
+		nuovo_importo = float(importo_raw or 0.0)
+
+		# compute year/month from start_date
+		from datetime import datetime
+		sd = datetime.strptime(start_date, '%Y-%m-%d').date()
+		year = sd.year
+		month = sd.month
+
+		# find or create MonthlyBudget
+		mb = MonthlyBudget.query.filter_by(categoria_id=categoria_id, year=year, month=month).first()
+		if not mb:
+			mb = MonthlyBudget(categoria_id=categoria_id, year=year, month=month, importo=nuovo_importo)
+			db.session.add(mb)
+		else:
+			mb.importo = nuovo_importo
+
+		# Try to find an existing 'budget' transazione for this category/month
+		from app.services import get_month_boundaries
+		start_dt, end_dt = get_month_boundaries(sd)
+
+		# Try to find an existing transazione for this category/month (prefer non-recurring)
+		tx = Transazione.query.filter(
+			Transazione.categoria_id == categoria_id,
+			Transazione.data >= start_dt,
+			Transazione.data <= end_dt
+		).order_by(Transazione.ricorrente.asc(), Transazione.id.asc()).first()
+
+		categoria = Categoria.query.get(categoria_id)
+		nome_cat = categoria.nome if categoria else f'Categoria {categoria_id}'
+		descrizione_budget = f"Budget {nome_cat} {str(month).zfill(2)}/{year}"
+
+		# Important: per richiesta, MODIFICARE la transazione del mese corrente se esiste,
+		# ma NON crearne una nuova. Se non esiste alcuna transazione per quella categoria e mese,
+		# non viene inserita una nuova transazione.
+		if tx:
+			tx.importo = nuovo_importo
+			tx.descrizione = descrizione_budget
+
+		db.session.commit()
+		return jsonify({'status': 'ok'})
+	except Exception as e:
+		try:
+			db.session.rollback()
+		except Exception:
+			pass
+		return jsonify({'status': 'error', 'message': str(e)}), 500

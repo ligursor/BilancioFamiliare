@@ -330,7 +330,8 @@ def reset():
     if request.method == 'POST':
         try:
             importo = float(request.form.get('importo', '0').strip() or 0.0)
-            months = int(request.form.get('months', 6))
+            # L'orizzonte è fisso a 6 mesi; non leggere più il parametro dal form
+            months = 6
         except Exception as e:
             flash(f'Input non valido: {str(e)}', 'error')
             return redirect(url_for('main.reset'))
@@ -338,13 +339,8 @@ def reset():
         try:
             from app.services.bilancio.reset_service import ResetService
             svc = ResetService()
-            # Enforce application-wide maximum horizon of 6 months
-            try:
-                months = int(months)
-            except Exception:
-                months = 6
-            if months > 6:
-                months = 6
+            # L'orizzonte è fissato a 6 mesi dall'interfaccia
+            months = 6
 
             full_wipe = bool(request.form.get('full_wipe'))
             ok, res = svc.reset_horizon(importo, months=months, full_wipe=full_wipe)

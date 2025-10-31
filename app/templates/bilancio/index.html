@@ -20,27 +20,14 @@
                 <div class="row">
                     {% for mese in mesi %}
                     <div class="col-lg-4 col-md-6 mb-4">
-                        {% if not mese.is_placeholder %}
-                        <a href="{{ url_for('dettaglio_periodo.mese', anno=mese.anno_target, mese=mese.mese_target) }}" 
-                           class="text-decoration-none">
-                        {% else %}
-                        <div class="text-decoration-none disabled-link">
-                        {% endif %}
+                        <a href="{{ url_for('dettaglio_periodo.mese', anno=mese.anno_target, mese=mese.mese_target) }}" class="text-decoration-none">
                             <!-- placeholder={{ mese.is_placeholder }} -->
                             <div class="card month-card {% if mese.mese_corrente %}current-month{% endif %}" style="cursor: pointer;">
-                                <div class="card-header bg-light">
+                                <div class="card-header bg-primary text-white">
                                     <h6 class="mb-0 text-center">
-                                        {% if mese.mese_corrente %}
-                                            <i class="fas fa-calendar-day me-2 text-white"></i>
-                                        {% else %}
-                                            <i class="fas fa-calendar-alt me-2 text-white"></i>
-                                        {% endif %}
-                                        {% if mese.is_placeholder %}
-                                            <span class="text-muted">Slot vuoto</span>
-                                        {% else %}
+                                        <i class="fas fa-calendar-alt me-2 text-white"></i>
                                             {{ mese.nome|safe }}
-                                        {% endif %}
-                                        <small class="float-end text-muted">
+                                        <small class="float-end text-white-50">
                                             <i class="fas fa-eye"></i>
                                         </small>
                                     </h6>
@@ -49,37 +36,21 @@
                                     <div class="row text-center">
                                         <div class="col-6 mb-2">
                                             <small class="text-muted">Saldo Iniziale</small><br>
-                                            {% if mese.is_placeholder %}
-                                                <span class="h6 text-info">&nbsp;</span>
-                                            {% else %}
                                                 <span class="h6 text-info">€ {{ "%.2f"|format(mese.saldo_iniziale_mese) }}</span>
-                                            {% endif %}
                                         </div>
                                         <div class="col-6 mb-2">
                                             <small class="text-muted">Bilancio Mensile</small><br>
-                                            {% if mese.is_placeholder %}
-                                                <span class="h6">&nbsp;</span>
-                                            {% else %}
                                                 <span class="h6 {% if mese.bilancio >= 0 %}positive{% else %}negative{% endif %}">
                                                     {% if mese.bilancio >= 0 %}+{% endif %}€ {{ "%.2f"|format(mese.bilancio) }}
                                                 </span>
-                                            {% endif %}
                                         </div>
                                         <div class="col-6 mb-2">
                                             <small class="text-muted">Entrate</small><br>
-                                            {% if mese.is_placeholder %}
-                                                <span class="h5">&nbsp;</span>
-                                            {% else %}
                                                 <span class="h5 positive">€ {{ "%.2f"|format(mese.entrate) }}</span>
-                                            {% endif %}
                                         </div>
                                         <div class="col-6 mb-2">
                                             <small class="text-muted">Uscite</small><br>
-                                            {% if mese.is_placeholder %}
-                                                <span class="h5">&nbsp;</span>
-                                            {% else %}
                                                 <span class="h5 negative">€ {{ "%.2f"|format(mese.uscite) }}</span>
-                                            {% endif %}
                                         </div>
                                         <div class="col-12">
                                             <hr>
@@ -87,44 +58,28 @@
                                             <div class="row">
                                                 <div class="col-6">
                                                     <small class="text-muted"><i class="fas fa-calendar-day me-1"></i>Saldo Attuale</small><br>
-                                                    {% if mese.is_placeholder %}
-                                                        <span class="h5">&nbsp;</span>
-                                                    {% else %}
                                                         <span class="h5 {% if mese.saldo_attuale_mese >= 0 %}text-primary{% else %}text-warning{% endif %} fw-bold">
                                                             € {{ "%.2f"|format(mese.saldo_attuale_mese) }}
                                                         </span>
-                                                    {% endif %}
                                                 </div>
                                                 <div class="col-6">
                                                     <small class="text-muted">Saldo Finale</small><br>
-                                                    {% if mese.is_placeholder %}
-                                                        <span class="h4">&nbsp;</span>
-                                                    {% else %}
                                                         <span class="h4 {% if mese.saldo_finale_mese >= 0 %}text-success{% else %}text-danger{% endif %}">
                                                             € {{ "%.2f"|format(mese.saldo_finale_mese) }}
                                                         </span>
-                                                    {% endif %}
                                                 </div>
                                             </div>
                                             {% else %}
                                             <small class="text-muted">Saldo Finale</small><br>
-                                            {% if mese.is_placeholder %}
-                                                <span class="h4">&nbsp;</span>
-                                            {% else %}
                                                 <span class="h4 {% if mese.saldo_finale_mese >= 0 %}text-success{% else %}text-danger{% endif %}">
                                                     € {{ "%.2f"|format(mese.saldo_finale_mese) }}
                                                 </span>
-                                            {% endif %}
                                             {% endif %}
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        {% if not mese.is_placeholder %}
                         </a>
-                        {% else %}
-                        </div>
-                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>

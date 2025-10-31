@@ -259,8 +259,9 @@ bbonamento" aria-label="Elimina abbonamento">                                   
                                     <td class="text-start">{{ movimento.descrizione }}</td>
                                     <td>{{ movimento.data.strftime('%d/%m/%Y') }}</td>
                                     <td>
-                                        <span class="badge bg-{% if movimento.tipo == 'ricarica' %}success{% elif movimento.tipo == 'abbonamento' %}info{% else %}secondary{% endif %}">
-                                            {{ movimento.tipo.title() }}
+                                        {%- set tipo_norm = (movimento.tipo or '') | lower -%}
+                                        <span class="badge {% if tipo_norm == 'ricarica' %}bg-success{% elif tipo_norm == 'pagamento' %}bg-primary{% elif tipo_norm == 'abbonamento' %}bg-info{% else %}bg-secondary{% endif %}">
+                                            {{ movimento.tipo|capitalize }}
                                         </span>
                                     </td>
                                     <td class="{% if movimento.importo > 0 %}text-success{% else %}text-danger{% endif %}">
@@ -518,7 +519,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <script>
 // Client-side pagination for Movimenti Recenti
-document.addEventListener('DOMContentLoaded', function(){
+window.initMovimentiPagination = function(preferredPage) {
     var table = document.getElementById('table-movimenti-recenti');
     if (!table) return;
     var pageSize = parseInt(table.dataset.pageSize, 10) || 5;
@@ -527,6 +528,8 @@ document.addEventListener('DOMContentLoaded', function(){
     var totalRows = rows.length;
     var totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
     var paginationNav = document.getElementById('pagination-movimenti');
+    var current = parseInt(table.dataset.currentPage, 10) || 1;
+    if (preferredPage && Number.isInteger(preferredPage)) current = Math.min(Math.max(1, preferredPage), totalPages);
 
     function renderPage(page) {
         var start = (page - 1) * pageSize;
@@ -534,6 +537,7 @@ document.addEventListener('DOMContentLoaded', function(){
         rows.forEach(function(r, idx){
             r.style.display = (idx >= start && idx < end) ? '' : 'none';
         });
+        table.dataset.currentPage = page;
         renderControls(page);
     }
 
@@ -562,13 +566,14 @@ document.addEventListener('DOMContentLoaded', function(){
         paginationNav.appendChild(ul);
     }
 
-    // initialize to first page
-    renderPage(1);
-});
+    // initialize to preferred or stored page
+    renderPage(current);
+};
+document.addEventListener('DOMContentLoaded', function(){ window.initMovimentiPagination(); });
 </script>
 <script>
 // Client-side pagination for Abbonamenti (5 per page)
-document.addEventListener('DOMContentLoaded', function(){
+window.initAbbonamentiPagination = function(preferredPage) {
     var table = document.getElementById('table-abbonamenti');
     if (!table) return;
     var pageSize = parseInt(table.dataset.pageSize, 10) || 5;
@@ -577,6 +582,8 @@ document.addEventListener('DOMContentLoaded', function(){
     var totalRows = rows.length;
     var totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
     var paginationNav = document.getElementById('pagination-abbonamenti');
+    var current = parseInt(table.dataset.currentPage, 10) || 1;
+    if (preferredPage && Number.isInteger(preferredPage)) current = Math.min(Math.max(1, preferredPage), totalPages);
 
     function renderPage(page) {
         var start = (page - 1) * pageSize;
@@ -584,6 +591,7 @@ document.addEventListener('DOMContentLoaded', function(){
         rows.forEach(function(r, idx){
             r.style.display = (idx >= start && idx < end) ? '' : 'none';
         });
+        table.dataset.currentPage = page;
         renderControls(page);
     }
 
@@ -612,9 +620,10 @@ document.addEventListener('DOMContentLoaded', function(){
         paginationNav.appendChild(ul);
     }
 
-    // initialize to first page
-    renderPage(1);
-});
+    // initialize to preferred or stored page
+    renderPage(current);
+};
+document.addEventListener('DOMContentLoaded', function(){ window.initAbbonamentiPagination(); });
 </script>
 <script>
 // Toggle icon for the movimenti section collapse
@@ -795,6 +804,14 @@ document.addEventListener('DOMContentLoaded', function(){
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
 
+            // remember current pages so we can reinitialize to the same page after replace
+            let prevMovPage = null;
+            let prevAbbPage = null;
+            const existingMovTable = document.querySelector('#movimenti-table-container table#table-movimenti-recenti');
+            if (existingMovTable) prevMovPage = parseInt(existingMovTable.dataset.currentPage, 10) || 1;
+            const existingAbbTable = document.querySelector('#abbonamenti-table-container table#table-abbonamenti');
+            if (existingAbbTable) prevAbbPage = parseInt(existingAbbTable.dataset.currentPage, 10) || 1;
+
             // replace movimenti table container if present
             const newMov = doc.getElementById('movimenti-table-container');
             const oldMov = document.getElementById('movimenti-table-container');
@@ -809,6 +826,60 @@ document.addEventListener('DOMContentLoaded', function(){
             const newTop = doc.getElementById('top-cards');
             const oldTop = document.getElementById('top-cards');
             if (newTop && oldTop) oldTop.replaceWith(newTop);
+
+            // re-run small initializers if needed (pagination)
+            try {
+                // If we just submitted a movimento (add/edit), try to locate it in the new table
+                var targetMovPage = prevMovPage;
+                try {
+                    if (isMov && !isDeleteMov && fd) {
+                        const newTable = document.querySelector('#movimenti-table-container table#table-movimenti-recenti');
+                        if (newTable) {
+                            const pageSizeLocal = parseInt(newTable.dataset.pageSize, 10) || 5;
+                            // submitted values
+                            const submittedDescr = (fd.get('descrizione') || '').toString().trim();
+                            const submittedDateISO = (fd.get('data') || '').toString().trim();
+                            const submittedImporto = (fd.get('importo') || '').toString().trim();
+
+                            function formatDateISOtoDDMM(dateStr){
+                                if (!dateStr) return '';
+                                const d = new Date(dateStr);
+                                if (isNaN(d.getTime())) return '';
+                                const dd = String(d.getDate()).padStart(2,'0');
+                                const mm = String(d.getMonth()+1).padStart(2,'0');
+                                const yyyy = d.getFullYear();
+                                return dd + '/' + mm + '/' + yyyy;
+                            }
+
+                            const targetDateText = formatDateISOtoDDMM(submittedDateISO);
+                            const formattedImporto = (parseFloat(submittedImporto) || 0).toFixed(2);
+
+                            const newRows = Array.from(newTable.querySelectorAll('tbody tr'));
+                            for (var iRow = 0; iRow < newRows.length; iRow++) {
+                                const row = newRows[iRow];
+                                const descCell = (row.cells[0] && row.cells[0].textContent || '').trim();
+                                const dateCell = (row.cells[1] && row.cells[1].textContent || '').trim();
+                                let amtCell = (row.cells[3] && row.cells[3].textContent || '').trim();
+                                // normalize amount: remove currency symbol and spaces, replace comma with dot
+                                amtCell = amtCell.replace(/[€\s]/g,'').replace(/,/g,'.');
+
+                                if (submittedDescr && descCell === submittedDescr && submittedDateISO && dateCell === targetDateText) {
+                                    // match amount loosely (formattedImporto may be contained)
+                                    if (amtCell.indexOf(formattedImporto) !== -1) {
+                                        targetMovPage = Math.floor(iRow / pageSizeLocal) + 1;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch(e) { console.warn('compute targetMovPage failed', e); }
+
+                if (typeof window.initMovimentiPagination === 'function') window.initMovimentiPagination(targetMovPage);
+            } catch(e) { console.warn('initMovimentiPagination failed', e); }
+            try {
+                if (typeof window.initAbbonamentiPagination === 'function') window.initAbbonamentiPagination(prevAbbPage);
+            } catch(e) { console.warn('initAbbonamentiPagination failed', e); }
 
             // Show/scroll the relevant section depending on which form was submitted
             if (isMov || isDeleteMov) {
@@ -842,8 +913,6 @@ document.addEventListener('DOMContentLoaded', function(){
 
             // re-enable submit buttons just in case (they're removed with the card)
             submitButtons.forEach(btn => { btn.disabled = false; });
-
-            // re-run small initializers if needed (pagination)
         })
         .catch(err => {
             console.error('Errore invio nuovo elemento', err);

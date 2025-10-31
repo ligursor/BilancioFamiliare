@@ -45,8 +45,9 @@ a.text-decoration-none:active {
 
 /* Current month highlight */
 .current-month {
-    /* Border removed per request; keep a subtle shadow for emphasis */
-    box-shadow: 0 4px 8px rgba(0,123,255,0.12);
+    /* No special selection styling for the current month: make it visually identical to other cards */
+    box-shadow: none !important;
+    border: none !important;
 }
 
 /* Footer */
@@ -150,6 +151,16 @@ a.text-decoration-none:active {
     font-size: 14px !important;
     box-sizing: border-box !important;
 }
+
+/* Slightly reduce size of small action buttons (modify/delete) inside btn-group-sm
+   to visually match the compact inline editor buttons. */
+.table .btn-group.btn-group-sm .btn {
+    height: 26px !important;
+    padding: 2px 6px !important;
+    min-width: 28px !important;
+    font-size: 13px !important;
+}
+.table .btn-group.btn-group-sm .btn i { font-size: 13px; line-height: 1 !important; }
 /* Ensure icon inside button doesn't add extra offset */
 .table .btn i,
 .table .btn-sm i,
@@ -182,3 +193,62 @@ a.text-decoration-none:active {
     text-align: center !important;
     vertical-align: middle !important;
 }
+
+/* Hide native number input spin buttons for elements that should not show them
+   Use the class .no-spinner on the input to target budget numeric inputs only. */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.no-spinner {
+    appearance: textfield;
+    -webkit-appearance: none;
+    -moz-appearance: textfield; /* Firefox */
+}
+
+/* Inline editor alignment helpers: ensure consistent horizontal gap and heights
+   between the input and the confirm/cancel buttons for inline editors. */
+.inline-edit-form, .inline-budget-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px; /* horizontal spacing between input and buttons */
+    flex-wrap: nowrap; /* avoid buttons wrapping under the input */
+    white-space: nowrap; /* keep items on a single line */
+}
+.inline-edit-form input[type="number"],
+.inline-budget-edit input[type="number"],
+.inline-edit-form input[type="text"] {
+    height: 28px; /* slightly smaller to match reduced button size */
+    padding: .25rem .4rem;
+    box-sizing: border-box;
+    margin: 0; /* remove any vertical margins */
+    vertical-align: middle;
+    line-height: 1;
+}
+.inline-edit-form .btn, .inline-budget-edit .btn {
+    height: 28px !important;
+    padding: 2px 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-top: 0 !important;
+    line-height: 1 !important;
+}
+/* Extra tightening to avoid subtle icon/button misalignment across browsers */
+.inline-edit-form input, .inline-budget-edit input {
+    display: inline-block;
+    vertical-align: middle;
+}
+.inline-edit-form .btn, .inline-budget-edit .btn {
+    min-width: 30px !important;
+    box-sizing: border-box !important;
+    font-size: 13px !important;
+}
+.inline-edit-form .btn i, .inline-budget-edit .btn i {
+    font-size: 14px;
+    line-height: 1 !important;
+    display: inline-block;
+    vertical-align: middle;
+}
+.inline-edit-form { -webkit-font-smoothing: antialiased; }

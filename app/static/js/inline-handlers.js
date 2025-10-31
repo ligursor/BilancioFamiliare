@@ -16,6 +16,9 @@
     function modificaTransazioneAttrFromElement(el) {
         if (typeof window.modificaTransazioneAttr === 'function') return window.modificaTransazioneAttr(el);
     }
+    function modificaMonthlyBudgetFromElement(el) {
+        if (typeof window.modificaMonthlyBudget === 'function') return window.modificaMonthlyBudget(el);
+    }
 
     function modificaAppunto(id) {
         if (typeof window.modificaAppunto === 'function') return window.modificaAppunto(id);
@@ -63,6 +66,10 @@
                     return;
                 case 'modifica-transazione-attr':
                     modificaTransazioneAttrFromElement(el);
+                    evt.preventDefault();
+                    return;
+                case 'modifica-monthly-budget':
+                    modificaMonthlyBudgetFromElement(el);
                     evt.preventDefault();
                     return;
                 case 'confirm-delete':
