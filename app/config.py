@@ -2,7 +2,7 @@
 Configurazione per l'applicazione di gestione bilancio familiare
 
 Aggiornato: Settembre 2025
-- Aggiunta categoria Sport e logica budget semplificata  
+- Aggiunta categorie Sport e logica budget semplificata  
 - Ottimizzazioni UI e caricamento automatico categorie
 - Sistema backup migliorato con rotazione automatica
 - Configurazione Docker ottimizzata (solo volumi necessari)
@@ -28,7 +28,7 @@ class Config:
     PORT = 5001
         
     # Le categorie specifiche per budget vengono determinate tramite la tabella
-    # `budget` (se esiste un record per la categoria, verrà applicata la logica di budget).
+    # `budget` (se esiste un record per la categorie, verrà applicata la logica di budget).
         
     # Manteniamo il formato valuta (usato estensivamente nelle view/templates)
     FORMATO_VALUTA = "€ {:.2f}"

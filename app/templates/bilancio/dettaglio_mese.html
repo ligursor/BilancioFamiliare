@@ -179,8 +179,8 @@ function modificaMonthlyBudget(btn) {
                         </button>
                     </div>
                     
-                    <!-- Pulsante nuova transazione -->
-                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addTransactionModal">
+                    <!-- Pulsante nuova transazione (apre inline editor invece della modal) -->
+                    <button type="button" class="btn btn-success btn-sm" data-action="open-inline-add-transaction" title="Nuova transazione">
                         <i class="fas fa-plus me-1"></i>Nuova Transazione
                     </button>
                 </div>
@@ -272,9 +272,11 @@ function modificaMonthlyBudget(btn) {
                                         <td class="text-start">{{ b.categoria_nome }}</td>
                                         <td class="text-center">
                                             <span class="iniziale-val" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.iniziale) }}</span>
-                                            <button type="button" class="btn btn-outline-primary btn-sm ms-2 btn-edit-budget" data-action="modifica-monthly-budget" data-categoria="{{ b.categoria_id }}" data-iniziale="{{ '%.2f'|format(b.iniziale) }}" title="Modifica importo mensile" aria-label="Modifica budget">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
+                                            <div class="btn-group btn-group-sm ms-2" role="group" aria-label="Budget actions">
+                                                <button type="button" class="btn btn-outline-primary btn-sm btn-edit-budget" data-action="modifica-monthly-budget" data-categoria="{{ b.categoria_id }}" data-iniziale="{{ '%.2f'|format(b.iniziale) }}" title="Modifica importo mensile" aria-label="Modifica budget">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                         <td class="text-center text-danger"><span class="spese-effettuate-val" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.spese_effettuate) }}</span></td>
                                         <td class="text-center text-warning"><span class="spese-pianificate-val" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.spese_pianificate) }}</span></td>
@@ -299,6 +301,45 @@ function modificaMonthlyBudget(btn) {
 
                 <!-- Lista transazioni -->
                 {% if transazioni and not mese_futuro %}
+                <!-- Inline add transaction box (hidden by default) -->
+                <div id="inline-add-transaction" class="mb-3 w-100" style="display:none;">
+                    <div class="card w-100">
+                        <div class="card-body">
+                            <form id="inlineAddTransactionForm" class="row g-2 align-items-center flex-nowrap overflow-auto">
+                                <div class="col-auto col-md-2">
+                                    <label class="visually-hidden" for="inline_add_data">Data</label>
+                                    <input type="date" class="form-control form-control-sm no-spinner" id="inline_add_data" name="data" required min="{{ start_date }}" max="{{ end_date }}">
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <label class="visually-hidden" for="inline_add_descrizione">Descrizione</label>
+                                    <input type="text" class="form-control form-control-sm" id="inline_add_descrizione" name="descrizione" placeholder="Descrizione" required>
+                                </div>
+                                <div class="col-6 col-md-1">
+                                    <label class="visually-hidden" for="inline_add_tipo">Tipo</label>
+                                    <select class="form-select form-select-sm" id="inline_add_tipo" name="tipo">
+                                        <option value="entrata">Entrata</option>
+                                        <option value="uscita" selected>Uscita</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-2">
+                                    <label class="visually-hidden" for="inline_add_categoria_id">Categoria</label>
+                                    <select class="form-select form-select-sm" id="inline_add_categoria_id" name="categoria_id" required>
+                                        <option value="">Seleziona categoria...</option>
+                                    </select>
+                                </div>
+                                <div class="col-6 col-md-1">
+                                    <label class="visually-hidden" for="inline_add_importo">Importo</label>
+                                    <input type="number" step="0.01" min="0" class="form-control form-control-sm no-spinner" id="inline_add_importo" name="importo" placeholder="€ 0.00" required>
+                                </div>
+                                <input type="hidden" name="ricorrente" value=""> <!-- force non-recurring -->
+                                <div class="col-auto d-flex align-items-center">
+                                    <button type="submit" class="btn btn-primary me-2 btn-sm">Aggiungi</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" id="inline_add_cancel">Annulla</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
                 <!-- Serializzazione transazioni per uso JS (prima fonte affidabile) -->
                 <script type="application/json" id="transazioni-data">
                     [
@@ -602,6 +643,80 @@ function modificaMonthlyBudget(btn) {
     const categorie = JSON.parse(document.getElementById('categorie-data') ? document.getElementById('categorie-data').textContent : '[]');
     // Carica i mesi disponibili per la navigazione (passati dal server)
     const availableMonths = JSON.parse(document.getElementById('available-months-data') ? document.getElementById('available-months-data').textContent : '[]');
+
+    // Toggle inline add-transaction box and handle submission
+    window.toggleInlineAddTransaction = function(btn) {
+        try {
+            const container = document.getElementById('inline-add-transaction');
+            if (!container) return;
+            const form = document.getElementById('inlineAddTransactionForm');
+            if (container.style.display === 'none' || container.style.display === '') {
+                // populate categories select
+                const select = document.getElementById('inline_add_categoria_id');
+                select.innerHTML = '<option value="">Seleziona categoria...</option>';
+                (categorie || []).forEach(function(c){
+                    const opt = document.createElement('option'); opt.value = c.id; opt.textContent = c.nome; select.appendChild(opt);
+                });
+                // set default date to end_date
+                try { document.getElementById('inline_add_data').value = '{{ end_date }}'; } catch(e){}
+                container.style.display = 'block';
+                // hide the bootstrap modal if open
+                try { var m = bootstrap.Modal.getInstance(document.getElementById('addTransactionModal')); if (m) m.hide(); } catch(e){}
+            } else {
+                container.style.display = 'none';
+            }
+        } catch(e) { console && console.error && console.error('toggleInlineAddTransaction error', e); }
+    };
+
+    document.addEventListener('DOMContentLoaded', function(){
+        var inlineForm = document.getElementById('inlineAddTransactionForm');
+        if (inlineForm) {
+            inlineForm.addEventListener('submit', function(evt){
+                evt.preventDefault();
+                var fd = new FormData(inlineForm);
+                // force non-recurring
+                fd.set('ricorrente', '');
+                // client-side check date bounds
+                var d = fd.get('data');
+                if (!d) { alert('Inserisci una data valida'); return; }
+                if (d < '{{ start_date }}' || d > '{{ end_date }}') { alert('La data deve essere compresa nel periodo {{ start_date }} - {{ end_date }}'); return; }
+                var startDate = '{{ start_date }}'; var endDate = '{{ end_date }}';
+                var url = `/dettaglio/${startDate}/${endDate}/aggiungi_transazione`;
+                fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function(resp){ if (!resp.ok) throw new Error('Errore server'); return resp.json(); })
+                .then(function(json){
+                    if (!json || json.status !== 'ok') throw new Error('Errore creazione transazione');
+                    var tx = json.transazione;
+                    // build table row and prepend
+                    try {
+                        var tbody = document.querySelector('#tabella-transazioni table tbody');
+                        if (tbody) {
+                            var tr = document.createElement('tr');
+                            var descr = document.createElement('td'); descr.className='text-start'; descr.textContent = tx.descrizione || '';
+                            var dataTd = document.createElement('td'); dataTd.className='text-center';
+                            var dparts = (tx.data || '').split('-'); dataTd.textContent = dparts.length===3 ? (dparts[2]+'/'+dparts[1]+'/'+dparts[0]) : tx.data;
+                            var catTd = document.createElement('td'); catTd.className='text-center';
+                            var badge = document.createElement('span'); badge.className = 'badge ' + ((tx.tipo==='entrata') ? 'bg-success' : 'bg-danger'); badge.textContent = tx.categoria_nome || '';
+                            catTd.appendChild(badge);
+                            var tipoTd = document.createElement('td'); tipoTd.className='text-center'; tipoTd.innerHTML = tx.tipo==='entrata' ? '<span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>' : '<span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>';
+                            var importoTd = document.createElement('td'); importoTd.className='text-center ' + (tx.tipo==='entrata' ? 'text-success' : 'text-danger'); importoTd.textContent = (tx.tipo==='entrata'?'+':'-') + '€ ' + Number(tx.importo||0).toFixed(2);
+                            var actionsTd = document.createElement('td'); actionsTd.className='text-center';
+                            actionsTd.innerHTML = `<div class="btn-group btn-group-sm" role="group">`+
+                                `<button class="btn btn-outline-primary btn-sm" title="Modifica transazione" data-id="${tx.id}" data-descrizione='${JSON.stringify(tx.descrizione||'')}' data-importo="${tx.importo}" data-data='${JSON.stringify(tx.data||'')}' data-categoria="${tx.categoria_id}" data-action="modifica-transazione-attr"><i class="fas fa-edit"></i><span class="visually-hidden">Modifica transazione</span></button>`+
+                                `<form method="POST" action="/dettaglio/${startDate}/${endDate}/elimina_transazione/${tx.id}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?"><button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina transazione" aria-label="Elimina transazione"><i class="fas fa-trash"></i><span class="visually-hidden">Elimina transazione</span></button></form>`+
+                                `</div>`;
+                            tr.appendChild(descr); tr.appendChild(dataTd); tr.appendChild(catTd); tr.appendChild(tipoTd); tr.appendChild(importoTd); tr.appendChild(actionsTd);
+                            if (tbody.firstChild) tbody.insertBefore(tr, tbody.firstChild); else tbody.appendChild(tr);
+                        }
+                    } catch(e) { /* ignore DOM insertion errors */ }
+                    // hide form and clear
+                    document.getElementById('inline-add-transaction').style.display='none';
+                    inlineForm.reset();
+                }).catch(function(err){ console.error('Errore aggiunta transazione inline', err); alert('Errore durante l\'inserimento. Riprova.'); });
+            });
+            document.getElementById('inline_add_cancel').addEventListener('click', function(){ document.getElementById('inline-add-transaction').style.display='none'; });
+        }
+    });
 
     // Implementazione di navigateMonth che rispetta i confini di availableMonths
     (function(){

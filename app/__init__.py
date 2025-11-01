@@ -45,12 +45,12 @@ def create_app(config_name='default'):
     
     # Importa e registra i blueprint
     from app.views.main import main_bp
-    from app.views.bilancio.categorie import categorie_bp
-    from app.views.bilancio.dettaglio_periodo import dettaglio_periodo_bp
-    from app.views.bilancio.dashboard import dashboard_bp
+    from app.views.transazioni.categorie import categorie_bp
+    from app.views.transazioni.dettaglio_periodo import dettaglio_periodo_bp
+    from app.views.transazioni.dashboard import dashboard_bp
     from app.views.paypal import paypal_bp
-    from app.views.conti_personali import conti_bp
-    from app.views.garage.auto import auto_bp
+    from app.views.conto_personale import conti_bp
+    from app.views.veicoli.auto import auto_bp
     from app.views.ppay_evolution import ppay_bp
     from app.views.appunti import appunti_bp
     
@@ -95,7 +95,7 @@ def create_app(config_name='default'):
             # Read current marker from DB
             prev = None
             try:
-                from app.models.rollover_state import RolloverState
+                from app.models.RolloverState import RolloverState
                 r = db.session.query(RolloverState).order_by(RolloverState.id.asc()).first()
                 if r:
                     prev = (r.marker or '').strip()
@@ -107,7 +107,7 @@ def create_app(config_name='default'):
 
             # Not yet run for this financial period — run the rollover (non-destructive default)
             try:
-                from app.services.bilancio.monthly_rollover_service import do_monthly_rollover
+                from app.services.transazioni.monthly_rollover_service import do_monthly_rollover
                 res = do_monthly_rollover(force=False, months=1, base_date=today)
                 app.logger.info('Monthly rollover auto-run result: %s', res)
             except Exception as e:
@@ -115,7 +115,7 @@ def create_app(config_name='default'):
 
             # record marker in DB so we don't run again until next financial period
             try:
-                from app.models.rollover_state import RolloverState
+                from app.models.RolloverState import RolloverState
                 r = db.session.query(RolloverState).order_by(RolloverState.id.asc()).first()
                 if not r:
                     r = RolloverState(marker=marker)

@@ -14,9 +14,10 @@ def init_database():
     solo quando INIT_DB=1 per evitare side-effect non voluti in produzione.
     """
     # Import dei modelli necessari (ritardato per evitare import circolari)
-    from app.models.base import Categoria, SaldoIniziale
-    from app.models.transazioni import Transazione
-    from app.models.budget import Budget
+    from app.models.Categorie import Categorie as Categoria
+    from app.services.conti_finanziari.strumenti_service import StrumentiService
+    from app.models.Transazioni import Transazioni as Transazione
+    from app.models.Budget import Budget
     # ... altri modelli se necessario
 
     db.create_all()
@@ -25,10 +26,12 @@ def init_database():
         if Categoria.query.count() == 0:
             # se vuoi configurare categorie di default, aggiungile qui o tramite fixture
             pass
-        if not SaldoIniziale.query.first():
-            saldo = SaldoIniziale(importo=0.0)
-            db.session.add(saldo)
-            db.session.commit()
+        # Ensure the 'Conto Bancoposta' strumento exists (used as global starting balance)
+        try:
+            ss = StrumentiService()
+            ss.ensure_strumento('Conto Bancoposta', 'conto_bancario', 0.0)
+        except Exception:
+            pass
     except Exception:
         pass
 

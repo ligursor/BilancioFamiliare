@@ -4,9 +4,9 @@ Replica l'implementazione originale da app.py
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from datetime import datetime
-from app.models.appunti import Appunto
-from app.models.base import Categoria
-from app.models.transazioni import Transazione
+from app.models.Appunti import Appunti
+from app.models.Categorie import Categorie
+from app.models.Transazioni import Transazioni
 from app import db
 
 appunti_bp = Blueprint('appunti', __name__)
@@ -16,8 +16,8 @@ def lista():
     """Visualizza tutti gli appunti"""
     try:
         # Ordina gli appunti per data creazione (più recenti prima)
-        appunti = Appunto.query.order_by(
-            Appunto.data_creazione.desc()
+        appunti = Appunti.query.order_by(
+            Appunti.data_creazione.desc()
         ).all()
         from app.services.categorie.categorie_service import CategorieService
         service_cat = CategorieService()
@@ -31,7 +31,7 @@ def lista():
 
 @appunti_bp.route('/nuovo', methods=['POST'])
 def nuovo():
-    """Crea un nuovo appunto"""
+    """Crea un nuovo appunti"""
     try:
         titolo = request.form['titolo']
         tipo = request.form.get('tipo', 'uscita')
@@ -39,7 +39,7 @@ def nuovo():
         categoria_id = int(request.form['categoria_id']) if request.form.get('categoria_id') else None
         note = request.form.get('note', '')
         
-        appunto = Appunto(
+        appunti = Appunti(
             titolo=titolo,
             tipo=tipo,
             importo_stimato=importo_stimato,
@@ -47,14 +47,14 @@ def nuovo():
             note=note
         )
         
-        db.session.add(appunto)
+        db.session.add(appunti)
         db.session.commit()
         
-        flash(f'Appunto "{titolo}" aggiunto con successo!', 'success')
+        flash(f'Appunti "{titolo}" aggiunto con successo!', 'success')
         
     except Exception as e:
         db.session.rollback()
-        flash(f'Errore durante l\'aggiunta dell\'appunto: {str(e)}', 'error')
+        flash(f'Errore durante l\'aggiunta dell\'appunti: {str(e)}', 'error')
     
     return redirect(url_for('appunti.lista'))
 
@@ -62,7 +62,7 @@ def nuovo():
 @appunti_bp.route('/<int:id>/modifica', methods=['POST'])
 def modifica(id):
     """Modifica un appunto esistente"""
-    appunto = Appunto.query.get_or_404(id)
+    appunto = Appunti.query.get_or_404(id)
     
     try:
         if 'titolo' in request.form:
@@ -91,7 +91,7 @@ def modifica(id):
 @appunti_bp.route('/elimina/<int:id>', methods=['POST'])
 def elimina(id):
     """Elimina un appunto"""
-    appunto = Appunto.query.get_or_404(id)
+    appunto = Appunti.query.get_or_404(id)
     titolo = appunto.titolo
     
     try:
@@ -112,10 +112,10 @@ def trasferisci():
         data_transazione = datetime.strptime(request.form['data_transazione'], '%Y-%m-%d').date()
         
         # Recupera l'appunto
-        appunto = Appunto.query.get_or_404(appunto_id)
+        appunto = Appunti.query.get_or_404(appunto_id)
         
         # Crea la transazione usando i dati dell'appunto
-        transazione = Transazione(
+        transazione = Transazioni(
             data=data_transazione,
             data_effettiva=data_transazione if data_transazione <= datetime.now().date() else None,
             descrizione=appunto.titolo,
@@ -145,7 +145,7 @@ def trasferisci():
 def dati(id):
     """Restituisce i dati di un appunto in formato JSON"""
     try:
-        appunto = Appunto.query.get_or_404(id)
+        appunto = Appunti.query.get_or_404(id)
         
         result = {
             'success': True,
@@ -169,7 +169,7 @@ def modifica_form():
     """Modifica un appunto tramite form"""
     try:
         appunto_id = int(request.form['appunto_id'])
-        appunto = Appunto.query.get_or_404(appunto_id)
+        appunto = Appunti.query.get_or_404(appunto_id)
         
         # Aggiorna i campi
         appunto.titolo = request.form['titolo']
@@ -192,7 +192,7 @@ def modifica_form():
 @appunti_bp.route('/<int:id>/converti', methods=['POST'])
 def converti(id):
     """Converte un appunto in una transazione reale"""
-    appunto = Appunto.query.get_or_404(id)
+    appunto = Appunti.query.get_or_404(id)
     
     try:
         data = datetime.strptime(request.form['data'], '%Y-%m-%d').date()
@@ -200,7 +200,7 @@ def converti(id):
         descrizione = request.form.get('descrizione', appunto.titolo)
         
         # Crea la transazione
-        transazione = Transazione(
+        transazione = Transazioni(
             data=data,
             data_effettiva=data if data <= datetime.now().date() else None,
             descrizione=descrizione,
@@ -222,6 +222,6 @@ def converti(id):
         
     except Exception as e:
         db.session.rollback()
-        flash(f'Errore durante la conversione dell\'appunto: {str(e)}', 'error')
+        flash(f'Errore durante la conversione dell\'appunti: {str(e)}', 'error')
     
     return redirect(url_for('appunti.lista'))

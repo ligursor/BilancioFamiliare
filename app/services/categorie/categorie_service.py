@@ -2,7 +2,7 @@
 Servizio per la gestione delle categorie
 """
 from app.services import BaseService
-from app.models.base import Categoria
+from app.models.Categorie import Categorie
 from app import db
 
 class CategorieService(BaseService):
@@ -11,8 +11,8 @@ class CategorieService(BaseService):
     def get_all_categories(self, exclude_paypal=True):
         """Recupera tutte le categorie"""
         if exclude_paypal:
-            return Categoria.query.filter(Categoria.nome != 'PayPal').all()
-        return Categoria.query.all()
+            return Categorie.query.filter(Categorie.nome != 'PayPal').all()
+        return Categorie.query.all()
     
     def get_categories_dict(self, exclude_paypal=True):
         """Recupera categorie come dizionario per i template"""
@@ -21,20 +21,20 @@ class CategorieService(BaseService):
     
     def get_categories_by_type(self, tipo):
         """Recupera categorie per tipo (entrata/uscita)"""
-        return Categoria.query.filter_by(tipo=tipo).filter(Categoria.nome != 'PayPal').all()
+        return Categorie.query.filter_by(tipo=tipo).filter(Categorie.nome != 'PayPal').all()
     
     def create_categoria(self, nome, tipo):
-        """Crea una nuova categoria"""
+        """Crea una nuova categorie"""
         try:
             # Verifica che non esista già
-            existing = Categoria.query.filter_by(nome=nome).first()
+            existing = Categorie.query.filter_by(nome=nome).first()
             if existing:
-                return False, f"Categoria '{nome}' già esistente"
+                return False, f"Categorie '{nome}' già esistente"
             
-            categoria = Categoria(nome=nome, tipo=tipo)
-            success, message = self.save(categoria)
+            categorie = Categorie(nome=nome, tipo=tipo)
+            success, message = self.save(categorie)
             
-            return success, message if not success else f"Categoria '{nome}' creata con successo"
+            return success, message if not success else f"Categorie '{nome}' creata con successo"
             
         except Exception as e:
             return False, str(e)
@@ -42,7 +42,7 @@ class CategorieService(BaseService):
     def update_categoria(self, categoria_id, nome=None, tipo=None):
         """Aggiorna una categoria esistente"""
         try:
-            categoria = Categoria.query.get(categoria_id)
+            categoria = Categorie.query.get(categoria_id)
             if not categoria:
                 return False, "Categoria non trovata"
             
@@ -52,7 +52,7 @@ class CategorieService(BaseService):
             
             if nome and nome != categoria.nome:
                 # Verifica che il nuovo nome non esista già
-                existing = Categoria.query.filter_by(nome=nome).first()
+                existing = Categorie.query.filter_by(nome=nome).first()
                 if existing and existing.id != categoria.id:
                     return False, f"Categoria '{nome}' già esistente"
                 categoria.nome = nome
@@ -69,7 +69,7 @@ class CategorieService(BaseService):
     def delete_categoria(self, categoria_id):
         """Elimina una categoria"""
         try:
-            categoria = Categoria.query.get(categoria_id)
+            categoria = Categorie.query.get(categoria_id)
             if not categoria:
                 return False, "Categoria non trovata"
             
@@ -84,7 +84,7 @@ class CategorieService(BaseService):
             nome = categoria.nome
             success, message = self.delete(categoria)
             
-            return success, message if not success else f"Categoria '{nome}' eliminata con successo"
+            return success, message if not success else f"Categorie '{nome}' eliminata con successo"
             
         except Exception as e:
             return False, str(e)
@@ -95,10 +95,10 @@ class CategorieService(BaseService):
             categorie = self.get_all_categories()
             stats = []
             
-            for categoria in categorie:
-                num_transazioni = len(categoria.transazioni) if categoria.transazioni else 0
+            for categorie in categorie:
+                num_transazioni = len(categorie.transazioni) if categorie.transazioni else 0
                 stats.append({
-                    'categoria': categoria,
+                    'categorie': categorie,
                     'num_transazioni': num_transazioni
                 })
             

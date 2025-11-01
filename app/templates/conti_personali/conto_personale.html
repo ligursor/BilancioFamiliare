@@ -15,7 +15,7 @@
                     </button>
                 </h1>
                 {% set totale_versato = (versamenti | map(attribute='importo') | sum) if versamenti else 0.0 %}
-                {% set saldo_calcolato = (conto.saldo_iniziale | default(0.0)) - (totale_versato | default(0.0)) %}
+                {% set saldo_calcolato = (conto.strumento.saldo_iniziale | default(0.0)) - (totale_versato | default(0.0)) %}
 
                 <div id="top-cards">
                 <div class="row mb-4">
@@ -25,7 +25,7 @@
                                 <div class="d-flex justify-content-between">
                                     <div>
                                         <h4 class="card-title">
-                                            <span class="text-white">{{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(conto.saldo_iniziale | default(0.0)) }}</span>
+                                            <span class="text-white">{{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(conto.strumento.saldo_iniziale | default(0.0)) }}</span>
                                         </h4>
                                         <p class="card-text">Saldo Iniziale</p>
                                     </div>
@@ -135,9 +135,9 @@
             </div>
             <form method="POST" action="{{ url_for('conti.aggiorna_saldo_iniziale', nome_conto=nome_persona) }}">
                 <div class="modal-body">
-                    <div class="alert alert-info">
+                        <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>Saldo iniziale attuale:</strong> {{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(conto.saldo_iniziale | default(0.0)) }}
+                        <strong>Saldo iniziale attuale:</strong> {{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(conto.strumento.saldo_iniziale | default(0.0)) }}
                     </div>
                     
                     <div class="mb-3">
@@ -146,9 +146,9 @@
                         </label>
                         <div class="input-group">
                             <span class="input-group-text">€</span>
-                            <input type="number" step="0.01" min="0.01" class="form-control" 
-                                   id="nuovo_saldo_iniziale" name="nuovo_saldo_iniziale" 
-                                   value="{{ conto.saldo_iniziale }}" required>
+                <input type="number" step="0.01" min="0.01" class="form-control" 
+                    id="nuovo_saldo_iniziale" name="nuovo_saldo_iniziale" 
+                    value="{{ conto.strumento.saldo_iniziale | default(0.0) }}" required>
                         </div>
                         <div class="form-text">
                             Inserisci il nuovo saldo iniziale. Il saldo corrente verrà aggiornato di conseguenza.
@@ -163,7 +163,7 @@
                     <div id="preview-saldo" class="mt-3 p-3 bg-light rounded" style="display: none;">
                         <h6><i class="fas fa-calculator me-2"></i>Anteprima modifiche:</h6>
                         <ul class="list-unstyled mb-0">
-                            <li><strong>Saldo iniziale attuale:</strong> <span id="saldo-attuale">{{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(conto.saldo_iniziale | default(0.0)) }}</span></li>
+                            <li><strong>Saldo iniziale attuale:</strong> <span id="saldo-attuale">{{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(conto.strumento.saldo_iniziale | default(0.0)) }}</span></li>
                             <li><strong>Nuovo saldo iniziale:</strong> <span id="nuovo-saldo">-</span></li>
                             <li><strong>Differenza:</strong> <span id="differenza">-</span></li>
                             <li><strong>Saldo corrente risultante:</strong> <span id="saldo-risultante">-</span></li>
@@ -247,7 +247,7 @@
             <div class="modal-body">
                 <ul class="list-unstyled">
                     <li><strong>Proprietario:</strong> {{ nome_persona }}</li>
-                    <li><strong>Saldo iniziale:</strong> {{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(conto.saldo_iniziale | default(0.0)) }}</li>
+                    <li><strong>Saldo iniziale:</strong> {{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(conto.strumento.saldo_iniziale | default(0.0)) }}</li>
                     <li><strong>Saldo corrente:</strong> {{ (config.CONTO_PERSONALE_FORMATO_VALUTA | default('€{:.2f}')).format(saldo_calcolato | default(0.0)) }}</li>
                     <li><strong>Data creazione:</strong> {{ conto.data_creazione.strftime('%d/%m/%Y %H:%M') }}</li>
                     <li><strong>Ultimo aggiornamento:</strong> {{ conto.data_aggiornamento.strftime('%d/%m/%Y %H:%M') }}</li>
@@ -288,10 +288,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const previewDiv = document.getElementById('preview-saldo');
     // Parse numeric values from embedded JSON to avoid template-in-JS warnings
     (function(){
-        var _data = document.getElementById('conto-personale-data');
-        var __obj = _data ? JSON.parse(_data.textContent || '{}') : {};
-        var saldoAttuale = parseFloat(__obj.saldo_iniziale || 0);
-        var saldoCorrente = parseFloat(__obj.saldo_corrente || 0);
+    var _data = document.getElementById('conto-personale-data');
+    var __obj = _data ? JSON.parse(_data.textContent || '{}') : {};
+    var saldoAttuale = parseFloat(__obj.saldo_iniziale || 0);
+    var saldoCorrente = parseFloat(__obj.saldo_corrente || 0);
 
         function formatEuro(amount) {
             return '€ ' + amount.toFixed(2);
@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <script id="conto-personale-data" type="application/json">{{ {
-    'saldo_iniziale': (conto.saldo_iniziale | default(0.0)),
+    'saldo_iniziale': (conto.strumento.saldo_iniziale | default(0.0)),
     'saldo_corrente': (saldo_calcolato | default(0.0))
 } | tojson }}</script>
 {% endblock %}

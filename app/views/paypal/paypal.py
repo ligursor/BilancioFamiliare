@@ -4,8 +4,8 @@ Replica l'implementazione originale da app.py
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from datetime import datetime, timedelta
-from app.models.paypal import PaypalPiano, PaypalRata
-from app.models.transazioni import Transazione
+from app.models.Paypal import PaypalAbbonamenti, PaypalMovimenti
+from app.models.Transazioni import Transazioni
 from app import db
 
 paypal_bp = Blueprint('paypal', __name__)
@@ -13,14 +13,14 @@ paypal_bp = Blueprint('paypal', __name__)
 def aggiorna_importi_rimanenti_paypal():
     """Aggiorna gli importi rimanenti per tutti i piani PayPal attivi"""
     # Include both possible active states ('attivo' legacy and 'in_corso' used elsewhere)
-    piani = PaypalPiano.query.filter(PaypalPiano.stato.in_(['attivo', 'in_corso'])).all()
+    piani = PaypalAbbonamenti.query.filter(PaypalAbbonamenti.stato.in_(['attivo', 'in_corso'])).all()
     
     for piano in piani:
-        rate_non_pagate = PaypalRata.query.filter_by(
+        rate_non_pagate = PaypalMovimenti.query.filter_by(
             piano_id=piano.id,
             stato='in_attesa'
         ).all()
-        # Se alcune rate in_attesa sono in realtà già collegate a una transazione o hanno data_pagamento,
+        # Se alcune rate in_attesa sono in realtà già collegate a una transazioni o hanno data_pagamento,
         # consideriamole pagate e sincronizziamo lo stato per coerenza.
         for rata in list(rate_non_pagate):
             try:
@@ -33,15 +33,15 @@ def aggiorna_importi_rimanenti_paypal():
                     # Rimuovila dalla lista delle non pagate per il calcolo
                     rate_non_pagate.remove(rata)
                 else:
-                    # Se la rata è scaduta oggi (o prima) e non ha transazione collegata,
-                    # proviamo prima a trovare una Transazione con importo e data corrispondenti;
-                    # se non troviamo una transazione, consideriamo la rata come pagata automaticamente
+                    # Se la rata è scaduta oggi (o prima) e non ha transazioni collegata,
+                    # proviamo prima a trovare una Transazioni con importo e data corrispondenti;
+                    # se non troviamo una transazioni, consideriamo la rata come pagata automaticamente
                     try:
                         oggi = datetime.now().date()
                         if rata.data_scadenza <= oggi and not getattr(rata, 'transazione_id', None):
-                            from app.models.transazioni import Transazione
-                            trans = Transazione.query.filter(
-                                ((Transazione.data == rata.data_scadenza) | (Transazione.data_effettiva == rata.data_scadenza)),
+                            from app.models.Transazioni import Transazioni
+                            trans = Transazioni.query.filter(
+                                ((Transazioni.data == rata.data_scadenza) | (Transazioni.data_effettiva == rata.data_scadenza)),
                                 ).all()
                             match = None
                             for t in trans:
@@ -52,14 +52,14 @@ def aggiorna_importi_rimanenti_paypal():
                                 except Exception:
                                     continue
                             if match:
-                                # Se esiste una transazione corrispondente, colleghiamola e marchiamo pagata
+                                # Se esiste una transazioni corrispondente, colleghiamola e marchiamo pagata
                                 rata.transazione_id = match.id
                                 rata.stato = 'pagata'
                                 rata.data_pagamento = match.data_effettiva or match.data
                                 piano.importo_rimanente = (piano.importo_rimanente or 0.0) - (rata.importo or 0.0)
                                 rate_non_pagate.remove(rata)
                             else:
-                                # Nessuna transazione trovata: consideriamo la rata come pagata alla scadenza
+                                # Nessuna transazioni trovata: consideriamo la rata come pagata alla scadenza
                                 rata.stato = 'pagata'
                                 rata.data_pagamento = rata.data_scadenza
                                 try:
@@ -89,30 +89,30 @@ def dashboard():
         # Aggiorna gli importi rimanenti prima di visualizzare i dati
         aggiorna_importi_rimanenti_paypal()
         # Ricarica i piani dopo la commit per avere lo stato aggiornato
-        piani = PaypalPiano.query.order_by(PaypalPiano.data_creazione.desc()).all()
+        piani = PaypalAbbonamenti.query.order_by(PaypalAbbonamenti.data_creazione.desc()).all()
         totale_piani = len(piani)
         # Conta come attivi solo quelli con stato 'in_corso'
         piani_attivi = len([p for p in piani if p.stato == 'in_corso'])
-        
+
         # Calcola importo rimanente: somma degli importi delle rate non pagate di tutti i piani
         importo_rimanente_totale = 0
         rate_non_pagate_totali = 0
-        
+
         for piano in piani:
             for rata in piano.rate:
                 if rata.stato == 'in_attesa':
                     importo_rimanente_totale += rata.importo
                     rate_non_pagate_totali += 1
-        
+
         # Prossime rate in scadenza (prossimi 30 giorni)
         oggi = datetime.now().date()
         prossimo_mese = oggi + timedelta(days=30)
-        
-        rate_in_scadenza = PaypalRata.query.join(PaypalPiano).filter(
-            PaypalRata.stato == 'in_attesa',
-            PaypalRata.data_scadenza >= oggi,
-            PaypalRata.data_scadenza <= prossimo_mese
-        ).order_by(PaypalRata.data_scadenza).all()
+
+        rate_in_scadenza = PaypalMovimenti.query.join(PaypalAbbonamenti).filter(
+            PaypalMovimenti.stato == 'in_attesa',
+            PaypalMovimenti.data_scadenza >= oggi,
+            PaypalMovimenti.data_scadenza <= prossimo_mese
+        ).order_by(PaypalMovimenti.data_scadenza).all()
 
         return render_template('paypal/paypal_dashboard.html',
                                piani=piani,
@@ -157,7 +157,7 @@ def _debug_update():
 def dettaglio(piano_id):
     """Mostra il dettaglio di un piano PayPal e le sue rate."""
     try:
-        piano = PaypalPiano.query.get_or_404(piano_id)
+        piano = PaypalAbbonamenti.query.get_or_404(piano_id)
         # carica le rate associate ordinandole per numero
         rate = sorted(piano.rate or [], key=lambda r: getattr(r, 'numero_rata', 0))
         return render_template('paypal/paypal_dettaglio.html', piano=piano, rate=rate)
@@ -197,7 +197,7 @@ def nuovo():
             importo_rata = round(importo_totale / 3, 2)
             
             # Crea il piano
-            piano = PaypalPiano(
+            piano = PaypalAbbonamenti(
                 descrizione=descrizione,
                 importo_totale=importo_totale,
                 importo_rata=importo_rata,
@@ -214,9 +214,9 @@ def nuovo():
             
             # Crea le tre rate
             rate = [
-                PaypalRata(piano_id=piano.id, numero_rata=1, importo=importo_rata, data_scadenza=data_prima_rata),
-                PaypalRata(piano_id=piano.id, numero_rata=2, importo=importo_rata, data_scadenza=data_seconda_rata),
-                PaypalRata(piano_id=piano.id, numero_rata=3, importo=importo_rata, data_scadenza=data_terza_rata)
+                PaypalMovimenti(piano_id=piano.id, numero_rata=1, importo=importo_rata, data_scadenza=data_prima_rata),
+                PaypalMovimenti(piano_id=piano.id, numero_rata=2, importo=importo_rata, data_scadenza=data_seconda_rata),
+                PaypalMovimenti(piano_id=piano.id, numero_rata=3, importo=importo_rata, data_scadenza=data_terza_rata)
             ]
             
             for rata in rate:
@@ -246,7 +246,7 @@ def nuovo():
 def paga_rata(rata_id):
     """Segna una rata come pagata"""
     try:
-        rata = PaypalRata.query.get_or_404(rata_id)
+        rata = PaypalMovimenti.query.get_or_404(rata_id)
         
         if rata.stato == 'pagata':
             flash('Questa rata è già stata pagata', 'warning')
@@ -260,7 +260,7 @@ def paga_rata(rata_id):
         rata.piano.importo_rimanente -= rata.importo
         
         # Se tutte le rate sono pagate, segna il piano come completato
-        rate_rimanenti = PaypalRata.query.filter_by(
+        rate_rimanenti = PaypalMovimenti.query.filter_by(
             piano_id=rata.piano.id,
             stato='in_attesa'
         ).count()
@@ -280,7 +280,7 @@ def paga_rata(rata_id):
 @paypal_bp.route('/piano/<int:piano_id>/modifica', methods=['GET', 'POST'])
 def modifica(piano_id):
     """Modifica un piano PayPal"""
-    piano = PaypalPiano.query.get_or_404(piano_id)
+    piano = PaypalAbbonamenti.query.get_or_404(piano_id)
     
     if request.method == 'POST':
         try:
@@ -302,7 +302,7 @@ def modifica(piano_id):
 @paypal_bp.route('/piano/<int:piano_id>/elimina', methods=['POST'])
 def elimina(piano_id):
     """Elimina un piano PayPal"""
-    piano = PaypalPiano.query.get_or_404(piano_id)
+    piano = PaypalAbbonamenti.query.get_or_404(piano_id)
     try:
         descrizione = piano.descrizione
         db.session.delete(piano)

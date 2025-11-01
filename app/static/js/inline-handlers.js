@@ -16,6 +16,9 @@
     function modificaTransazioneAttrFromElement(el) {
         if (typeof window.modificaTransazioneAttr === 'function') return window.modificaTransazioneAttr(el);
     }
+    function openInlineAddTransactionFromElement(el) {
+        if (typeof window.toggleInlineAddTransaction === 'function') return window.toggleInlineAddTransaction(el);
+    }
     function modificaMonthlyBudgetFromElement(el) {
         if (typeof window.modificaMonthlyBudget === 'function') return window.modificaMonthlyBudget(el);
     }
@@ -66,6 +69,10 @@
                     return;
                 case 'modifica-transazione-attr':
                     modificaTransazioneAttrFromElement(el);
+                    evt.preventDefault();
+                    return;
+                case 'open-inline-add-transaction':
+                    openInlineAddTransactionFromElement(el);
                     evt.preventDefault();
                     return;
                 case 'modifica-monthly-budget':

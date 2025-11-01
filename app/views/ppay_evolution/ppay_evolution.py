@@ -5,7 +5,9 @@ This module holds the actual blueprint and route handlers.
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from datetime import datetime, date, timedelta
-from app.models.postepay import PostePayEvolution, AbbonamentoPostePay, MovimentoPostePay
+from app.models.PostePayEvolution import AbbonamentoPostePay, MovimentoPostePay
+from app.services.conti_finanziari.strumenti_service import StrumentiService
+from types import SimpleNamespace
 import calendar
 from app import db
 
@@ -13,16 +15,17 @@ ppay_bp = Blueprint('ppay', __name__)
 
 def inizializza_postepay():
     """Inizializza il sistema PostePay se necessario"""
-    postepay = PostePayEvolution.query.first()
-    if not postepay:
-        postepay = PostePayEvolution(
-            numero_carta='****1234',  # Placeholder
-            saldo_attuale=0.0,
-            limite_mensile=3000.0
-        )
-        db.session.add(postepay)
-        db.session.commit()
-    return postepay
+    # Ensure a Strumento exists for Postepay Evolution and use it as source of truth for saldo
+    ss = StrumentiService()
+    descr = 'Postepay Evolution'
+    try:
+        strum = ss.ensure_strumento(descr, 'carta', 0.0)
+    except Exception:
+        # best-effort: fallback to creating a local PostePayEvolution record
+        strum = None
+    # Return the strumento (or None). We no longer persist a PostePayEvolution row;
+    # templates and logic should read the saldo from the Strumento.
+    return strum
 
 @ppay_bp.route('/')
 def evolution():
@@ -32,7 +35,13 @@ def evolution():
         inizializza_postepay()
         
         # Recupera dati
-        postepay = PostePayEvolution.query.first()
+        ss = StrumentiService()
+        strum = ss.get_by_descrizione('Postepay Evolution')
+        # create a small proxy so templates expecting postepay.saldo_attuale keep working
+        if strum is not None:
+            postepay = SimpleNamespace(saldo_attuale=(strum.saldo_corrente or 0.0))
+        else:
+            postepay = SimpleNamespace(saldo_attuale=0.0)
         abbonamenti = AbbonamentoPostePay.query.order_by(AbbonamentoPostePay.nome).all()
         movimenti = MovimentoPostePay.query.order_by(MovimentoPostePay.data.desc()).limit(10).all()
         
@@ -82,16 +91,19 @@ def evolution():
                             data=addebito_this_month,
                             descrizione=f"{abbonamento.nome} {addebito_this_month.strftime('%m/%Y')}",
                             importo=-abs(abbonamento.importo),
-                            tipo='Pagamento',
+                            tipo='Abbonamento',
                             abbonamento_id=abbonamento.id
                         )
-                        postepay = PostePayEvolution.query.first()
-                        if postepay:
-                            postepay.saldo_attuale = (postepay.saldo_attuale or 0.0) + mov.importo
-                            postepay.data_ultimo_aggiornamento = datetime.utcnow()
-
                         db.session.add(mov)
                         db.session.commit()
+                        # update strumento balance
+                        try:
+                            strum = ss.get_by_descrizione('Postepay Evolution')
+                            if strum:
+                                new_bal = (strum.saldo_corrente or 0.0) + mov.importo
+                                ss.update_saldo_by_id(strum.id_conto, new_bal)
+                        except Exception:
+                            pass
         except Exception:
             # Non vogliamo rompere la visualizzazione se la generazione automatica fallisce
             try:
@@ -155,7 +167,7 @@ def evolution():
                              spesa_mensile=spesa_mensile,
                              prossimi_addebiti=prossimi_addebiti,
                              addebiti_problematici=addebiti_problematici)
-        
+
     except Exception as e:
         flash(f'Errore nel caricamento PostePay Evolution: {str(e)}', 'error')
         return redirect(url_for('main.index'))
@@ -164,9 +176,10 @@ def evolution():
 def ricarica():
     """Aggiunge una ricarica PostePay"""
     try:
-        postepay = PostePayEvolution.query.first()
-        if not postepay:
-            postepay = inizializza_postepay()
+        # Ensure the strumento exists; we no longer rely on a DB row for PostePayEvolution
+        strum = inizializza_postepay()
+        ss = StrumentiService()
+        strum = ss.get_by_descrizione('Postepay Evolution')
         
         importo = float(request.form.get('importo', 0))
         descrizione = request.form.get('descrizione', '').strip()
@@ -191,14 +204,18 @@ def ricarica():
             tipo='ricarica',
             importo=importo,
             descrizione=descrizione,
-            saldo_dopo=postepay.saldo_attuale + importo
         )
-        
-        # Aggiorna saldo
-        postepay.saldo_attuale += importo
         
         db.session.add(movimento)
         db.session.commit()
+
+        # Aggiorna saldo nello strumento (sorgente di verità)
+        try:
+            if strum:
+                new_bal = (strum.saldo_corrente or 0.0) + importo
+                ss.update_saldo_by_id(strum.id_conto, new_bal)
+        except Exception:
+            pass
         
         flash(f'Ricarica di €{importo:.2f} aggiunta con successo!', 'success')
         
@@ -214,9 +231,10 @@ def ricarica():
 def spesa():
     """Aggiunge una spesa PostePay"""
     try:
-        postepay = PostePayEvolution.query.first()
-        if not postepay:
-            postepay = inizializza_postepay()
+        # Ensure strumento exists
+        strum = inizializza_postepay()
+        ss = StrumentiService()
+        strum = ss.get_by_descrizione('Postepay Evolution')
         
         importo = float(request.form.get('importo', 0))
         descrizione = request.form.get('descrizione', '').strip()
@@ -236,7 +254,8 @@ def spesa():
             data_movimento = date.today()
         
         # Verifica saldo disponibile
-        if postepay.saldo_attuale < importo:
+        current_balance = (strum.saldo_corrente if strum else 0.0)
+        if current_balance < importo:
             flash('Saldo insufficiente per questa spesa', 'error')
             return redirect(url_for('ppay.evolution'))
         
@@ -246,14 +265,18 @@ def spesa():
             tipo='spesa',
             importo=importo,
             descrizione=descrizione,
-            saldo_dopo=postepay.saldo_attuale - importo
         )
-        
-        # Aggiorna saldo
-        postepay.saldo_attuale -= importo
         
         db.session.add(movimento)
         db.session.commit()
+
+        # Aggiorna saldo nello strumento (sorgente di verità)
+        try:
+            if strum:
+                new_bal = (strum.saldo_corrente or 0.0) - importo
+                ss.update_saldo_by_id(strum.id_conto, new_bal)
+        except Exception:
+            pass
         
         flash(f'Spesa di €{importo:.2f} aggiunta con successo!', 'success')
         
@@ -318,11 +341,15 @@ def elimina_movimento(movimento_id):
         # Elimina il movimento
         db.session.delete(movimento)
 
-        # Aggiorna saldo PostePay invertendo l'effetto del movimento
-        postepay = PostePayEvolution.query.first()
-        if postepay:
-            postepay.saldo_attuale -= importo
-            postepay.data_ultimo_aggiornamento = datetime.utcnow()
+        # Aggiorna saldo nello strumento invertendo l'effetto del movimento
+        try:
+            ss = StrumentiService()
+            strum = ss.get_by_descrizione('Postepay Evolution')
+            if strum:
+                new_bal = (strum.saldo_corrente or 0.0) - importo
+                ss.update_saldo_by_id(strum.id_conto, new_bal)
+        except Exception:
+            pass
 
         db.session.commit()
         flash('Movimento eliminato con successo!', 'success')
@@ -338,19 +365,22 @@ def modifica_saldo():
         nuovo_saldo = float(request.form['nuovo_saldo'])
         motivo = request.form.get('motivo', 'Modifica manuale saldo')
         
-        postepay = PostePayEvolution.query.first()
-        if not postepay:
+        ss = StrumentiService()
+        strum = ss.get_by_descrizione('Postepay Evolution')
+        if not strum:
             flash('Errore: Sistema PostePay non inizializzato!', 'error')
             return redirect(url_for('ppay.evolution'))
-        
+
         # Calcola la differenza per il movimento
-        saldo_precedente = postepay.saldo_attuale
+        saldo_precedente = strum.saldo_corrente or 0.0
         differenza = nuovo_saldo - saldo_precedente
-        
-        # Aggiorna il saldo
-        postepay.saldo_attuale = nuovo_saldo
-        postepay.data_ultimo_aggiornamento = datetime.utcnow()
-        
+
+        # Aggiorna il saldo nello strumento (sorgente di verità)
+        try:
+            ss.update_saldo_by_id(strum.id_conto, nuovo_saldo)
+        except Exception:
+            pass
+
         # Crea un movimento per tracciare la modifica
         if differenza != 0:
             movimento = MovimentoPostePay(
@@ -360,7 +390,7 @@ def modifica_saldo():
                 tipo='correzione'
             )
             db.session.add(movimento)
-        
+
         db.session.commit()
         
         if differenza > 0:
@@ -457,11 +487,15 @@ def aggiungi_movimento():
         
         db.session.add(movimento)
         
-        # Aggiorna saldo PostePay
-        postepay = PostePayEvolution.query.first()
-        if postepay:
-            postepay.saldo_attuale += importo
-            postepay.data_ultimo_aggiornamento = datetime.utcnow()
+        # Aggiorna saldo nello strumento (sorgente di verità)
+        try:
+            ss = StrumentiService()
+            strum = ss.get_by_descrizione('Postepay Evolution')
+            if strum:
+                new_bal = (strum.saldo_corrente or 0.0) + importo
+                ss.update_saldo_by_id(strum.id_conto, new_bal)
+        except Exception:
+            pass
         
         db.session.commit()
         
@@ -499,12 +533,16 @@ def modifica_movimento_postepay(movimento_id):
         movimento.tipo = new_tipo
         movimento.importo = new_importo
 
-        # update PostePay saldo by the delta
-        postepay = PostePayEvolution.query.first()
-        if postepay:
-            delta = (new_importo or 0.0) - (old_importo or 0.0)
-            postepay.saldo_attuale = (postepay.saldo_attuale or 0.0) + delta
-            postepay.data_ultimo_aggiornamento = datetime.utcnow()
+        # update strumento saldo by the delta
+        try:
+            ss = StrumentiService()
+            strum = ss.get_by_descrizione('Postepay Evolution')
+            if strum:
+                delta = (new_importo or 0.0) - (old_importo or 0.0)
+                new_bal = (strum.saldo_corrente or 0.0) + delta
+                ss.update_saldo_by_id(strum.id_conto, new_bal)
+        except Exception:
+            pass
 
         db.session.commit()
         flash('Movimento modificato con successo!', 'success')
@@ -519,14 +557,19 @@ def reset():
     """Reset completo sistema PostePay Evolution"""
     try:
         # Elimina tutti i dati
+        # Elimina movimenti e abbonamenti; reset dello strumento Postepay Evolution
         MovimentoPostePay.query.delete()
         AbbonamentoPostePay.query.delete()
-        PostePayEvolution.query.delete()
-        
         db.session.commit()
-        
-        # Reinizializza
-        inizializza_postepay()
+
+        # Reset dello strumento (saldo a 0.0)
+        try:
+            ss = StrumentiService()
+            strum = ss.get_by_descrizione('Postepay Evolution')
+            if strum:
+                ss.update_saldo_by_id(strum.id_conto, 0.0)
+        except Exception:
+            pass
         
         flash('Sistema PostePay Evolution resettato e reinizializzato!', 'success')
         

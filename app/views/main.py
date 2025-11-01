@@ -2,8 +2,9 @@
 Blueprint principale per le route di base
 """
 from flask import Blueprint, render_template, current_app
-from app.services.bilancio.transazioni_service import TransazioneService
-from app.models.base import Categoria, SaldoIniziale
+from app.services.transazioni.transazioni_service import TransazioneService
+from app.models.Categorie import Categorie
+from app.services.conti_finanziari.strumenti_service import StrumentiService
 from app.services import get_month_boundaries, get_current_month_name
 from app import db
 
@@ -17,7 +18,7 @@ def index():
     
     from datetime import datetime, date
     from dateutil.relativedelta import relativedelta
-    from app.models.transazioni import Transazione
+    from app.models.Transazioni import Transazioni
     import calendar
     
     oggi = datetime.now().date()
@@ -26,18 +27,22 @@ def index():
     # (in modo da ereditare il saldo disponibile del mese precedente invece
     # che usare il valore fisso iniziale presente nel DB)
     try:
-        from app.services.bilancio.dettaglio_periodo_service import DettaglioPeriodoService
+        from app.services.transazioni.dettaglio_periodo_service import DettaglioPeriodoService
         servizio_dettaglio = DettaglioPeriodoService()
         # ottieni i confini del periodo corrente
         start_date, end_date = get_month_boundaries(oggi)
         dettaglio_corrente = servizio_dettaglio.dettaglio_periodo_interno(start_date, end_date)
         saldo_iniziale_importo = float(dettaglio_corrente.get('saldo_iniziale_mese', 0.0) or 0.0)
     except Exception:
-        # Fallback: usa il valore persistito in SaldoIniziale
-        saldo_iniziale = SaldoIniziale.query.first()
-        saldo_iniziale_importo = saldo_iniziale.importo if saldo_iniziale else 0.0
+        # Fallback: usa il valore persistito nel record strumento 'Conto Bancoposta' se presente
+        try:
+            ss = StrumentiService()
+            s = ss.get_by_descrizione('Conto Bancoposta')
+            saldo_iniziale_importo = float(s.saldo_iniziale if s and s.saldo_iniziale is not None else 0.0)
+        except Exception:
+            saldo_iniziale_importo = 0.0
     
-    # Costruisci la lista dei mesi basandoci sui record esistenti in `monthly_summary` (fino a 6)
+    # Costruisci la lista dei mesi basandoci sui record esistenti in `saldi_mensili` (fino a 6)
     # Se ci sono meno di 6 mesi, completiamo la vista con placeholder vuoti.
     mesi = []
     saldo_corrente = saldo_iniziale_importo
@@ -45,9 +50,9 @@ def index():
     ultime_transazioni = []
 
     try:
-        from app.models.monthly_summary import MonthlySummary
-        # Query fino a 6 mesi presenti in monthly_summary (qualsiasi periodo)
-        q = db.session.query(MonthlySummary).order_by(MonthlySummary.year.asc(), MonthlySummary.month.asc()).limit(6).all()
+        from app.models.SaldiMensili import SaldiMensili
+    # Query fino a 6 mesi presenti in saldi_mensili (qualsiasi periodo)
+        q = db.session.query(SaldiMensili).order_by(SaldiMensili.year.asc(), SaldiMensili.month.asc()).limit(6).all()
         month_rows = q if q else None
     except Exception:
         month_rows = None
@@ -59,10 +64,10 @@ def index():
             data_mese = _date(ms.year, ms.month, 1)
             start_date, end_date = get_month_boundaries(data_mese)
             # Calcola entrate e uscite per questo mese (transazioni effettive)
-            tutte_transazioni_mese = Transazione.query.filter(
-                Transazione.data >= start_date,
-                Transazione.data <= end_date,
-                Transazione.categoria_id.isnot(None)
+            tutte_transazioni_mese = Transazioni.query.filter(
+                Transazioni.data >= start_date,
+                Transazioni.data <= end_date,
+                Transazioni.categoria_id.isnot(None)
             ).all()
 
             # Somme da transazioni effettive
@@ -157,14 +162,14 @@ def index():
             start_date, end_date = get_month_boundaries(data_mese)
 
             # Calcola entrate e uscite per questo mese (transazioni effettive)
-            tutte_transazioni_mese = Transazione.query.filter(
-                Transazione.data >= start_date,
-                Transazione.data <= end_date,
-                Transazione.categoria_id.isnot(None)  # Escludi transazioni PayPal (senza categoria)
+            tutte_transazioni_mese = Transazioni.query.filter(
+                Transazioni.data >= start_date,
+                Transazioni.data <= end_date,
+                Transazioni.categoria_id.isnot(None)  # Escludi transazioni PayPal (senza categorie)
             ).all()
 
             # Somme da transazioni effettive (ora includiamo anche le transazioni
-            # generate dalla ricorrenza che sono memorizzate in `transazione` con
+            # generate dalla ricorrenza che sono memorizzate in `transazioni` con
             # `id_recurring_tx` non nullo). Evitiamo duplicati tramite controlli
             # successivi.
             entrate_eff = 0
@@ -243,10 +248,10 @@ def index():
             periodo_corrente_start = mesi[0]['start_date']
             periodo_corrente_end = mesi[0]['end_date']
 
-            tutte_transazioni_periodo = Transazione.query.filter(
-                Transazione.data >= periodo_corrente_start,
-                Transazione.data <= periodo_corrente_end,
-                Transazione.categoria_id.isnot(None)  # Escludi transazioni PayPal (senza categoria)
+            tutte_transazioni_periodo = Transazioni.query.filter(
+                Transazioni.data >= periodo_corrente_start,
+                Transazioni.data <= periodo_corrente_end,
+                Transazioni.categoria_id.isnot(None)  # Escludi transazioni PayPal (senza categorie)
             ).all()
             
             # Filtra per evitare duplicazioni madri/figlie
@@ -284,7 +289,17 @@ def index():
 @main_bp.route('/saldo_iniziale')
 def saldo_iniziale():
     """Gestione saldo iniziale"""
-    saldo = SaldoIniziale.query.first()
+    # Show the current saldo_iniziale coming from the 'Conto Bancoposta' strumento
+    try:
+        ss = StrumentiService()
+        s = ss.get_by_descrizione('Conto Bancoposta')
+        saldo = None
+        if s:
+            from types import SimpleNamespace
+            saldo = SimpleNamespace(importo=(s.saldo_iniziale or 0.0))
+    except Exception:
+        saldo = None
+
     return render_template('bilancio/saldo_iniziale.html', saldo=saldo)
 
 @main_bp.route('/saldo_iniziale/aggiorna', methods=['POST'])
@@ -294,18 +309,17 @@ def aggiorna_saldo_iniziale():
     
     try:
         nuovo_importo = float(request.form['importo'])
-        
-        saldo = SaldoIniziale.query.first()
-        if not saldo:
-            saldo = SaldoIniziale(importo=nuovo_importo)
-            from app import db
-            db.session.add(saldo)
-            db.session.commit()
-        else:
-            saldo.importo = nuovo_importo
-            from app import db
-            db.session.commit()
-        
+        # Update the 'Conto Bancoposta' strumento's saldo_iniziale
+        try:
+            ss = StrumentiService()
+            s = ss.get_by_descrizione('Conto Bancoposta')
+            if s:
+                ss.update_saldo_iniziale_by_id(s.id_conto, float(nuovo_importo))
+            else:
+                ss.ensure_strumento('Conto Bancoposta', 'conto_bancario', float(nuovo_importo))
+        except Exception:
+            pass
+
         flash('Saldo iniziale aggiornato con successo!', 'success')
     except Exception as e:
         flash(f'Errore nell\'aggiornamento: {str(e)}', 'error')
@@ -325,7 +339,7 @@ def forza_rollover():
 def reset():
     """Interfaccia per resettare il sistema: imposta saldo iniziale e rigenera transazioni/summaries."""
     from flask import request, flash, redirect, url_for, render_template
-    from app.models.base import SaldoIniziale
+    # We no longer use the SaldoIniziale table; ResetService will update the 'Conto Bancoposta' strumento
 
     if request.method == 'POST':
         try:
@@ -337,7 +351,7 @@ def reset():
             return redirect(url_for('main.reset'))
 
         try:
-            from app.services.bilancio.reset_service import ResetService
+            from app.services.transazioni.reset_service import ResetService
             svc = ResetService()
             # L'orizzonte è fissato a 6 mesi dall'interfaccia
             months = 6
@@ -355,7 +369,13 @@ def reset():
         return redirect(url_for('main.index'))
 
     # GET -> mostra form
-    saldo = SaldoIniziale.query.first()
+    try:
+        ss = StrumentiService()
+        s = ss.get_by_descrizione('Conto Bancoposta')
+        from types import SimpleNamespace
+        saldo = SimpleNamespace(importo=(s.saldo_iniziale or 0.0)) if s else None
+    except Exception:
+        saldo = None
     return render_template('bilancio/reset.html', saldo=saldo)
 
 # Route rimossa - gestita dal blueprint dettaglio_periodo
