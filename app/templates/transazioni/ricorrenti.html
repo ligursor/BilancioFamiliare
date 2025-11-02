@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block title %}Transazioni Ricorrenti - Gestione Bilancio Familiare{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Statistiche -->
+    <div class="alert alert-danger d-flex align-items-center mb-4">
+        <i class="fas fa-arrow-down fa-2x me-3"></i>
+        <div class="flex-grow-1">
+            <strong>Uscite Ricorrenti:</strong> {{ stats.num_uscite|default(0) }} transazioni
+        </div>
+        <div class="text-end">
+            <strong class="fs-5">-€{{ "%.2f"|format(stats.importo_uscite|default(0)) }}</strong>
+            <div class="small">al mese</div>
+        </div>
+    </div>
+
+    <!-- Form Aggiungi Nuova Transazione Ricorrente (nascosto di default) -->
+    <div id="formAggiungi" class="card mb-4" style="display: none;">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Aggiungi Nuova Transazione Ricorrente</h5>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('ricorrenti.aggiungi') }}" method="POST">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="descrizione" class="form-label">Descrizione *</label>
+                        <input type="text" class="form-control" id="descrizione" name="descrizione" required>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="importo" class="form-label">Importo (€) *</label>
+                        <input type="number" step="0.01" class="form-control" id="importo" name="importo" required>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="tipo" class="form-label">Tipo *</label>
+                        <select class="form-select" id="tipo" name="tipo" required>
+                            <option value="uscita">Uscita</option>
+                            <option value="entrata">Entrata</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-2 mb-3">
+                        <label for="giorno" class="form-label">Giorno *</label>
+                        <input type="number" class="form-control" id="giorno" name="giorno" min="1" max="31" value="1" required>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="categoria_id" class="form-label">Categoria</label>
+                        <select class="form-select" id="categoria_id" name="categoria_id">
+                            <option value="">Nessuna</option>
+                            {% for categoria in categorie %}
+                            <option value="{{ categoria.id }}">{{ categoria.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="cadenza" class="form-label">Cadenza</label>
+                        <select class="form-select" id="cadenza" name="cadenza">
+                            <option value="mensile" selected>Mensile</option>
+                            <option value="annuale">Annuale</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" id="skip_month_if_annual" name="skip_month_if_annual">
+                            <label class="form-check-label" for="skip_month_if_annual">Salta se annuale</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end">
+                    <button type="button" class="btn btn-secondary me-2" onclick="toggleFormAggiungi()">Annulla</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Salva</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabella Transazioni Ricorrenti -->
+    <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>Transazioni Ricorrenti
+                {% if ricorrenti %}
+                <span class="badge bg-primary ms-2">{{ ricorrenti|length }}</span>
+                {% endif %}
+            </h5>
+            <div>
+                <button type="button" class="btn btn-success btn-sm" onclick="toggleFormAggiungi()">
+                    <i class="fas fa-plus me-1"></i>Nuova Ricorrente
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if ricorrenti and ricorrenti|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th class="text-start">Descrizione</th>
+                            <th class="text-center">Categoria</th>
+                            <th class="text-center">Tipo</th>
+                            <th class="text-center">Importo</th>
+                            <th class="text-center">Giorno</th>
+                            <th class="text-center">Cadenza</th>
+                            <th class="text-center">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ricorrente in ricorrenti %}
+                        <tr>
+                            <td class="text-start">{{ ricorrente.descrizione }}</td>
+                            <td class="text-center">
+                                {% if ricorrente.categoria %}
+                                <span class="badge {% if ricorrente.categoria.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ ricorrente.categoria.nome }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge {% if ricorrente.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ ricorrente.tipo|title }}
+                                </span>
+                            </td>
+                            <td class="text-center text-danger">
+                                <strong>{% if ricorrente.tipo == 'entrata' %}+{% else %}-{% endif %}€{{ "%.2f"|format(ricorrente.importo) }}</strong>
+                            </td>
+                            <td class="text-center">{{ ricorrente.giorno }}</td>
+                            <td class="text-center">{{ ricorrente.cadenza|title if ricorrente.cadenza else 'Mensile' }}</td>
+                            <td class="text-center align-middle">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-primary" 
+                                            onclick="toggleFormModifica({{ ricorrente.id }})" 
+                                            title="Modifica">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" 
+                                            onclick="confermaEliminazione({{ ricorrente.id }}, '{{ ricorrente.descrizione|replace("'", "\\'") }}')" 
+                                            title="Elimina">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <!-- Form Modifica (nascosto di default) -->
+                        <tr id="formModifica{{ ricorrente.id }}" style="display: none;">
+                            <td colspan="7" class="p-0">
+                                <div class="card border-0">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="fas fa-edit me-2"></i>Modifica Transazione Ricorrente</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <form action="{{ url_for('ricorrenti.modifica', ricorrente_id=ricorrente.id) }}" method="POST">
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Descrizione *</label>
+                                                    <input type="text" class="form-control" name="descrizione" value="{{ ricorrente.descrizione }}" required>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Importo (€) *</label>
+                                                    <input type="number" step="0.01" class="form-control" name="importo" value="{{ ricorrente.importo }}" required>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Tipo *</label>
+                                                    <select class="form-select" name="tipo" required>
+                                                        <option value="uscita" {% if ricorrente.tipo == 'uscita' %}selected{% endif %}>Uscita</option>
+                                                        <option value="entrata" {% if ricorrente.tipo == 'entrata' %}selected{% endif %}>Entrata</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-2 mb-3">
+                                                    <label class="form-label">Giorno *</label>
+                                                    <input type="number" class="form-control" name="giorno" min="1" max="31" value="{{ ricorrente.giorno }}" required>
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    <label class="form-label">Categoria</label>
+                                                    <select class="form-select" name="categoria_id">
+                                                        <option value="">Nessuna</option>
+                                                        {% for categoria in categorie %}
+                                                        <option value="{{ categoria.id }}" {% if ricorrente.categoria_id == categoria.id %}selected{% endif %}>{{ categoria.nome }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Cadenza</label>
+                                                    <select class="form-select" name="cadenza">
+                                                        <option value="mensile" {% if ricorrente.cadenza == 'mensile' %}selected{% endif %}>Mensile</option>
+                                                        <option value="annuale" {% if ricorrente.cadenza == 'annuale' %}selected{% endif %}>Annuale</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <div class="form-check mt-4">
+                                                        <input class="form-check-input" type="checkbox" name="skip_month_if_annual" {% if ricorrente.skip_month_if_annual %}checked{% endif %}>
+                                                        <label class="form-check-label">Salta se annuale</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex justify-content-end">
+                                                <button type="button" class="btn btn-secondary me-2" onclick="toggleFormModifica({{ ricorrente.id }})">Annulla</button>
+                                                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Salva Modifiche</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-inbox fa-3x mb-3"></i>
+                <h5>Nessuna transazione ricorrente registrata</h5>
+                <p>Inizia aggiungendo la tua prima transazione ricorrente utilizzando il pulsante "Nuova Ricorrente".</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Form nascosto per eliminazione -->
+<form id="formElimina" action="" method="POST" style="display: none;">
+</form>
+
+<script>
+    function toggleFormAggiungi() {
+        const form = document.getElementById('formAggiungi');
+        if (form.style.display === 'none') {
+            form.style.display = 'block';
+            form.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            form.style.display = 'none';
+        }
+    }
+
+    function toggleFormModifica(id) {
+        const form = document.getElementById('formModifica' + id);
+        if (form.style.display === 'none') {
+            // Nascondi tutti gli altri form di modifica
+            document.querySelectorAll('[id^="formModifica"]').forEach(f => {
+                if (f.id !== 'formModifica' + id) {
+                    f.style.display = 'none';
+                }
+            });
+            form.style.display = 'table-row';
+            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            form.style.display = 'none';
+        }
+    }
+
+    function confermaEliminazione(id, descrizione) {
+        if (confirm('Sei sicuro di voler eliminare la transazione ricorrente "' + descrizione + '"?\n\nQuesta operazione non può essere annullata.')) {
+            const form = document.getElementById('formElimina');
+            form.action = '{{ url_for("ricorrenti.elimina", ricorrente_id=0) }}'.replace('0', id);
+            form.submit();
+        }
+    }
+</script>
+{% endblock %}

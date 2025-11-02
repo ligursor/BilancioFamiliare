@@ -48,6 +48,7 @@ def create_app(config_name='default'):
     from app.views.transazioni.categorie import categorie_bp
     from app.views.transazioni.dettaglio_periodo import dettaglio_periodo_bp
     from app.views.transazioni.dashboard import dashboard_bp
+    from app.views.transazioni.ricorrenti import ricorrenti_bp
     from app.views.paypal import paypal_bp
     from app.views.conto_personale import conti_bp
     from app.views.veicoli.auto import auto_bp
@@ -59,6 +60,7 @@ def create_app(config_name='default'):
     app.register_blueprint(categorie_bp, url_prefix='/categorie')
     app.register_blueprint(dettaglio_periodo_bp, url_prefix='/dettaglio')
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
+    app.register_blueprint(ricorrenti_bp, url_prefix='/ricorrenti')
     app.register_blueprint(paypal_bp, url_prefix='/paypal')
     app.register_blueprint(conti_bp, url_prefix='/conti')
     app.register_blueprint(auto_bp, url_prefix='/auto')
