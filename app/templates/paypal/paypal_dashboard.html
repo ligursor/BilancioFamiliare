@@ -461,8 +461,8 @@ importo.setAttribute('readonly', 'readonly'); importo.setAttribute('aria-readonl
                         } catch (err) { setTimeout(function(){ location.reload(); }, 250); }
                     }).catch(function(){ setTimeout(function(){ location.reload(); }, 250); });
             } else {
-                resp.text().then(function(txt){ alert('Errore nel salvataggio: ' + txt); if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; } });                                                                                         }
-        }).catch(function(err){ alert('Errore di rete: ' + err); if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; } });                                                                                                         });
+                resp.text().then(function(txt){ try { showToast('Errore nel salvataggio: ' + txt, 'danger'); } catch(e){} if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; } });                                                                                         }
+        }).catch(function(err){ try { showToast('Errore di rete: ' + err, 'danger'); } catch(e){} if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; } });                                                                                                         });
 });
 </script>
 <script>

@@ -237,12 +237,12 @@ function modificaAppunto(id) {
                 
                 new bootstrap.Modal(document.getElementById('modificaAppuntoModal')).show();
             } else {
-                alert('Errore nel caricamento dei dati: ' + data.message);
+                try { showToast('Errore nel caricamento dei dati: ' + data.message, 'danger'); } catch(e) {}
             }
         })
         .catch(error => {
             /* console.error removed */
-            alert('Errore durante il caricamento dei dati dell\'appunto');
+            try { showToast('Errore durante il caricamento dei dati dell\'appunto', 'danger'); } catch(e) {}
         });
 }
 
@@ -272,15 +272,15 @@ function trasferisciAppunto(id) {
                     modal.show();
                 } else {
                     /* console.error removed */
-                    alert('Errore: elementi del modal non trovati');
+                    try { showToast('Errore: elementi del modal non trovati', 'danger'); } catch(e) {}
                 }
             } else {
-                alert('Errore nel caricamento dei dati: ' + data.message);
+                try { showToast('Errore nel caricamento dei dati: ' + data.message, 'danger'); } catch(e) {}
             }
         })
         .catch(error => {
             /* console.error removed */
-            alert('Errore nel caricamento dei dati: ' + error.message);
+            try { showToast('Errore nel caricamento dei dati: ' + error.message, 'danger'); } catch(e) {}
         });
 }
 
@@ -332,12 +332,12 @@ function eliminaAppunto(id, titolo) {
             if (data.success) {
                 location.reload();
             } else {
-                alert('Errore: ' + data.message);
+                try { showToast('Errore: ' + data.message, 'danger'); } catch(e) {}
             }
         })
         .catch(error => {
             /* console.error removed */
-            alert('Errore durante l\'eliminazione');
+            try { showToast('Errore durante l\'eliminazione', 'danger'); } catch(e) {}
         });
     }
 }

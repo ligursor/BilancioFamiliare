@@ -154,6 +154,51 @@ def elimina_transazione_periodo(start_date, end_date, id):
 			pass
 		flash(f'Errore durante l\'eliminazione della transazioni: {str(e)}', 'error')
 
+	# If this was an AJAX request, return updated totals so the client can
+	# update the summary boxes without reloading the page.
+	if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+		try:
+			from datetime import datetime as _dt
+			start_dt = _dt.strptime(start_date, '%Y-%m-%d').date()
+			end_dt = _dt.strptime(end_date, '%Y-%m-%d').date()
+			service = DettaglioPeriodoService()
+			summary = service.dettaglio_periodo_interno(start_dt, end_dt)
+			# include stats per categoria for client-side chart updates
+			try:
+				anno = end_dt.year
+				mese = end_dt.month
+				stats = service.get_statistiche_per_categoria(anno, mese) or []
+				# normalize to serializable list
+				stats_serial = []
+				for s in stats:
+					try:
+						if isinstance(s, dict):
+							nome = s.get('categoria_nome')
+							imp = float(s.get('importo') or 0)
+						else:
+							nome = getattr(s, 'categoria_nome', None)
+							imp = float(getattr(s, 'importo', 0) or 0)
+						stats_serial.append({'categoria_nome': nome, 'importo': imp})
+					except Exception:
+						stats_serial.append({'categoria_nome': str(s), 'importo': 0.0})
+			except Exception:
+				stats_serial = []
+			# Keep only serializable summary fields
+			out = {
+				'entrate': float(summary.get('entrate') or 0.0),
+				'uscite': float(summary.get('uscite') or 0.0),
+				'bilancio': float(summary.get('bilancio') or 0.0),
+				'saldo_iniziale_mese': float(summary.get('saldo_iniziale_mese') or 0.0),
+				'saldo_attuale_mese': float(summary.get('saldo_attuale_mese') or 0.0),
+				'saldo_finale_mese': float(summary.get('saldo_finale_mese') or 0.0),
+				'saldo_previsto_fine_mese': float(summary.get('saldo_previsto_fine_mese') or 0.0),
+				'budget_items': summary.get('budget_items') or [],
+				'stats_categorie': stats_serial
+			}
+			return jsonify({'status': 'ok', 'summary': out})
+		except Exception:
+			return jsonify({'status': 'error'}), 500
+	# non-AJAX fallback
 	return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
 
 
@@ -220,7 +265,39 @@ def aggiungi_transazione_periodo(start_date, end_date):
 		# If this is an AJAX request, return JSON with the created transaction
 		if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
 			tx = Transazioni.query.get(transazioni.id)
-			# Return singular key 'transazione' to match client-side expectation
+			# Compute updated summary so client can refresh totals
+			try:
+				from datetime import datetime as _dt
+				start_dt = _dt.strptime(start_date, '%Y-%m-%d').date()
+				end_dt = _dt.strptime(end_date, '%Y-%m-%d').date()
+				service = DettaglioPeriodoService()
+				summary = service.dettaglio_periodo_interno(start_dt, end_dt)
+				# include stats per categoria for client-side chart updates
+				try:
+					anno = end_dt.year
+					mese = end_dt.month
+					stats = service.get_statistiche_per_categoria(anno, mese) or []
+					stats_serial = []
+					for s in stats:
+						try:
+							stats_serial.append({'categoria_nome': s.get('categoria_nome') if isinstance(s, dict) else getattr(s, 'categoria_nome', None), 'importo': float(s.get('importo') if isinstance(s, dict) else getattr(s, 'importo', 0) or 0)})
+						except Exception:
+							stats_serial.append({'categoria_nome': str(s), 'importo': 0.0})
+				except Exception:
+					stats_serial = []
+				out = {
+					'entrate': float(summary.get('entrate') or 0.0),
+					'uscite': float(summary.get('uscite') or 0.0),
+					'bilancio': float(summary.get('bilancio') or 0.0),
+					'saldo_iniziale_mese': float(summary.get('saldo_iniziale_mese') or 0.0),
+					'saldo_attuale_mese': float(summary.get('saldo_attuale_mese') or 0.0),
+					'saldo_finale_mese': float(summary.get('saldo_finale_mese') or 0.0),
+					'saldo_previsto_fine_mese': float(summary.get('saldo_previsto_fine_mese') or 0.0),
+					'budget_items': summary.get('budget_items') or [],
+					'stats_categorie': stats_serial
+				}
+			except Exception:
+				out = None
 			return jsonify({'status': 'ok', 'transazione': {
 				'id': tx.id,
 				'data': tx.data.strftime('%Y-%m-%d') if tx.data else None,
@@ -230,7 +307,7 @@ def aggiungi_transazione_periodo(start_date, end_date):
 				'categoria_nome': tx.categoria.nome if tx.categoria else None,
 				'tipo': tx.tipo,
 				'ricorrente': bool(tx.ricorrente)
-			}})
+			}, 'summary': out})
 	except Exception as e:
 		try:
 			db.session.rollback()
@@ -271,6 +348,48 @@ def modifica_transazione_periodo(start_date, end_date, id):
 			pass
 		flash(f'Errore durante la modifica della transazioni: {str(e)}', 'error')
 
+	# If AJAX request, return updated totals (no full reload)
+	if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+		try:
+			from datetime import datetime as _dt
+			start_dt = _dt.strptime(start_date, '%Y-%m-%d').date()
+			end_dt = _dt.strptime(end_date, '%Y-%m-%d').date()
+			service = DettaglioPeriodoService()
+			summary = service.dettaglio_periodo_interno(start_dt, end_dt)
+			# compute stats for chart
+			try:
+				anno = end_dt.year
+				mese = end_dt.month
+				stats = service.get_statistiche_per_categoria(anno, mese) or []
+				stats_serial = []
+				for s in stats:
+					try:
+						if isinstance(s, dict):
+							nome = s.get('categoria_nome')
+							imp = float(s.get('importo') or 0)
+						else:
+							nome = getattr(s, 'categoria_nome', None)
+							imp = float(getattr(s, 'importo', 0) or 0)
+						stats_serial.append({'categoria_nome': nome, 'importo': imp})
+					except Exception:
+						stats_serial.append({'categoria_nome': str(s), 'importo': 0.0})
+			except Exception:
+				stats_serial = []
+			out = {
+				'entrate': float(summary.get('entrate') or 0.0),
+				'uscite': float(summary.get('uscite') or 0.0),
+				'bilancio': float(summary.get('bilancio') or 0.0),
+				'saldo_iniziale_mese': float(summary.get('saldo_iniziale_mese') or 0.0),
+				'saldo_attuale_mese': float(summary.get('saldo_attuale_mese') or 0.0),
+				'saldo_finale_mese': float(summary.get('saldo_finale_mese') or 0.0),
+				'saldo_previsto_fine_mese': float(summary.get('saldo_previsto_fine_mese') or 0.0),
+				'budget_items': summary.get('budget_items') or [],
+				'stats_categorie': stats_serial
+			}
+			return jsonify({'status': 'ok', 'summary': out})
+		except Exception:
+			return jsonify({'status': 'error'}), 500
+	# non-AJAX fallback
 	return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
 
 

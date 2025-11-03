@@ -9,6 +9,9 @@ from app.models.ContiFinanziari import Strumento
 from app.services.conti_finanziari.strumenti_service import StrumentiService
 from app import db
 from flask import current_app
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ContiPersonaliService:
     """Service per i conti personali fissi (Maurizio e Antonietta)"""
@@ -68,7 +71,7 @@ class ContiPersonaliService:
             
         except Exception as e:
             db.session.rollback()
-            print(f"Errore nell'inizializzazione conto {nome_conto}: {e}")
+            logger.exception(f"Errore nell'inizializzazione conto {nome_conto}: {e}")
             return None
     
     def get_conto_data(self, nome_conto):
@@ -85,7 +88,7 @@ class ContiPersonaliService:
             return conto, versamenti
             
         except Exception as e:
-            print(f"Errore nel recupero dati conto {nome_conto}: {e}")
+            logger.exception(f"Errore nel recupero dati conto {nome_conto}: {e}")
             return None, []
     
     def aggiungi_versamento(self, nome_conto, data, descrizione, importo):
@@ -135,13 +138,13 @@ class ContiPersonaliService:
                 else:
                     ss.update_saldo(f"Conto Personale {nome_conto}", (strum.saldo_iniziale if strum and strum.saldo_iniziale is not None else 0.0) - float(total))
             except Exception as e:
-                print(f"Attenzione: impossibile sincronizzare lo strumento per {nome_conto}: {e}")
+                logger.warning(f"Attenzione: impossibile sincronizzare lo strumento per {nome_conto}: {e}", exc_info=True)
 
             return True, "Versamento aggiunto con successo"
             
         except Exception as e:
             db.session.rollback()
-            print(f"Errore nell'aggiunta versamento: {e}")
+            logger.exception(f"Errore nell'aggiunta versamento: {e}")
             return False, f"Errore nel versamento: {str(e)}"
     
     def elimina_versamento(self, versamento_id):
@@ -170,7 +173,7 @@ class ContiPersonaliService:
                     if s:
                         ss.update_saldo(descr, (s.saldo_iniziale or 0.0) - float(total))
             except Exception as e:
-                print(f"Attenzione: impossibile sincronizzare lo strumento per {conto.nome_conto}: {e}")
+                logger.warning(f"Attenzione: impossibile sincronizzare lo strumento per {conto.nome_conto}: {e}", exc_info=True)
 
             # Elimina il versamento
             db.session.delete(versamento)
@@ -180,7 +183,7 @@ class ContiPersonaliService:
             
         except Exception as e:
             db.session.rollback()
-            print(f"Errore nell'eliminazione versamento: {e}")
+            logger.exception(f"Errore nell'eliminazione versamento: {e}")
             return False, f"Errore nell'eliminazione: {str(e)}"
     
     def reset_conto(self, nome_conto):
@@ -211,14 +214,14 @@ class ContiPersonaliService:
                     if s:
                         ss.update_saldo(descr, s.saldo_iniziale or 0.0)
             except Exception as e:
-                print(f"Attenzione: impossibile sincronizzare lo strumento per {nome_conto}: {e}")
+                logger.warning(f"Attenzione: impossibile sincronizzare lo strumento per {nome_conto}: {e}", exc_info=True)
 
             db.session.commit()
             return True, f"Conto di {nome_conto} resettato al saldo iniziale"
             
         except Exception as e:
             db.session.rollback()
-            print(f"Errore nel reset conto: {e}")
+            logger.exception(f"Errore nel reset conto: {e}")
             return False, f"Errore durante il reset: {str(e)}"
     
     def aggiorna_saldo_iniziale(self, nome_conto, nuovo_saldo):
@@ -247,13 +250,13 @@ class ContiPersonaliService:
                         total = db.session.query(func.coalesce(func.sum(VersamentoPersonale.importo), 0)).filter(VersamentoPersonale.conto_id == conto.id).scalar()
                         ss.update_saldo_by_id(s.id_conto, float(nuovo_saldo) - float(total))
             except Exception:
-                print(f"Attenzione: impossibile sincronizzare lo strumento per {nome_conto}")
+                logger.warning(f"Attenzione: impossibile sincronizzare lo strumento per {nome_conto}", exc_info=True)
 
             return True, "Saldo iniziale aggiornato con successo"
             
         except Exception as e:
             db.session.rollback()
-            print(f"Errore nell'aggiornamento saldo iniziale: {e}")
+            logger.exception(f"Errore nell'aggiornamento saldo iniziale: {e}")
             return False, f"Errore nell'aggiornamento: {str(e)}"
     
     def initialize_default_conti(self):
@@ -266,11 +269,11 @@ class ContiPersonaliService:
             antonietta = self.inizializza_conto_personale('Antonietta')
             
             if maurizio and antonietta:
-                print("Conti personali di Maurizio e Antonietta inizializzati")
+                logger.info("Conti personali di Maurizio e Antonietta inizializzati")
                 return True
             
             return False
             
         except Exception as e:
-            print(f"Errore nell'inizializzazione conti predefiniti: {e}")
+            logger.exception(f"Errore nell'inizializzazione conti predefiniti: {e}")
             return False

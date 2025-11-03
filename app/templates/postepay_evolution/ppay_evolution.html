@@ -816,7 +816,7 @@ document.addEventListener('DOMContentLoaded', function(){
                 // try to get response text to show useful error
                 const txt = await res.text().catch(() => '<no-response-body>');
                 console.error('Form submit failed', {status: res.status, body: txt, action});
-                alert('Errore server durante l\'operazione: ' + res.status + '\n' + txt);
+                try { showToast('Errore server durante l\'operazione: ' + res.status + '\n' + txt, 'danger'); } catch(e) { console && console.error && console.error(e); }
                 throw new Error('server');
             }
             // Use the final response URL (may include server redirect params such as skip_auto)

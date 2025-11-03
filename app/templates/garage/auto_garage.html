@@ -629,7 +629,7 @@ document.addEventListener('DOMContentLoaded', function(){
                         form.dataset.submitting = '0';
                     }).catch(function(err){
                         form.dataset.submitting = '0';
-                        alert('Errore: ' + err.message);
+                        try { showToast('Errore: ' + err.message, 'danger'); } catch(e) {}
                     });
                 });
             }

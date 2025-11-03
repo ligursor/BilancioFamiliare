@@ -222,7 +222,7 @@
                     var resp = await fetch(form.action, { method: 'POST', body: fd, credentials: 'same-origin' });
                     if (!resp.ok) {
                         if (submitBtn) submitBtn.disabled = false;
-                        alert('Errore durante il salvataggio della categoria');
+                        try { showToast('Errore durante il salvataggio della categoria', 'danger'); } catch(e) {}
                         return;
                     }
 
@@ -231,7 +231,7 @@
                     var pageResp = await fetch(listUrl, { credentials: 'same-origin' });
                     if (!pageResp.ok) {
                         if (submitBtn) submitBtn.disabled = false;
-                        alert('Errore nel ricaricare la lista categorie');
+                        try { showToast('Errore nel ricaricare la lista categorie', 'danger'); } catch(e) {}
                         return;
                     }
                     var html = await pageResp.text();
@@ -250,7 +250,7 @@
                     var card = document.getElementById('card-nuova-categoria'); if (card) card.remove();
                 } catch(err) {
                     console.error(err);
-                    alert('Errore di rete durante il salvataggio della categoria');
+                    try { showToast('Errore di rete durante il salvataggio della categoria', 'danger'); } catch(e) {}
                 } finally {
                     if (submitBtn) submitBtn.disabled = false;
                 }

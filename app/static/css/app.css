@@ -242,3 +242,20 @@ a.text-decoration-none:active {
 }
 
 
+/* Compact modal for dettaglio_mese pie chart: reduce width by ~30% and ensure centering */
+/* We target the specific modal by ID to avoid affecting other modals. */
+#uscitePieModal .modal-dialog {
+    max-width: 42vw; /* further compact modal */
+    width: auto;
+}
+#uscitePieModal .modal-content {
+    border-radius: 0.5rem;
+}
+/* Make canvas responsive inside the modal and limit height */
+#uscitePieModal canvas {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 320px; /* reduce chart height for a more compact view */
+}
+
+

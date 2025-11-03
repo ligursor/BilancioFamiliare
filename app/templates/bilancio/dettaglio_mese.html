@@ -78,13 +78,15 @@ function modificaTransazioneAttr(btn) {
             evt.preventDefault(); saveBtn.disabled = true; cancelBtn.disabled = true;
             const fd = new FormData(); fd.append('importo', input.value);
             fetch(`/dettaglio/${startDate}/${endDate}/modifica_transazione/${id}`, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(function(response){ if (!response.ok) throw new Error('Errore server'); return response.text(); })
-            .then(function(){
-                // Reload the page so the budget summary/cards are recalculated on the server
-                // and displayed consistently. This avoids partial client-side updates
-                // that would leave the budget boxes stale.
-                window.location.reload();
-            }).catch(function(err){ console.error('Errore salvataggio inline:', err); alert('Errore nel salvataggio. Riprova.'); amountCell.innerHTML = originalHtml; try { btn.style.display = ''; } catch(e) {} })
+            .then(function(response){ if (!response.ok) throw new Error('Errore server'); return response.json(); })
+            .then(function(json){
+                if (!json || json.status !== 'ok') throw new Error('Errore server');
+                // Update summary cards and budget rows if provided
+                try { if (json.summary) applySummary(json.summary); } catch(e) { console && console.error && console.error('applySummary failed', e); }
+                // Update the amount cell locally to reflect the new value
+                try { var sign = amountCell.classList.contains('text-success') ? '+' : '-'; amountCell.textContent = sign + '€ ' + Number(input.value || 0).toFixed(2); } catch(e){}
+                try { showToast('Modifica salvata', 'success'); } catch(e){}
+            }).catch(function(err){ console.error('Errore salvataggio inline:', err); showToast('Errore nel salvataggio. Riprova.','danger'); amountCell.innerHTML = originalHtml; try { btn.style.display = ''; } catch(e) {} })
             .finally(function(){ saveBtn.disabled = false; cancelBtn.disabled = false; });
         });
 
@@ -148,7 +150,7 @@ function modificaMonthlyBudget(btn) {
             .then(function(json){
                 // Persisted on server — reload page to reflect authoritative data
                 window.location.reload();
-            }).catch(function(err){ console.error('Errore salvataggio budget inline:', err); alert('Errore nel salvataggio del budget. Riprova.'); parentTd.innerHTML = originalHtml; try { btn.style.display = ''; } catch(e) {} })
+            }).catch(function(err){ console.error('Errore salvataggio budget inline:', err); showToast('Errore nel salvataggio del budget. Riprova.','danger'); parentTd.innerHTML = originalHtml; try { btn.style.display = ''; } catch(e) {} })
             .finally(function(){ saveBtn.disabled = false; cancelBtn.disabled = false; });
         });
 
@@ -191,7 +193,7 @@ function modificaMonthlyBudget(btn) {
                         <div class="card bg-primary text-white">
                             <div class="card-body text-center">
                                 <h6>Saldo Iniziale</h6>
-                                <h4>€ {{ "%.2f"|format(saldo_iniziale_mese) }}</h4>
+                                <h4 id="saldo_iniziale_val">€ {{ "%.2f"|format(saldo_iniziale_mese) }}</h4>
                             </div>
                         </div>
                     </div>
@@ -199,7 +201,7 @@ function modificaMonthlyBudget(btn) {
                         <div class="card bg-success text-white">
                             <div class="card-body text-center">
                                 <h6>Entrate Previste</h6>
-                                <h4>€ {{ "%.2f"|format(entrate) }}</h4>
+                                <h4 id="entrate_val">€ {{ "%.2f"|format(entrate) }}</h4>
                             </div>
                         </div>
                     </div>
@@ -207,7 +209,7 @@ function modificaMonthlyBudget(btn) {
                         <div class="card bg-orange text-white" style="background-color: #fd7e14 !important;">
                             <div class="card-body text-center">
                                 <h6>Uscite Previste</h6>
-                                <h4>€ {{ "%.2f"|format(uscite) }}</h4>
+                                <h4 id="uscite_val">€ {{ "%.2f"|format(uscite) }}</h4>
                             </div>
                         </div>
                     </div>
@@ -215,7 +217,7 @@ function modificaMonthlyBudget(btn) {
                         <div class="card {% if bilancio >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
                             <div class="card-body text-center">
                                 <h6>Bilancio Previsto</h6>
-                                <h4>{% if bilancio >= 0 %}+{% endif %}€ {{ "%.2f"|format(bilancio) }}</h4>
+                                <h4 id="bilancio_val">{% if bilancio >= 0 %}+{% endif %}€ {{ "%.2f"|format(bilancio) }}</h4>
                             </div>
                         </div>
                     </div>
@@ -225,7 +227,7 @@ function modificaMonthlyBudget(btn) {
                         <div class="card {% if saldo_attuale_mese >= 0 %}bg-info{% else %}bg-warning{% endif %} text-white">
                             <div class="card-body text-center">
                                 <h6><i class="fas fa-calendar-day me-1"></i>Saldo Attuale</h6>
-                                <h4>€ {{ "%.2f"|format(saldo_attuale_mese) }}</h4>
+                                <h4 id="saldo_attuale_val">€ {{ "%.2f"|format(saldo_attuale_mese) }}</h4>
                             </div>
                         </div>
                     </div>
@@ -233,7 +235,7 @@ function modificaMonthlyBudget(btn) {
                         <div class="card {% if saldo_finale_mese >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
                             <div class="card-body text-center">
                                 <h6>Saldo Finale</h6>
-                                <h4>€ {{ "%.2f"|format(saldo_finale_mese) }}</h4>
+                                <h4 id="saldo_finale_val">€ {{ "%.2f"|format(saldo_finale_mese) }}</h4>
                             </div>
                         </div>
                     </div>
@@ -286,15 +288,34 @@ function modificaMonthlyBudget(btn) {
                             </table>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <h5 class="mb-3"><i class="fas fa-chart-pie me-2"></i>Uscite per Categoria</h5>
-                        <div class="card">
-                            <div class="card-body">
-                                <canvas id="uscitePieChart" width="400" height="300" data-anno="{{ anno|default(0)|tojson }}" data-mese="{{ mese|default(0)|tojson }}"></canvas>
-                                <div id="uscitePieNoData" class="text-muted mt-2" style="display:none;">Nessuna uscita disponibile per questo mese.</div>
-                            </div>
-                        </div>
-                    </div>
+                                        <div class="col-md-4">
+                                                <div class="d-flex justify-content-end mb-2">
+                                                        <!-- Button only: the full 'Uscite per Categoria' content is shown inside the modal -->
+                                                        <button id="togglePieBtn" class="btn btn-sm btn-outline-primary" type="button" aria-pressed="false" data-bs-toggle="modal" data-bs-target="#uscitePieModal">
+                                                                <i class="fas fa-chart-pie me-1" aria-hidden="true"></i>
+                                                                <span class="toggle-pie-text">Mostra grafico</span>
+                                                        </button>
+                                                </div>
+
+                                                <!-- Modal per il grafico a torta (contiene titolo + canvas + no-data) -->
+                                                <div class="modal fade" id="uscitePieModal" tabindex="-1" aria-labelledby="uscitePieModalLabel" aria-hidden="true">
+                                                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header">
+                                                                <h5 class="modal-title" id="uscitePieModalLabel"><i class="fas fa-chart-pie me-2"></i>Uscite per Categoria</h5>
+                                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <canvas id="uscitePieChartModal" width="600" height="400" data-anno="{{ anno|default(0)|tojson }}" data-mese="{{ mese|default(0)|tojson }}"></canvas>
+                                                                <div id="uscitePieModalNoData" class="text-muted mt-2" style="display:none;">Nessuna uscita disponibile per questo mese.</div>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                        </div>
                 </div>
                 {% endif %}
 
@@ -638,165 +659,17 @@ function modificaMonthlyBudget(btn) {
 
 {% block scripts %}
 <script>
-    // Carica le categorie per l'editor (usato da modificaTransazione)
-    const categorie = JSON.parse(document.getElementById('categorie-data') ? document.getElementById('categorie-data').textContent : '[]');
-    // Carica i mesi disponibili per la navigazione (passati dal server)
-    const availableMonths = JSON.parse(document.getElementById('available-months-data') ? document.getElementById('available-months-data').textContent : '[]');
-
-    // Toggle inline add-transaction box and handle submission
-    window.toggleInlineAddTransaction = function(btn) {
-        try {
-            const container = document.getElementById('inline-add-transaction');
-            if (!container) return;
-            const form = document.getElementById('inlineAddTransactionForm');
-            if (container.style.display === 'none' || container.style.display === '') {
-                // populate categories select
-                const select = document.getElementById('inline_add_categoria_id');
-                select.innerHTML = '<option value="">Seleziona categoria...</option>';
-                (categorie || []).forEach(function(c){
-                    const opt = document.createElement('option'); opt.value = c.id; opt.textContent = c.nome; select.appendChild(opt);
-                });
-                // set default date to end_date
-                try { document.getElementById('inline_add_data').value = '{{ end_date }}'; } catch(e){}
-                container.style.display = 'block';
-                // hide the bootstrap modal if open
-                try { var m = bootstrap.Modal.getInstance(document.getElementById('addTransactionModal')); if (m) m.hide(); } catch(e){}
-            } else {
-                container.style.display = 'none';
-            }
-        } catch(e) { console && console.error && console.error('toggleInlineAddTransaction error', e); }
+    // Small config object used by the external JS module
+    const DETTAGLIO_CONFIG = {
+        start_date: '{{ start_date }}',
+        end_date: '{{ end_date }}',
+        anno: {{ anno|default(0) }},
+        mese: {{ mese|default(0) }},
+        stats_categorie: {{ stats_categorie|tojson }},
+        categorie: {{ categorie|tojson }},
+        availableMonths: {{ available_months|tojson }}
     };
-
-    document.addEventListener('DOMContentLoaded', function(){
-        var inlineForm = document.getElementById('inlineAddTransactionForm');
-        if (inlineForm) {
-            inlineForm.addEventListener('submit', function(evt){
-                evt.preventDefault();
-                var fd = new FormData(inlineForm);
-                // force non-recurring
-                fd.set('ricorrente', '');
-                // client-side check date bounds
-                var d = fd.get('data');
-                if (!d) { alert('Inserisci una data valida'); return; }
-                if (d < '{{ start_date }}' || d > '{{ end_date }}') { alert('La data deve essere compresa nel periodo {{ start_date }} - {{ end_date }}'); return; }
-                var startDate = '{{ start_date }}'; var endDate = '{{ end_date }}';
-                var url = `/dettaglio/${startDate}/${endDate}/aggiungi_transazione`;
-                fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(function(resp){ if (!resp.ok) throw new Error('Errore server'); return resp.json(); })
-                .then(function(json){
-                    if (!json || json.status !== 'ok') throw new Error('Errore creazione transazione');
-                    // On success reload the page so summary cards are updated and the DOM reflects authoritative state
-                    window.location.reload();
-                }).catch(function(err){ console.error('Errore aggiunta transazione inline', err); alert('Errore durante l\'inserimento. Riprova.'); });
-            });
-            document.getElementById('inline_add_cancel').addEventListener('click', function(){ document.getElementById('inline-add-transaction').style.display='none'; });
-        }
-    });
-
-    // Implementazione di navigateMonth che rispetta i confini di availableMonths
-    (function(){
-        try {
-            const currentYear = Number({{ anno|default(0) }});
-            const currentMonth = Number({{ mese|default(0) }});
-
-            function monthExists(y, m) {
-                return (availableMonths || []).some(x => Number(x.year) === Number(y) && Number(x.month) === Number(m));
-            }
-
-            window.navigateMonth = function(direction) {
-                let y = currentYear;
-                let m = currentMonth + Number(direction);
-                if (m < 1) { m = 12; y = y - 1; }
-                if (m > 12) { m = 1; y = y + 1; }
-                if (!monthExists(y,m)) return; // out of bounds
-                window.location.href = `/dettaglio/${y}/${m}`;
-            };
-
-            // Disabilita o meno i bottoni di navigazione in base ai mesi disponibili
-            document.addEventListener('DOMContentLoaded', function(){
-                try {
-                    const prevBtn = document.querySelector('.nav-arrow[data-direction="-1"]');
-                    const nextBtn = document.querySelector('.nav-arrow[data-direction="1"]');
-                    if (prevBtn) {
-                        let py = currentYear; let pm = currentMonth - 1;
-                        if (pm < 1) { pm = 12; py -= 1; }
-                        if (!monthExists(py, pm)) {
-                            prevBtn.disabled = true;
-                            prevBtn.setAttribute('aria-disabled', 'true');
-                        }
-                    }
-                    if (nextBtn) {
-                        let ny = currentYear; let nm = currentMonth + 1;
-                        if (nm > 12) { nm = 1; ny += 1; }
-                        if (!monthExists(ny, nm)) {
-                            nextBtn.disabled = true;
-                            nextBtn.setAttribute('aria-disabled', 'true');
-                        }
-                    }
-                } catch (e) { /* ignore */ }
-            });
-
-        } catch (e) {
-            // non rompere la pagina
-        }
-    })();
-    // Inizializza il grafico a torta per le uscite per categoria
-    (function(){
-        try {
-            const stats = {{ stats_categorie|tojson }} || [];
-            const canvas = document.getElementById('uscitePieChart');
-            const noDataEl = document.getElementById('uscitePieNoData');
-            if (!canvas) return;
-
-            if (!stats || stats.length === 0) {
-                if (noDataEl) noDataEl.style.display = 'block';
-                canvas.style.display = 'none';
-                return;
-            }
-
-            if (noDataEl) noDataEl.style.display = 'none';
-            canvas.style.display = 'block';
-
-            const labels = stats.map(s => s.categoria_nome || 'Categoria');
-            const data = stats.map(s => Math.abs(Number(s.importo) || 0));
-
-            const palette = ['#3366CC','#DC3912','#FF9900','#109618','#990099','#0099C6','#DD4477','#66AA00','#B82E2E','#316395'];
-            const bg = labels.map((_,i) => palette[i % palette.length]);
-
-            const ctx = canvas.getContext('2d');
-            // Destroy existing chart instance if any (avoid duplicates when Turbolinks-like navigation used)
-            if (canvas.__chart_instance) {
-                try { canvas.__chart_instance.destroy(); } catch(e){}
-                canvas.__chart_instance = null;
-            }
-
-            const chart = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: bg
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        datalabels: {
-                            formatter: (value, ctx) => {
-                                const sum = ctx.chart.data.datasets[0].data.reduce((a,b) => a + b, 0);
-                                return sum ? (value / sum * 100).toFixed(1) + '%' : '';
-                            },
-                            color: '#ffffff'
-                        }
-                    }
-                }
-            });
-            canvas.__chart_instance = chart;
-        } catch (e) {
-            // Non rompere la pagina se qualcosa va storto
-            console && console.error && console.error('Errore inizializzazione grafico uscite:', e);
-        }
-    })();
 </script>
+<script src="{{ url_for('static', filename='js/dettaglio_mese.js') }}"></script>
+<script>document.addEventListener('DOMContentLoaded', function(){ try{ initDettaglio(DETTAGLIO_CONFIG); }catch(e){console && console.error && console.error('initDettaglio error', e);} });</script>
 {% endblock %}
