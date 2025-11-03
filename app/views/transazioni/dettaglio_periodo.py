@@ -220,7 +220,8 @@ def aggiungi_transazione_periodo(start_date, end_date):
 		# If this is an AJAX request, return JSON with the created transaction
 		if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
 			tx = Transazioni.query.get(transazioni.id)
-			return jsonify({'status': 'ok', 'transazioni': {
+			# Return singular key 'transazione' to match client-side expectation
+			return jsonify({'status': 'ok', 'transazione': {
 				'id': tx.id,
 				'data': tx.data.strftime('%Y-%m-%d') if tx.data else None,
 				'descrizione': tx.descrizione,
@@ -288,13 +289,14 @@ def modifica_monthly_budget(start_date, end_date):
 
 		nuovo_importo = float(importo_raw or 0.0)
 
-		# compute year/month from start_date
+		# compute year/month from end_date (the period is e.g. 27/10 - 26/11 and
+		# budgets should belong to the month that includes the period end)
 		from datetime import datetime
-		sd = datetime.strptime(start_date, '%Y-%m-%d').date()
-		year = sd.year
-		month = sd.month
+		ed = datetime.strptime(end_date, '%Y-%m-%d').date()
+		year = ed.year
+		month = ed.month
 
-	# find or create BudgetMensili
+		# find or create BudgetMensili
 		mb = BudgetMensili.query.filter_by(categoria_id=categoria_id, year=year, month=month).first()
 		if not mb:
 			mb = BudgetMensili(categoria_id=categoria_id, year=year, month=month, importo=nuovo_importo)
@@ -303,8 +305,10 @@ def modifica_monthly_budget(start_date, end_date):
 			mb.importo = nuovo_importo
 
 		# Try to find an existing 'budget' transazioni for this category/month
+		# Use the month derived from end_date (ed) so periods that span month
+		# boundaries are attributed to the intended month.
 		from app.services import get_month_boundaries
-		start_dt, end_dt = get_month_boundaries(sd)
+		start_dt, end_dt = get_month_boundaries(ed)
 
 		# Try to find an existing transazioni for this category/month (prefer non-recurring)
 		tx = Transazioni.query.filter(

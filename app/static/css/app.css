@@ -171,29 +171,6 @@ a.text-decoration-none:active {
 /* Center all table header labels by default */
 .table thead th { text-align: center; vertical-align: middle; }
 
-/* PayPal and PostePay tables: description left-aligned, all other columns centered */
-#table-piani-in-corso th:first-child,
-#table-piani-completati th:first-child,
-#table-piani-in-corso td:first-child,
-#table-piani-completati td:first-child,
-#table-abbonamenti th:first-child,
-#table-movimenti-recenti th:first-child,
-#table-abbonamenti td:first-child,
-#table-movimenti-recenti td:first-child {
-    text-align: left !important;
-}
-#table-piani-in-corso th:not(:first-child),
-#table-piani-completati th:not(:first-child),
-#table-piani-in-corso td:not(:first-child),
-#table-piani-completati td:not(:first-child),
-#table-abbonamenti th:not(:first-child),
-#table-movimenti-recenti th:not(:first-child),
-#table-abbonamenti td:not(:first-child),
-#table-movimenti-recenti td:not(:first-child) {
-    text-align: center !important;
-    vertical-align: middle !important;
-}
-
 /* Hide native number input spin buttons for elements that should not show them
    Use the class .no-spinner on the input to target budget numeric inputs only. */
 .no-spinner::-webkit-outer-spin-button,
@@ -252,3 +229,16 @@ a.text-decoration-none:active {
     vertical-align: middle;
 }
 .inline-edit-form { -webkit-font-smoothing: antialiased; }
+
+/* Fix striping for ricorrenti table.
+   JS will add .row-odd or .row-even classes to visible rows. */
+#table-ricorrenti tbody tr.row-odd {
+    --bs-table-accent-bg: var(--bs-table-striped-bg);
+    background-color: var(--bs-table-striped-bg, rgba(0,0,0,0.05));
+}
+#table-ricorrenti tbody tr.row-even {
+    --bs-table-accent-bg: transparent;
+    background-color: transparent;
+}
+
+

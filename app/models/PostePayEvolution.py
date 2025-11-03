@@ -81,3 +81,21 @@ class MovimentoPostePay(db.Model):
     
     def __repr__(self):
         return f'<MovimentoPostePay {self.descrizione}: {self.importo}>'
+
+
+class DeletedGeneration(db.Model):
+    """Tombstone for automatically generated movements that were manually deleted.
+
+    This prevents the auto-generation logic from immediately recreating a
+    movement for the same abbonamento in the same month/year.
+    """
+    __tablename__ = 'ppay_deleted_generations'
+
+    id = db.Column(db.Integer, primary_key=True)
+    abbonamento_id = db.Column(db.Integer, nullable=False)
+    year = db.Column(db.Integer, nullable=False)
+    month = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<DeletedGeneration abbonamento={self.abbonamento_id} {self.month}/{self.year}>'

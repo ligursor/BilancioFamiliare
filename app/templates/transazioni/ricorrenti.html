@@ -3,9 +3,9 @@
 {% block title %}Transazioni Ricorrenti - Gestione Bilancio Familiare{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-4 page-ricorrenti">
     <!-- Statistiche -->
-    <div class="alert alert-danger d-flex align-items-center mb-4">
+    <div class="alert alert-danger alert-permanent d-flex align-items-center mb-4">
         <i class="fas fa-arrow-down fa-2x me-3"></i>
         <div class="flex-grow-1">
             <strong>Uscite Ricorrenti:</strong> {{ stats.num_uscite|default(0) }} transazioni
@@ -94,116 +94,130 @@
         <div class="card-body">
             {% if ricorrenti and ricorrenti|length > 0 %}
             <div class="table-responsive">
-                <table class="table table-striped">
+                <!-- Hidden edit box shown above the table (matches behavior used in other pages) -->
+                <div id="editFormContainer" style="display:none;" class="card mb-3">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="fas fa-edit me-2"></i>Modifica Transazione Ricorrente</h6>
+                        <button type="button" class="btn btn-sm btn-link" onclick="closeEditForm()">Chiudi</button>
+                    </div>
+                    <div class="card-body">
+                        <form id="editForm" action="{{ url_for('ricorrenti.modifica', ricorrente_id=0) }}" method="POST">
+                            <input type="hidden" name="ricorrente_id" id="edit_id" value="">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Descrizione *</label>
+                                    <input type="text" class="form-control" name="descrizione" id="edit_descrizione" required>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Importo (€) *</label>
+                                    <input type="number" step="0.01" class="form-control" name="importo" id="edit_importo" required>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Tipo *</label>
+                                    <select class="form-select" name="tipo" id="edit_tipo" required>
+                                        <option value="uscita">Uscita</option>
+                                        <option value="entrata">Entrata</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-2 mb-3">
+                                    <label class="form-label">Giorno *</label>
+                                    <input type="number" class="form-control" name="giorno" id="edit_giorno" min="1" max="31" required>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Categoria</label>
+                                    <select class="form-select" name="categoria_id" id="edit_categoria_id">
+                                        <option value="">Nessuna</option>
+                                        {% for categoria in categorie %}
+                                        <option value="{{ categoria.id }}">{{ categoria.nome }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">Cadenza</label>
+                                    <select class="form-select" name="cadenza" id="edit_cadenza">
+                                        <option value="mensile">Mensile</option>
+                                        <option value="annuale">Annuale</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <div class="form-check mt-4">
+                                        <input class="form-check-input" type="checkbox" id="edit_skip_month_if_annual" name="skip_month_if_annual">
+                                        <label class="form-check-label">Salta se annuale</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end">
+                                <button type="button" class="btn btn-secondary me-2" onclick="closeEditForm()">Annulla</button>
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Salva Modifiche</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <table id="table-ricorrenti" class="table table-striped" data-page-size="5" tabindex="-1">
                     <thead>
                         <tr>
                             <th class="text-start">Descrizione</th>
-                            <th class="text-center">Categoria</th>
-                            <th class="text-center">Tipo</th>
-                            <th class="text-center">Importo</th>
+                            <th class="text-start">Categoria</th>
                             <th class="text-center">Giorno</th>
                             <th class="text-center">Cadenza</th>
+                            <th class="text-center">Tipo</th>
+                            <th class="text-center">Importo</th>
                             <th class="text-center">Azioni</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for ricorrente in ricorrenti %}
                         <tr>
-                            <td class="text-start">{{ ricorrente.descrizione }}</td>
-                            <td class="text-center">
+                            <td>
+                                <strong>{{ ricorrente.descrizione }}</strong>
+                            </td>
+                            <td>
                                 {% if ricorrente.categoria %}
-                                <span class="badge {% if ricorrente.categoria.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
                                     {{ ricorrente.categoria.nome }}
-                                </span>
                                 {% else %}
-                                <span class="text-muted">-</span>
+                                    <span class="text-muted">-</span>
                                 {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if ricorrente.giorno %}{{ ricorrente.giorno }}{% else %}<span class="text-muted">-</span>{% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if ricorrente.cadenza %}{{ ricorrente.cadenza|title }}{% else %}<span class="text-muted">-</span>{% endif %}
                             </td>
                             <td class="text-center">
                                 <span class="badge {% if ricorrente.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
                                     {{ ricorrente.tipo|title }}
                                 </span>
                             </td>
-                            <td class="text-center text-danger">
-                                <strong>{% if ricorrente.tipo == 'entrata' %}+{% else %}-{% endif %}€{{ "%.2f"|format(ricorrente.importo) }}</strong>
+                            <td class="text-center {% if ricorrente.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
+                                <strong>{% if ricorrente.tipo == 'entrata' %}+{% else %}-{% endif %}{{ "%.2f"|format(ricorrente.importo) }}</strong>
                             </td>
-                            <td class="text-center">{{ ricorrente.giorno }}</td>
-                            <td class="text-center">{{ ricorrente.cadenza|title if ricorrente.cadenza else 'Mensile' }}</td>
-                            <td class="text-center align-middle">
+                                <td class="text-center align-middle">
                                 <div class="btn-group btn-group-sm" role="group">
                                     <button type="button" class="btn btn-outline-primary" 
-                                            onclick="toggleFormModifica({{ ricorrente.id }})" 
-                                            title="Modifica">
+                                            onclick="openEditForm(this)" 
+                                            title="Modifica"
+                                            data-id="{{ ricorrente.id }}"
+                                            data-descrizione="{{ ricorrente.descrizione|e }}"
+                                            data-importo="{{ '%.2f'|format(ricorrente.importo) }}"
+                                            data-tipo="{{ ricorrente.tipo }}"
+                                            data-giorno="{{ ricorrente.giorno }}"
+                                            data-categoria-id="{{ ricorrente.categoria_id or '' }}"
+                                            data-cadenza="{{ ricorrente.cadenza }}"
+                                            data-skip="{{ '1' if ricorrente.skip_month_if_annual else '0' }}"
+                                            >
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button type="button" class="btn btn-outline-danger" 
-                                            onclick="confermaEliminazione({{ ricorrente.id }}, '{{ ricorrente.descrizione|replace("'", "\\'") }}')" 
-                                            title="Elimina">
+                    <button type="button" class="btn btn-outline-danger" 
+                        onclick="confermaEliminazioneFromBtn(this)" 
+                        data-id="{{ ricorrente.id }}"
+                        data-descrizione="{{ ricorrente.descrizione|e }}"
+                        title="Elimina">
                                         <i class="fas fa-trash"></i>
                                     </button>
-                                </div>
-                            </td>
-                        </tr>
-                        <!-- Form Modifica (nascosto di default) -->
-                        <tr id="formModifica{{ ricorrente.id }}" style="display: none;">
-                            <td colspan="7" class="p-0">
-                                <div class="card border-0">
-                                    <div class="card-header bg-light">
-                                        <h6 class="mb-0"><i class="fas fa-edit me-2"></i>Modifica Transazione Ricorrente</h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <form action="{{ url_for('ricorrenti.modifica', ricorrente_id=ricorrente.id) }}" method="POST">
-                                            <div class="row">
-                                                <div class="col-md-6 mb-3">
-                                                    <label class="form-label">Descrizione *</label>
-                                                    <input type="text" class="form-control" name="descrizione" value="{{ ricorrente.descrizione }}" required>
-                                                </div>
-                                                <div class="col-md-3 mb-3">
-                                                    <label class="form-label">Importo (€) *</label>
-                                                    <input type="number" step="0.01" class="form-control" name="importo" value="{{ ricorrente.importo }}" required>
-                                                </div>
-                                                <div class="col-md-3 mb-3">
-                                                    <label class="form-label">Tipo *</label>
-                                                    <select class="form-select" name="tipo" required>
-                                                        <option value="uscita" {% if ricorrente.tipo == 'uscita' %}selected{% endif %}>Uscita</option>
-                                                        <option value="entrata" {% if ricorrente.tipo == 'entrata' %}selected{% endif %}>Entrata</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-2 mb-3">
-                                                    <label class="form-label">Giorno *</label>
-                                                    <input type="number" class="form-control" name="giorno" min="1" max="31" value="{{ ricorrente.giorno }}" required>
-                                                </div>
-                                                <div class="col-md-4 mb-3">
-                                                    <label class="form-label">Categoria</label>
-                                                    <select class="form-select" name="categoria_id">
-                                                        <option value="">Nessuna</option>
-                                                        {% for categoria in categorie %}
-                                                        <option value="{{ categoria.id }}" {% if ricorrente.categoria_id == categoria.id %}selected{% endif %}>{{ categoria.nome }}</option>
-                                                        {% endfor %}
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-3 mb-3">
-                                                    <label class="form-label">Cadenza</label>
-                                                    <select class="form-select" name="cadenza">
-                                                        <option value="mensile" {% if ricorrente.cadenza == 'mensile' %}selected{% endif %}>Mensile</option>
-                                                        <option value="annuale" {% if ricorrente.cadenza == 'annuale' %}selected{% endif %}>Annuale</option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-3 mb-3">
-                                                    <div class="form-check mt-4">
-                                                        <input class="form-check-input" type="checkbox" name="skip_month_if_annual" {% if ricorrente.skip_month_if_annual %}checked{% endif %}>
-                                                        <label class="form-check-label">Salta se annuale</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="d-flex justify-content-end">
-                                                <button type="button" class="btn btn-secondary me-2" onclick="toggleFormModifica({{ ricorrente.id }})">Annulla</button>
-                                                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Salva Modifiche</button>
-                                            </div>
-                                        </form>
-                                    </div>
                                 </div>
                             </td>
                         </tr>
@@ -237,20 +251,33 @@
         }
     }
 
-    function toggleFormModifica(id) {
-        const form = document.getElementById('formModifica' + id);
-        if (form.style.display === 'none') {
-            // Nascondi tutti gli altri form di modifica
-            document.querySelectorAll('[id^="formModifica"]').forEach(f => {
-                if (f.id !== 'formModifica' + id) {
-                    f.style.display = 'none';
-                }
-            });
-            form.style.display = 'table-row';
-            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else {
-            form.style.display = 'none';
-        }
+    function openEditForm(btn) {
+        // btn is the edit button inside the row; read data attributes
+        const data = btn.dataset;
+        const container = document.getElementById('editFormContainer');
+        const form = document.getElementById('editForm');
+        if (!container || !form) return;
+        const id = data.id || '';
+        document.getElementById('edit_id').value = id;
+        document.getElementById('edit_descrizione').value = data.descrizione || '';
+        document.getElementById('edit_importo').value = data.importo || '';
+        document.getElementById('edit_tipo').value = data.tipo || 'uscita';
+    document.getElementById('edit_giorno').value = data.giorno || '';
+    // dataset properties like categoriaId are undefined when not present; handle explicitly
+    const categoriaVal = (typeof data.categoriaId !== 'undefined') ? data.categoriaId : '';
+    document.getElementById('edit_categoria_id').value = categoriaVal;
+        document.getElementById('edit_cadenza').value = data.cadenza || 'mensile';
+        document.getElementById('edit_skip_month_if_annual').checked = data.skip === '1';
+    // set form action replacing placeholder 0 with actual id
+    // use the route template so we always build a relative path (avoid absolute origins)
+    form.action = '{{ url_for("ricorrenti.modifica", ricorrente_id=0) }}'.replace('0', id);
+        container.style.display = 'block';
+        container.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function closeEditForm() {
+        const container = document.getElementById('editFormContainer');
+        if (container) container.style.display = 'none';
     }
 
     function confermaEliminazione(id, descrizione) {
@@ -260,5 +287,63 @@
             form.submit();
         }
     }
+
+    function confermaEliminazioneFromBtn(btn) {
+        const id = btn.dataset.id;
+        const descrizione = btn.dataset.descrizione || '';
+        confermaEliminazione(id, descrizione);
+    }
+
+    // Apply striping to visible rows only (exclude hidden edit forms)
+    function applyStriping() {
+        const table = document.getElementById('table-ricorrenti');
+        if (!table) return;
+        const visibleRows = Array.from(table.querySelectorAll('tbody tr:not([id^="formModifica"])'));
+        visibleRows.forEach((row, index) => {
+            row.classList.remove('row-odd', 'row-even');
+            row.classList.add(index % 2 === 0 ? 'row-odd' : 'row-even');
+        });
+    }
+    // Apply on page load
+    document.addEventListener('DOMContentLoaded', applyStriping);
+
+    // Safety check: ensure edit form action uses the current origin / a relative path
+    (function(){
+        const editForm = document.getElementById('editForm');
+        if(editForm){
+            editForm.addEventListener('submit', function(e){
+                try{
+                    // Resolve action against current location then normalize to pathname
+                    const actionAttr = this.getAttribute('action') || '';
+                    const resolved = new URL(actionAttr, location.href);
+                    if(resolved.origin !== location.origin){
+                        console.warn('editForm action origin differs from page origin — rewriting to relative path', resolved.href);
+                    }
+                    // Always use pathname (relative) so the browser posts to the same host/port
+                    this.action = resolved.pathname;
+                }catch(err){
+                    // If URL parsing fails, allow form to submit as-is but log
+                    console.warn('Could not normalize editForm action', err);
+                }
+            });
+        }
+
+        // Also normalize the delete form action (if someone sets an absolute URL)
+        const delForm = document.getElementById('formElimina');
+        if(delForm){
+            delForm.addEventListener('submit', function(e){
+                try{
+                    const actionAttr = this.getAttribute('action') || '';
+                    const resolved = new URL(actionAttr, location.href);
+                    if(resolved.origin !== location.origin){
+                        console.warn('formElimina action origin differs from page origin — rewriting to relative path', resolved.href);
+                    }
+                    this.action = resolved.pathname;
+                }catch(err){
+                    console.warn('Could not normalize formElimina action', err);
+                }
+            });
+        }
+    })();
 </script>
 {% endblock %}

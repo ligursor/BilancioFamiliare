@@ -80,11 +80,10 @@ function modificaTransazioneAttr(btn) {
             fetch(`/dettaglio/${startDate}/${endDate}/modifica_transazione/${id}`, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(function(response){ if (!response.ok) throw new Error('Errore server'); return response.text(); })
             .then(function(){
-                const val = parseFloat(input.value) || 0; const formatted = val.toFixed(2);
-                const isEntrata = amountCell.classList.contains('text-success');
-                const sign = isEntrata ? '+' : '-';
-                amountCell.innerHTML = (isEntrata ? '<span class="text-success">' : '<span class="text-danger">') + sign + '€ ' + formatted + '</span>';
-                try { btn.setAttribute('data-importo', String(val)); btn.style.display = ''; } catch(e){}
+                // Reload the page so the budget summary/cards are recalculated on the server
+                // and displayed consistently. This avoids partial client-side updates
+                // that would leave the budget boxes stale.
+                window.location.reload();
             }).catch(function(err){ console.error('Errore salvataggio inline:', err); alert('Errore nel salvataggio. Riprova.'); amountCell.innerHTML = originalHtml; try { btn.style.display = ''; } catch(e) {} })
             .finally(function(){ saveBtn.disabled = false; cancelBtn.disabled = false; });
         });
@@ -686,32 +685,8 @@ function modificaMonthlyBudget(btn) {
                 .then(function(resp){ if (!resp.ok) throw new Error('Errore server'); return resp.json(); })
                 .then(function(json){
                     if (!json || json.status !== 'ok') throw new Error('Errore creazione transazione');
-                    var tx = json.transazione;
-                    // build table row and prepend
-                    try {
-                        var tbody = document.querySelector('#tabella-transazioni table tbody');
-                        if (tbody) {
-                            var tr = document.createElement('tr');
-                            var descr = document.createElement('td'); descr.className='text-start'; descr.textContent = tx.descrizione || '';
-                            var dataTd = document.createElement('td'); dataTd.className='text-center';
-                            var dparts = (tx.data || '').split('-'); dataTd.textContent = dparts.length===3 ? (dparts[2]+'/'+dparts[1]+'/'+dparts[0]) : tx.data;
-                            var catTd = document.createElement('td'); catTd.className='text-center';
-                            var badge = document.createElement('span'); badge.className = 'badge ' + ((tx.tipo==='entrata') ? 'bg-success' : 'bg-danger'); badge.textContent = tx.categoria_nome || '';
-                            catTd.appendChild(badge);
-                            var tipoTd = document.createElement('td'); tipoTd.className='text-center'; tipoTd.innerHTML = tx.tipo==='entrata' ? '<span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>' : '<span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>';
-                            var importoTd = document.createElement('td'); importoTd.className='text-center ' + (tx.tipo==='entrata' ? 'text-success' : 'text-danger'); importoTd.textContent = (tx.tipo==='entrata'?'+':'-') + '€ ' + Number(tx.importo||0).toFixed(2);
-                            var actionsTd = document.createElement('td'); actionsTd.className='text-center';
-                            actionsTd.innerHTML = `<div class="btn-group btn-group-sm" role="group">`+
-                                `<button class="btn btn-outline-primary btn-sm" title="Modifica transazione" data-id="${tx.id}" data-descrizione='${JSON.stringify(tx.descrizione||'')}' data-importo="${tx.importo}" data-data='${JSON.stringify(tx.data||'')}' data-categoria="${tx.categoria_id}" data-action="modifica-transazione-attr"><i class="fas fa-edit"></i><span class="visually-hidden">Modifica transazione</span></button>`+
-                                `<form method="POST" action="/dettaglio/${startDate}/${endDate}/elimina_transazione/${tx.id}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?"><button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina transazione" aria-label="Elimina transazione"><i class="fas fa-trash"></i><span class="visually-hidden">Elimina transazione</span></button></form>`+
-                                `</div>`;
-                            tr.appendChild(descr); tr.appendChild(dataTd); tr.appendChild(catTd); tr.appendChild(tipoTd); tr.appendChild(importoTd); tr.appendChild(actionsTd);
-                            if (tbody.firstChild) tbody.insertBefore(tr, tbody.firstChild); else tbody.appendChild(tr);
-                        }
-                    } catch(e) { /* ignore DOM insertion errors */ }
-                    // hide form and clear
-                    document.getElementById('inline-add-transaction').style.display='none';
-                    inlineForm.reset();
+                    // On success reload the page so summary cards are updated and the DOM reflects authoritative state
+                    window.location.reload();
                 }).catch(function(err){ console.error('Errore aggiunta transazione inline', err); alert('Errore durante l\'inserimento. Riprova.'); });
             });
             document.getElementById('inline_add_cancel').addEventListener('click', function(){ document.getElementById('inline-add-transaction').style.display='none'; });

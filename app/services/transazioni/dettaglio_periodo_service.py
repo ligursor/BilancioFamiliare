@@ -239,11 +239,14 @@ class DettaglioPeriodoService:
 
                 # Recupera o crea il BudgetMensili per il mese richiesto
                 try:
-                    mb = BudgetMensili.query.filter_by(categoria_id=cat_id, year=start_date.year, month=start_date.month).first()
+                    # Use end_date to determine the target month for monthly budgets.
+                    # For period views that span month boundaries (e.g. 27/10 - 26/11)
+                    # budgets should belong to the month containing the period end.
+                    mb = BudgetMensili.query.filter_by(categoria_id=cat_id, year=end_date.year, month=end_date.month).first()
                     if not mb:
                         # Usa il default dal Budget
                         iniziale_month = float(b.importo or 0.0)
-                        mb = BudgetMensili(categoria_id=cat_id, year=start_date.year, month=start_date.month, importo=iniziale_month)
+                        mb = BudgetMensili(categoria_id=cat_id, year=end_date.year, month=end_date.month, importo=iniziale_month)
                         db.session.add(mb)
                         db.session.commit()
                         # Audit: creazione automatica mensile

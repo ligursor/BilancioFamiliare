@@ -276,7 +276,7 @@ bbonamento" aria-label="Elimina abbonamento">                                   
                                                 data-movimento-importo="{{ '%.2f'|format(movimento.importo|abs) }}"
                                                 data-movimento-tipo_movimento="{{ movimento.tipo }}"
                                         ><i class="fas fa-edit"></i></button>
-                                        <form method="POST" action="{{ url_for('ppay.elimina_movimento', movimento_id=movimento.id) }}" class="form-delete-movimento" style="display:inline;" onsubmit="return confirm('Sei sicuro di eliminare questo movimento?')">
+                                        <form method="POST" action="{{ url_for('ppay.elimina_movimento', movimento_id=movimento.id) }}" class="form-delete-movimento" style="display:inline;">
                                             <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina movimento" aria-label="Elimina movimento">
                                                 <i class="fas fa-trash" aria-hidden="true"></i>
                                                 <span class="visually-hidden">Elimina movimento</span>
@@ -776,6 +776,13 @@ document.addEventListener('DOMContentLoaded', function(){
     const isAjaxFragment = form.classList.contains('ajax-fragment');
     if (!isMov && !isAbb && !isDeleteMov && !isAjaxFragment) return;
 
+        // confirm deletion for delete forms (delegate instead of relying on inline onsubmit)
+        if (isDeleteMov) {
+            if (!confirm('Sei sicuro di eliminare questo movimento?')) {
+                return; // user cancelled
+            }
+        }
+
         // prevent double submission
         if (form.dataset.submitting === '1') {
             e.preventDefault();
@@ -791,13 +798,36 @@ document.addEventListener('DOMContentLoaded', function(){
         const submitButtons = form.querySelectorAll('button[type="submit"], input[type="submit"]');
         submitButtons.forEach(btn => { btn.disabled = true; });
 
-        const action = form.getAttribute('action') || window.location.href;
+        // Normalize action to current origin (avoid wrong host:port) and
+        // surface server error body for easier debugging.
+        let action = form.getAttribute('action') || window.location.href;
+        try {
+            const urlObj = new URL(action, window.location.href);
+            action = urlObj.pathname + urlObj.search;
+        } catch (err) {
+            // ignore: keep original action if URL parsing fails
+        }
+
         const fd = new FormData(form);
 
         fetch(action, {method: 'POST', body: fd})
-        .then(res => {
-            if (!res.ok) throw new Error('server');
-            return fetch(window.location.href);
+        .then(async res => {
+            if (!res.ok) {
+                // try to get response text to show useful error
+                const txt = await res.text().catch(() => '<no-response-body>');
+                console.error('Form submit failed', {status: res.status, body: txt, action});
+                alert('Errore server durante l\'operazione: ' + res.status + '\n' + txt);
+                throw new Error('server');
+            }
+            // Use the final response URL (may include server redirect params such as skip_auto)
+            try {
+                if (res.url && res.url !== window.location.href) {
+                    window.location.href = res.url;
+                    return;
+                }
+            } catch (e) { /* ignore */ }
+            // fallback to full page reload
+            window.location.reload();
         })
         .then(r => r.text())
         .then(html => {

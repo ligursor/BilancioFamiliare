@@ -44,72 +44,82 @@ def evolution():
             postepay = SimpleNamespace(saldo_attuale=0.0)
         abbonamenti = AbbonamentoPostePay.query.order_by(AbbonamentoPostePay.nome).all()
         movimenti = MovimentoPostePay.query.order_by(MovimentoPostePay.data.desc()).limit(10).all()
-        
+
         # Calcola statistiche
         abbonamenti_attivi = [a for a in abbonamenti if a.attivo]
         spesa_mensile = sum(a.importo for a in abbonamenti_attivi)
-        
+
+        # Optionally skip auto-generation (used when redirecting after a manual delete)
+        skip_auto = request.args.get('skip_auto')
+
         # --- Generazione automatica movimenti per abbonamenti scaduti oggi ---
-        # Per ogni abbonamento attivo, se il prossimo addebito cade oggi e
-        # non esiste ancora un movimento associato a quell'abbonamento per il
-        # mese corrente, creiamo automaticamente il movimento e aggiorniamo il saldo.
-        try:
-            oggi = date.today()
-            first_of_month = date(oggi.year, oggi.month, 1)
-            ultimo_giorno = calendar.monthrange(oggi.year, oggi.month)[1]
-            last_of_month = date(oggi.year, oggi.month, ultimo_giorno)
-
-            for abbonamento in abbonamenti_attivi:
-                # Calcola la data di addebito per il mese corrente (gestendo
-                # mesi con meno giorni del giorno_addebito impostato)
-                try:
-                    giorno_addebito = int(abbonamento.giorno_addebito)
-                except Exception:
-                    # Se non è valido, salta
-                    continue
-
-                giorno_per_mese = min(giorno_addebito, ultimo_giorno)
-                addebito_this_month = date(oggi.year, oggi.month, giorno_per_mese)
-
-                # Se l'addebito di questo mese è già passato (<= oggi) e non
-                # esiste ancora un movimento per questo abbonamento nel mese,
-                # creiamo comunque il movimento e aggiorniamo il saldo
-                if addebito_this_month <= oggi:
-                    esistente = MovimentoPostePay.query.filter(
-                        MovimentoPostePay.abbonamento_id == abbonamento.id,
-                        MovimentoPostePay.data >= first_of_month,
-                        MovimentoPostePay.data <= last_of_month
-                    ).first()
-
-                    if not esistente:
-                        # Crea il movimento (importo negativo per uscita).
-                        # Usare la data programmata dell'addebito per la
-                        # tracciatura, così il movimento riflette il mese
-                        # corretto anche se l'utente visita in ritardo.
-                        # Descrizione: nome abbonamento + mese/anno; tipo: Pagamento
-                        mov = MovimentoPostePay(
-                            data=addebito_this_month,
-                            descrizione=f"{abbonamento.nome} {addebito_this_month.strftime('%m/%Y')}",
-                            importo=-abs(abbonamento.importo),
-                            tipo='Abbonamento',
-                            abbonamento_id=abbonamento.id
-                        )
-                        db.session.add(mov)
-                        db.session.commit()
-                        # update strumento balance
-                        try:
-                            strum = ss.get_by_descrizione('Postepay Evolution')
-                            if strum:
-                                new_bal = (strum.saldo_corrente or 0.0) + mov.importo
-                                ss.update_saldo_by_id(strum.id_conto, new_bal)
-                        except Exception:
-                            pass
-        except Exception:
-            # Non vogliamo rompere la visualizzazione se la generazione automatica fallisce
+        if not skip_auto:
             try:
-                db.session.rollback()
+                oggi = date.today()
+                first_of_month = date(oggi.year, oggi.month, 1)
+                ultimo_giorno = calendar.monthrange(oggi.year, oggi.month)[1]
+                last_of_month = date(oggi.year, oggi.month, ultimo_giorno)
+
+                for abbonamento in abbonamenti_attivi:
+                    # Calcola la data di addebito per il mese corrente (gestendo
+                    # mesi con meno giorni del giorno_addebito impostato)
+                    try:
+                        giorno_addebito = int(abbonamento.giorno_addebito)
+                    except Exception:
+                        # Se non è valido, salta
+                        continue
+
+                    giorno_per_mese = min(giorno_addebito, ultimo_giorno)
+                    addebito_this_month = date(oggi.year, oggi.month, giorno_per_mese)
+
+                    # Se l'addebito di questo mese è già passato (<= oggi) e non
+                    # esiste ancora un movimento per questo abbonamento nel mese,
+                    # creiamo comunque il movimento e aggiorniamo il saldo
+                    if addebito_this_month <= oggi:
+                        esistente = MovimentoPostePay.query.filter(
+                            MovimentoPostePay.abbonamento_id == abbonamento.id,
+                            MovimentoPostePay.data >= first_of_month,
+                            MovimentoPostePay.data <= last_of_month
+                        ).first()
+
+                        if not esistente:
+                            # Also check deleted-generation tombstones to avoid recreating recently-deleted auto-generated movements
+                            try:
+                                from app.models.PostePayEvolution import DeletedGeneration
+                                tomb = DeletedGeneration.query.filter_by(abbonamento_id=abbonamento.id, year=addebito_this_month.year, month=addebito_this_month.month).first()
+                                if tomb:
+                                    continue
+                            except Exception:
+                                # If tombstone check fails for any reason, fall back to previous behavior
+                                pass
+                            # Crea il movimento (importo negativo per uscita).
+                            # Usare la data programmata dell'addebito per la
+                            # tracciatura, così il movimento riflette il mese
+                            # corretto anche se l'utente visita in ritardo.
+                            # Descrizione: nome abbonamento + mese/anno; tipo: Pagamento
+                            mov = MovimentoPostePay(
+                                data=addebito_this_month,
+                                descrizione=f"{abbonamento.nome} {addebito_this_month.strftime('%m/%Y')}",
+                                importo=-abs(abbonamento.importo),
+                                tipo='Abbonamento',
+                                abbonamento_id=abbonamento.id
+                            )
+                            db.session.add(mov)
+                            db.session.commit()
+                            # update strumento balance
+                            try:
+                                strum = ss.get_by_descrizione('Postepay Evolution')
+                                if strum:
+                                    new_bal = (strum.saldo_corrente or 0.0) + mov.importo
+                                    ss.update_saldo_by_id(strum.id_conto, new_bal)
+                            except Exception:
+                                pass
             except Exception:
-                pass
+                # Non vogliamo rompere la visualizzazione se la generazione automatica fallisce
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
 
         # Prossimi addebiti (entro 30 giorni)
         oggi = date.today()
@@ -225,7 +235,8 @@ def ricarica():
         flash(f'Errore nell\'aggiunta ricarica: {str(e)}', 'error')
         db.session.rollback()
     
-    return redirect(url_for('ppay.evolution'))
+    # Redirect to evolution but skip automatic generation to avoid immediately recreating generated movements
+    return redirect(url_for('ppay.evolution', skip_auto=1))
 
 @ppay_bp.route('/spesa', methods=['POST'])
 def spesa():
@@ -336,9 +347,26 @@ def elimina_movimento(movimento_id):
     """Elimina un movimento PostePay e aggiorna il saldo"""
     try:
         movimento = MovimentoPostePay.query.get_or_404(movimento_id)
+        from flask import current_app
+        current_app.logger.info(f"elimina_movimento called for id={movimento_id} -> movimento={movimento}")
         importo = movimento.importo
 
         # Elimina il movimento
+        # If this movement was auto-generated (has abbonamento_id), create a tombstone
+        # for the same abbonamento/month/year so auto-generation won't recreate it.
+        if movimento.abbonamento_id:
+            try:
+                from app.models.PostePayEvolution import DeletedGeneration
+                y = movimento.data.year
+                m = movimento.data.month
+                exists = DeletedGeneration.query.filter_by(abbonamento_id=movimento.abbonamento_id, year=y, month=m).first()
+                if not exists:
+                    tomb = DeletedGeneration(abbonamento_id=movimento.abbonamento_id, year=y, month=m)
+                    db.session.add(tomb)
+            except Exception:
+                # if any issue occurs adding tombstone, continue with deletion
+                pass
+
         db.session.delete(movimento)
 
         # Aggiorna saldo nello strumento invertendo l'effetto del movimento
@@ -352,11 +380,19 @@ def elimina_movimento(movimento_id):
             pass
 
         db.session.commit()
+        current_app.logger.info(f"elimina_movimento id={movimento_id} committed successfully")
         flash('Movimento eliminato con successo!', 'success')
     except Exception as e:
+        # Log exception with traceback using Flask logger
+        from flask import current_app
+        current_app.logger.exception(f"Errore nell'eliminazione del movimento id={movimento_id}: {e}")
         flash(f'Errore nell\'eliminazione del movimento: {str(e)}', 'error')
-        db.session.rollback()
-    return redirect(url_for('ppay.evolution'))
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+    # Redirect to evolution but skip automatic generation to avoid immediately recreating generated movements
+    return redirect(url_for('ppay.evolution', skip_auto=1))
 
 @ppay_bp.route('/modifica_saldo', methods=['POST'])
 def modifica_saldo():
