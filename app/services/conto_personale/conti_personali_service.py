@@ -37,10 +37,11 @@ class ContiPersonaliService:
                 strum_id = None
 
             if not conto:
-                # se lo strumento non esiste, crealo con il valore di default preso dalla configurazione
-                # Usa un unico valore di default generico per tutti i conti personali.
-                default_iniziale = current_app.config.get('CONTO_PERSONALE_SALDO_INIZIALE',
-                                                           current_app.config.get('CONTO_PERSONALE_DEFAULT', 0.0))
+                # se lo strumento non esiste, crealo con valore iniziale 0.0.
+                # Il saldo reale è la fonte di verità nella tabella `conti_finanziari` (strumento)
+                # e può essere impostato/aggiornato da interfacce amministrative o tramite
+                # l'endpoint `aggiorna_saldo_iniziale` che aggiorna il record strumento.
+                default_iniziale = 0.0
 
                 try:
                     strum = ss.ensure_strumento(descr, 'conto_personale', default_iniziale)
