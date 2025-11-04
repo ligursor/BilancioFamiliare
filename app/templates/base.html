@@ -26,12 +26,13 @@
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarAltro">
                             <li><h6 class="dropdown-header">Conti Personali</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('conti.maurizio') }}">
-                                <i class="fas fa-user me-2"></i>Maurizio
+                            {% for conto in conti_personali %}
+                            <li><a class="dropdown-item" href="{{ url_for('conti.view', conto_id=conto.id) }}">
+                                <i class="fas fa-user me-2"></i>{{ conto.nome }}
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('conti.antonietta') }}">
-                                <i class="fas fa-user me-2"></i>Antonietta
-                            </a></li>
+                            {% else %}
+                            <li class="dropdown-item text-muted">Nessun conto personale</li>
+                            {% endfor %}
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">Servizi Finanziari</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('paypal.dashboard') }}">

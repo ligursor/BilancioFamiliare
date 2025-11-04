@@ -34,9 +34,9 @@ class Config:
     FORMATO_VALUTA = "€ {:.2f}"
     
     # Gestione Conti Personali (settembre 2025)
-    CONTO_MAURIZIO_SALDO_INIZIALE = 1000.00  # Saldo iniziale configurabile
-    CONTO_ANTONIETTA_SALDO_INIZIALE = 1000.00  # Saldo iniziale configurabile
-    CONTO_PERSONALE_FORMATO_VALUTA = "€ {:.2f}"  # Formato valuta per conti personali
+    # Valore di default usato per nuovi strumenti/conti personali quando non
+    # è specificato uno `saldo_iniziale` nel record `conti_finanziari`.
+    CONTO_PERSONALE_SALDO_INIZIALE = 1000.00
     
 # Mapping minimale: usa solamente la configurazione di default
 config = {

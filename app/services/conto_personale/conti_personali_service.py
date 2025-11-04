@@ -1,6 +1,6 @@
 """
-Service per la gestione dei conti personali di Maurizio e Antonietta
-Replica l'implementazione originale con i due conti fissi
+Service per la gestione dei conti personali.
+Implementazione generica che non dipende da nomi hardcoded (es. Maurizio/Antonietta).
 """
 from datetime import datetime, date
 from sqlalchemy import func, and_, desc
@@ -14,7 +14,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ContiPersonaliService:
-    """Service per i conti personali fissi (Maurizio e Antonietta)"""
+    """Service per i conti personali (generico)."""
     
     def __init__(self):
         pass
@@ -38,10 +38,9 @@ class ContiPersonaliService:
 
             if not conto:
                 # se lo strumento non esiste, crealo con il valore di default preso dalla configurazione
-                if nome_conto == 'Maurizio':
-                    default_iniziale = current_app.config.get('CONTO_MAURIZIO_SALDO_INIZIALE', 0.0)
-                else:  # Antonietta
-                    default_iniziale = current_app.config.get('CONTO_ANTONIETTA_SALDO_INIZIALE', 0.0)
+                # Usa un unico valore di default generico per tutti i conti personali.
+                default_iniziale = current_app.config.get('CONTO_PERSONALE_SALDO_INIZIALE',
+                                                           current_app.config.get('CONTO_PERSONALE_DEFAULT', 0.0))
 
                 try:
                     strum = ss.ensure_strumento(descr, 'conto_personale', default_iniziale)
@@ -260,20 +259,27 @@ class ContiPersonaliService:
             return False, f"Errore nell'aggiornamento: {str(e)}"
     
     def initialize_default_conti(self):
-        """Inizializza i conti predefiniti se non esistono"""
+        """Inizializza i conti esistenti nel DB assicurandosi che esista lo strumento associato.
+
+        Questa funzione scorre tutti i record di `ContoPersonale` e chiama
+        `inizializza_conto_personale` per ciascuno in modo da sincronizzare
+        gli strumenti associati senza dipendere da nomi specifici.
+        """
         try:
-            # Verifica e crea il conto di Maurizio
-            maurizio = self.inizializza_conto_personale('Maurizio')
-            
-            # Verifica e crea il conto di Antonietta
-            antonietta = self.inizializza_conto_personale('Antonietta')
-            
-            if maurizio and antonietta:
-                logger.info("Conti personali di Maurizio e Antonietta inizializzati")
-                return True
-            
-            return False
-            
+            from app.models.ContoPersonale import ContoPersonale
+            conti = db.session.query(ContoPersonale).all()
+            success = True
+            for c in conti:
+                res = self.inizializza_conto_personale(c.nome_conto)
+                if not res:
+                    success = False
+
+            if success:
+                logger.info("Conti personali inizializzati/sincronizzati")
+            else:
+                logger.warning("Alcuni conti personali non sono stati inizializzati correttamente")
+
+            return success
         except Exception as e:
             logger.exception(f"Errore nell'inizializzazione conti predefiniti: {e}")
             return False

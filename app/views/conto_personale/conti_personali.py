@@ -1,61 +1,85 @@
-"""
-Blueprint per la gestione dei conti personali di Maurizio e Antonietta
-Replica l'implementazione originale con i due conti fissi
+"""Blueprint per la gestione dei conti personali.
+
+Questa versione evita riferimenti a nomi specifici e usa identificatori
+dinamici (id o nome) per risalire al conto richiesto.
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from datetime import datetime, date
 from app.services.conto_personale.conti_personali_service import ContiPersonaliService
+from app import db
+from sqlalchemy import func
 
 conti_bp = Blueprint('conti', __name__)
 
+
 @conti_bp.route('/')
 def lista():
-    """Reindirizza alla lista - non più utilizzato, manteniamo per compatibilità"""
-    return redirect(url_for('conti.maurizio'))
-@conti_bp.route('/maurizio')
-def maurizio():
-    """Dashboard per il conto di Maurizio (replica dell'implementazione originale)"""
+    """Lista dei conti personali: se esiste almeno un conto reindirizza al primo, altrimenti mostra errore."""
     try:
-        service = ContiPersonaliService()
-        conto, versamenti = service.get_conto_data('Maurizio')
-        
-        if not conto:
-            flash('Errore nel caricamento conto di Maurizio', 'error')
+        from app.models.ContoPersonale import ContoPersonale
+        conti = ContoPersonale.query.order_by(ContoPersonale.id.asc()).all()
+        if not conti:
+            flash('Nessun conto personale configurato', 'warning')
             return redirect(url_for('main.index'))
-        
+        # redirect al primo conto per compatibilità
+        return redirect(url_for('conti.view', conto_id=conti[0].id))
+    except Exception as e:
+        flash(f'Errore nel caricamento conti personali: {e}', 'error')
+        return redirect(url_for('main.index'))
+
+
+@conti_bp.route('/<int:conto_id>')
+def view(conto_id):
+    """Visualizza il dashboard di un conto personale identificato dall'id.
+
+    Manteniamo la compatibilità con il service esistente che lavora con il nome
+    del conto, quindi recuperiamo il nome dal modello e invochiamo il service.
+    """
+    try:
+        from app.models.ContoPersonale import ContoPersonale
+        service = ContiPersonaliService()
+
+        conto = ContoPersonale.query.get(conto_id)
+        if not conto:
+            flash('Conto personale non trovato', 'error')
+            return redirect(url_for('main.index'))
+
+        conto, versamenti = service.get_conto_data(conto.nome_conto)
+
+        if not conto:
+            flash('Errore nel caricamento del conto', 'error')
+            return redirect(url_for('main.index'))
+
         return render_template('conti_personali/conto_personale.html',
                                conto=conto,
                                versamenti=versamenti,
-                               nome_persona='Maurizio',
+                               nome_persona=conto.nome_conto,
                                config=current_app.config)
-        
+
     except Exception as e:
         flash(f'Errore nel caricamento conto: {str(e)}', 'error')
         return redirect(url_for('main.index'))
 
-@conti_bp.route('/antonietta')
-def antonietta():
-    """Dashboard per il conto di Antonietta (replica dell'implementazione originale)"""
-    try:
-        service = ContiPersonaliService()
-        conto, versamenti = service.get_conto_data('Antonietta')
-        
-        if not conto:
-            flash('Errore nel caricamento conto di Antonietta', 'error')
-            return redirect(url_for('main.index'))
-        
-        return render_template('conti_personali/conto_personale.html',
-                               conto=conto,
-                               versamenti=versamenti,
-                               nome_persona='Antonietta',
-                               config=current_app.config)
-        
-    except Exception as e:
-        flash(f'Errore nel caricamento conto: {str(e)}', 'error')
-        return redirect(url_for('main.index'))
 
-@conti_bp.route('/aggiungi_versamento/<nome_conto>', methods=['POST'])
-def aggiungi_versamento(nome_conto):
+@conti_bp.route('/<string:nome_conto>')
+def view_by_name(nome_conto):
+    """Compatibilità: cerca un conto per nome (case-insensitive) e redirecta al view by id.
+
+    Questo gestisce vecchi URL come `/conti/maurizio` senza hardcodare nomi nel codice.
+    """
+    try:
+        from app.models.ContoPersonale import ContoPersonale
+        conto = db.session.query(ContoPersonale).filter(func.lower(ContoPersonale.nome_conto) == nome_conto.lower()).first()
+        if not conto:
+            flash(f'Conto {nome_conto} non trovato', 'error')
+            return redirect(url_for('conti.lista'))
+        return redirect(url_for('conti.view', conto_id=conto.id))
+    except Exception as e:
+        flash(f'Errore nel redirect al conto {nome_conto}: {e}', 'error')
+        return redirect(url_for('conti.lista'))
+
+@conti_bp.route('/aggiungi_versamento/<int:conto_id>', methods=['POST'])
+def aggiungi_versamento(conto_id):
     """Aggiunge un versamento al conto specificato"""
     try:
         service = ContiPersonaliService()
@@ -73,14 +97,20 @@ def aggiungi_versamento(nome_conto):
         # Validazioni
         if not descrizione:
             flash('La descrizione è obbligatoria', 'error')
-            return redirect(url_for('conti.' + nome_conto.lower()))
-        
+            return redirect(url_for('conti.view', conto_id=conto_id))
+
         if importo <= 0:
             flash('L\'importo deve essere maggiore di zero', 'error')
-            return redirect(url_for('conti.' + nome_conto.lower()))
+            return redirect(url_for('conti.view', conto_id=conto_id))
         
-        # Aggiungi il versamento
-        success, message = service.aggiungi_versamento(nome_conto, data, descrizione, importo)
+        # Aggiungi il versamento: risolviamo il nome del conto a partire dall'id
+        from app.models.ContoPersonale import ContoPersonale
+        conto = ContoPersonale.query.get(conto_id)
+        if not conto:
+            flash('Conto non trovato', 'error')
+            return redirect(url_for('main.index'))
+
+        success, message = service.aggiungi_versamento(conto.nome_conto, data, descrizione, importo)
         
         if success:
             flash(message, 'success')
@@ -92,14 +122,14 @@ def aggiungi_versamento(nome_conto):
     except Exception as e:
         flash(f'Errore nell\'aggiunta versamento: {str(e)}', 'error')
     
-    return redirect(url_for('conti.' + nome_conto.lower()))
+    return redirect(url_for('conti.view', conto_id=conto_id))
 
 @conti_bp.route('/elimina_versamento/<int:versamento_id>', methods=['POST'])
 def elimina_versamento(versamento_id):
     """Elimina un versamento e ripristina il saldo"""
     try:
         service = ContiPersonaliService()
-        
+
         # Prima recuperiamo il nome del conto per il redirect
         from app.models.ContoPersonale import ContoPersonaleMovimento as VersamentoPersonale
         from app import db
@@ -107,33 +137,40 @@ def elimina_versamento(versamento_id):
         versamento = db.session.query(VersamentoPersonale).filter(
             VersamentoPersonale.id == versamento_id
         ).first()
-        
+
         if not versamento:
             flash('Versamento non trovato', 'error')
-            return redirect(url_for('conti.maurizio'))  # fallback
-        
+            return redirect(url_for('conti.lista'))  # fallback
+
+        conto_id = versamento.conto.id
         nome_conto = versamento.conto.nome_conto
-        
+
         # Elimina il versamento
         success, message = service.elimina_versamento(versamento_id)
-        
+
         if success:
             flash(message, 'success')
         else:
             flash(message, 'error')
-        
-        return redirect(url_for('conti.' + nome_conto.lower()))
-        
-    except Exception as e:
-        flash(f'Errore nell\'eliminazione: {str(e)}', 'error')
-        return redirect(url_for('conti.maurizio'))  # fallback
 
-@conti_bp.route('/reset_conto/<nome_conto>', methods=['POST'])
-def reset_conto(nome_conto):
+        return redirect(url_for('conti.view', conto_id=conto_id))
+
+    except Exception as e:
+        flash(f"Errore nell'eliminazione: {str(e)}", 'error')
+        return redirect(url_for('conti.lista'))  # fallback
+
+@conti_bp.route('/reset_conto/<int:conto_id>', methods=['POST'])
+def reset_conto(conto_id):
     """Reset del conto al saldo iniziale"""
     try:
+        from app.models.ContoPersonale import ContoPersonale
         service = ContiPersonaliService()
-        success, message = service.reset_conto(nome_conto)
+        conto = ContoPersonale.query.get(conto_id)
+        if not conto:
+            flash('Conto non trovato', 'error')
+            return redirect(url_for('conti.lista'))
+
+        success, message = service.reset_conto(conto.nome_conto)
         
         if success:
             flash(message, 'success')
@@ -143,17 +180,22 @@ def reset_conto(nome_conto):
     except Exception as e:
         flash(f'Errore durante il reset: {str(e)}', 'error')
     
-    return redirect(url_for('conti.' + nome_conto.lower()))
+    return redirect(url_for('conti.view', conto_id=conto_id))
 
-@conti_bp.route('/aggiorna_saldo_iniziale/<nome_conto>', methods=['POST'])
-def aggiorna_saldo_iniziale(nome_conto):
+@conti_bp.route('/aggiorna_saldo_iniziale/<int:conto_id>', methods=['POST'])
+def aggiorna_saldo_iniziale(conto_id):
     """Aggiorna il saldo iniziale del conto"""
     try:
+        from app.models.ContoPersonale import ContoPersonale
         service = ContiPersonaliService()
+        conto = ContoPersonale.query.get(conto_id)
+        if not conto:
+            flash('Conto non trovato', 'error')
+            return redirect(url_for('conti.lista'))
         
-        nuovo_saldo = float(request.form.get('nuovo_saldo', 0))
+        nuovo_saldo = float(request.form.get('nuovo_saldo_iniziale', 0))
         
-        success, message = service.aggiorna_saldo_iniziale(nome_conto, nuovo_saldo)
+        success, message = service.aggiorna_saldo_iniziale(conto.nome_conto, nuovo_saldo)
         
         if success:
             flash(message, 'success')
@@ -165,4 +207,4 @@ def aggiorna_saldo_iniziale(nome_conto):
     except Exception as e:
         flash(f'Errore nell\'aggiornamento: {str(e)}', 'error')
     
-    return redirect(url_for('conti.' + nome_conto.lower()))
+    return redirect(url_for('conti.view', conto_id=conto_id))

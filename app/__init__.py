@@ -42,6 +42,21 @@ def create_app(config_name='default'):
     @app.context_processor
     def inject_datetime():
         return {'datetime': datetime}
+
+    @app.context_processor
+    def inject_conti_personali():
+        """Inietta nei template la lista dei conti personali presenti nel DB.
+
+        Restituisce `conti_personali` come lista di dizionari con chiavi `id` e `nome`.
+        Questo evita di hardcodare nomi come 'Maurizio'/'Antonietta' nei template.
+        """
+        try:
+            from app.models.ContoPersonale import ContoPersonale
+            conti = ContoPersonale.query.order_by(ContoPersonale.nome_conto.asc()).all()
+            conti_list = [{'id': c.id, 'nome': c.nome_conto} for c in conti]
+            return {'conti_personali': conti_list}
+        except Exception:
+            return {'conti_personali': []}
     
     # Importa e registra i blueprint
     from app.views.main import main_bp

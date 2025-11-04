@@ -98,7 +98,7 @@
                             </button>
                         </div>
                         <div class="card-body">
-                            <form id="form-nuovo-versamento" method="POST" action="{{ url_for('conti.aggiungi_versamento', nome_conto=nome_persona) }}">
+                            <form id="form-nuovo-versamento" method="POST" action="{{ url_for('conti.aggiungi_versamento', conto_id=conto.id) }}">
                                 <div class="row">
                                     <div class="col-md-3">
                                         <label for="data" class="form-label">Data</label>
@@ -133,7 +133,7 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="{{ url_for('conti.aggiorna_saldo_iniziale', nome_conto=nome_persona) }}">
+            <form method="POST" action="{{ url_for('conti.aggiorna_saldo_iniziale', conto_id=conto.id) }}">
                 <div class="modal-body">
                         <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
