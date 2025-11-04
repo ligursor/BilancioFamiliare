@@ -122,4 +122,15 @@ def recreate_generated_and_summaries(months=6, base_date=None, initial_year=None
         if ok:
             result['monthly_summary_regenerated'] += 1
 
+    # 4) Apply chaining: propagate saldo_finale -> saldo_iniziale across periods
+    if period_list:
+        try:
+            periods_for_chain = [(y, m) for (y, m, _, _) in period_list]
+            ok_chain, chain_count = msvc.chain_saldo_across(sorted(periods_for_chain))
+            if ok_chain:
+                result['chained_periods'] = chain_count
+        except Exception:
+            # best-effort: if chaining fails, continue
+            pass
+
     return result

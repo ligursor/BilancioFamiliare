@@ -285,14 +285,28 @@ class DettaglioPeriodoService:
         except Exception:
             budget_items = []
 
-        # Somma dei residui positivi dei budget
+        # Somma dei residui di budget per il mese
+        # Nuova regola: Uscite previste = somma delle transazioni in uscita (effettuate + in attesa) + somma dei residui di budget
         try:
-            somma_residui_positivi = sum(max(item.get('residuo', 0.0), 0.0) for item in budget_items)
+            # Considera solo residui positivi: sum(max(residuo, 0))
+            somma_residui = sum(max(float(item.get('residuo', 0.0) or 0.0), 0.0) for item in budget_items)
         except Exception:
-            somma_residui_positivi = 0.0
+            somma_residui = 0.0
 
-        # Aggiorna le uscite previste includendo i residui positivi
-        uscite_adjusted = (uscite_totali_previste if 'uscite_totali_previste' in locals() else uscite_totali_previste) + somma_residui_positivi
+        try:
+            uscite_adjusted = float(uscite_totali_previste or 0.0) + float(somma_residui or 0.0)
+        except Exception:
+            try:
+                uscite_adjusted = float(uscite_totali_previste) + float(somma_residui)
+            except Exception:
+                uscite_adjusted = 0.0
+
+        # Normalizza e previeni negativi
+        try:
+            uscite_adjusted = max(0.0, float(uscite_adjusted or 0.0))
+        except Exception:
+            uscite_adjusted = float(uscite_adjusted) if isinstance(uscite_adjusted, (int, float)) else 0.0
+
         bilancio_adjusted = entrate_totali_previste - uscite_adjusted
         # Allinea il saldo finale con il bilancio "adjusted" (inclusi residui positivi)
         try:

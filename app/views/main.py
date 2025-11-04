@@ -60,33 +60,29 @@ def index():
     # If we have monthly_summary rows for current/future periods, use them; otherwise fall back to projecting 6 months
     if month_rows:
         for idx, ms in enumerate(month_rows):
+            # Use the persisted monthly summary values from `saldi_mensili`
             from datetime import date as _date
             data_mese = _date(ms.year, ms.month, 1)
             start_date, end_date = get_month_boundaries(data_mese)
-            # Calcola entrate e uscite per questo mese (transazioni effettive)
-            tutte_transazioni_mese = Transazioni.query.filter(
-                Transazioni.data >= start_date,
-                Transazioni.data <= end_date,
-                Transazioni.categoria_id.isnot(None)
-            ).all()
 
-            # Somme da transazioni effettive
-            entrate_eff = 0
-            uscite_eff = 0
-            for t in tutte_transazioni_mese:
-                if t.tipo == 'entrata':
-                    entrate_eff += t.importo
-                else:
-                    uscite_eff += t.importo
-
-            entrate = entrate_eff
-            uscite = uscite_eff
+            # Read entrate/uscite directly from the monthly summary record
+            entrate = float(ms.entrate or 0.0)
+            uscite = float(ms.uscite or 0.0)
             bilancio = entrate - uscite
-            saldo_finale_mese = saldo_corrente + bilancio
+
+            # Use saldo_iniziale and saldo_finale stored in the summary when available
+            saldo_iniziale_mese = float(ms.saldo_iniziale if getattr(ms, 'saldo_iniziale', None) is not None else 0.0)
+            saldo_finale_mese = float(ms.saldo_finale if getattr(ms, 'saldo_finale', None) is not None else (saldo_iniziale_mese + bilancio))
 
             # Calcola saldo attuale per il mese corrente (considera solo transazioni già effettuate)
-            saldo_attuale_mese = saldo_corrente
+            saldo_attuale_mese = saldo_iniziale_mese
             if idx == 0:
+                # compute actual performed transactions to show current available balance
+                tutte_transazioni_mese = Transazioni.query.filter(
+                    Transazioni.data >= start_date,
+                    Transazioni.data <= end_date,
+                    Transazioni.categoria_id.isnot(None)
+                ).all()
                 entrate_effettuate = 0
                 uscite_effettuate = 0
                 for t in tutte_transazioni_mese:
@@ -108,7 +104,7 @@ def index():
                                 entrate_effettuate += t.importo
                             else:
                                 uscite_effettuate += t.importo
-                saldo_attuale_mese = saldo_corrente + entrate_effettuate - uscite_effettuate
+                saldo_attuale_mese = saldo_iniziale_mese + entrate_effettuate - uscite_effettuate
 
             mesi.append({
                 'nome': get_current_month_name(data_mese),
@@ -119,13 +115,14 @@ def index():
                 'entrate': entrate,
                 'uscite': uscite,
                 'bilancio': bilancio,
-                'saldo_iniziale_mese': saldo_corrente,
+                'saldo_iniziale_mese': saldo_iniziale_mese,
                 'saldo_finale_mese': saldo_finale_mese,
                 'saldo_attuale_mese': saldo_attuale_mese,
                 'mese_corrente': idx == 0,
                 'is_placeholder': False
             })
 
+            # Keep saldo_corrente aligned with stored summary final value
             saldo_corrente = saldo_finale_mese
 
         # Pad to 6 slots with placeholders if necessary

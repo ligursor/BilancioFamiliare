@@ -5,7 +5,7 @@
 {% block content %}
 <div class="container mt-4 page-ricorrenti">
     <!-- Statistiche -->
-    <div class="alert alert-danger alert-permanent d-flex align-items-center mb-4">
+    <div class="alert alert-info alert-permanent d-flex align-items-center mb-4">
         <i class="fas fa-arrow-down fa-2x me-3"></i>
         <div class="flex-grow-1">
             <strong>Uscite Ricorrenti:</strong> {{ stats.num_uscite|default(0) }} transazioni
@@ -159,8 +159,8 @@
                 <table id="table-ricorrenti" class="table table-striped" data-page-size="5" tabindex="-1">
                     <thead>
                         <tr>
-                            <th class="text-start">Descrizione</th>
-                            <th class="text-start">Categoria</th>
+                            <th class="text-center">Descrizione</th>
+                            <th class="text-center">Categoria</th>
                             <th class="text-center">Giorno</th>
                             <th class="text-center">Cadenza</th>
                             <th class="text-center">Tipo</th>
@@ -171,12 +171,14 @@
                     <tbody>
                         {% for ricorrente in ricorrenti %}
                         <tr>
-                            <td>
-                                <strong>{{ ricorrente.descrizione }}</strong>
+                            <td class="text-start">
+                                {{ ricorrente.descrizione }}
                             </td>
-                            <td>
+                            <td class="text-center">
                                 {% if ricorrente.categoria %}
-                                    {{ ricorrente.categoria.nome }}
+                                    <span class="badge {% if ricorrente.categoria.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ ricorrente.categoria.nome }}
+                                    </span>
                                 {% else %}
                                     <span class="text-muted">-</span>
                                 {% endif %}

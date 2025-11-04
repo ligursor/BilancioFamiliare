@@ -20,16 +20,16 @@
     getFiltrate(){ return this.filtrate; },
     applyFilters(opts){
       try {
-        // Category filter removed. Only consider 'tipo' (entrata/uscita).
-        const tipo = opts && typeof opts.tipo !== 'undefined' ? opts.tipo : (sessionStorage.getItem('dettaglio_selected_tipo') || '');
+  // Category filter removed. Only consider 'tipo' (entrata/uscita).
+  // The tipo filter UI was removed; default to no filter when not provided.
+  const tipo = opts && typeof opts.tipo !== 'undefined' ? opts.tipo : '';
         const orig = this.originali || [];
         this.filtrate = orig.filter(t => {
           let matchTipo = true;
           if (tipo) matchTipo = String(t.tipo) === String(tipo);
           return matchTipo;
         });
-        if (typeof window.aggiornaTabella === 'function') try { window.aggiornaTabella(); } catch(e){}
-  try { if (window.__tipoFilter && typeof window.__tipoFilter.updateTipoBadge === 'function') window.__tipoFilter.updateTipoBadge(this.filtrate.length || 0); } catch(e){}
+    if (typeof window.aggiornaTabella === 'function') try { window.aggiornaTabella(); } catch(e){}
   } catch(e) { /* console.warn removed */ }
     },
     // Sort the filtered list in-place using known ordering keys and refresh the table
@@ -65,14 +65,13 @@
           default:
             break;
         }
-        if (typeof window.aggiornaTabella === 'function') try { window.aggiornaTabella(); } catch(e){}
+    if (typeof window.aggiornaTabella === 'function') try { window.aggiornaTabella(); } catch(e){}
   } catch(e) { /* console.warn removed */ }
     },
     setFiltrate(arr){
       try {
         this.filtrate = Array.isArray(arr) ? arr : [];
-        if (typeof window.aggiornaTabella === 'function') try { window.aggiornaTabella(); } catch(e){}
-  try { if (window.__tipoFilter && typeof window.__tipoFilter.updateTipoBadge === 'function') window.__tipoFilter.updateTipoBadge(this.filtrate.length || 0); } catch(e){}
+    if (typeof window.aggiornaTabella === 'function') try { window.aggiornaTabella(); } catch(e){}
   } catch(e) { /* console.warn removed */ }
     },
     onReady(cb){ if (this.ready) { try{ cb(); }catch(e){} } else this._listeners.push(cb); }

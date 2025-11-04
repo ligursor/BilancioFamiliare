@@ -440,10 +440,11 @@ def modifica_monthly_budget(start_date, end_date):
 		nome_cat = categoria.nome if categoria else f'Categoria {categoria_id}'
 		descrizione_budget = f"Budget {nome_cat} {str(month).zfill(2)}/{year}"
 
-		# Important: per richiesta, MODIFICARE la transazioni del mese corrente se esiste,
-		# ma NON crearne una nuova. Se non esiste alcuna transazioni per quella categorie e mese,
-		# non viene inserita una nuova transazioni.
-		if tx:
+		# Important: do not overwrite arbitrary existing transactions (e.g. generated recurring
+		# transactions) when updating a monthly budget. Only update a transaction if it looks
+		# explicitly like a budget transaction (we detect this by description starting with
+		# 'Budget '). This avoids accidentally changing amounts of scheduled/recurring entries.
+		if tx and isinstance(tx.descrizione, str) and tx.descrizione.startswith('Budget '):
 			tx.importo = nuovo_importo
 			tx.descrizione = descrizione_budget
 

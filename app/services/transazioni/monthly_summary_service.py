@@ -118,7 +118,8 @@ class MonthlySummaryService(BaseService):
 			ms.entrate = entrate
 			ms.uscite = uscite
 			base_saldo = float(ms.saldo_iniziale or 0.0) if has_saldo_iniziale_col else 0.0
-			ms.saldo_finale = base_saldo + bilancio
+			# saldo_finale = saldo_iniziale + entrate - uscite
+			ms.saldo_finale = base_saldo + entrate - uscite
 		else:
 			# Schema legacy senza saldo_finale: usa SQL diretto e gestisci eventuale colonna bilancio
 			try:
@@ -179,24 +180,46 @@ class MonthlySummaryService(BaseService):
 			return True, 0
 
 		try:
-			rows = []
-			for (y, m) in periods:
-				r = db.session.execute(
-					text('SELECT id, saldo_iniziale, saldo_finale FROM saldi_mensili WHERE year=:y AND month=:m'),
-					{'y': y, 'm': m}
-				).fetchone()
-				if r:
-					rows.append(r)
-
-			# esegui aggiornamenti
 			updated = 0
-			for i in range(len(rows) - 1):
-				cur_saldo_finale = rows[i][2] if rows[i][2] is not None else 0.0
-				next_id = rows[i + 1][0]
-				db.session.execute(text('UPDATE saldi_mensili SET saldo_iniziale = :s WHERE id = :id'), {'s': cur_saldo_finale, 'id': next_id})
+			# Per ogni coppia consecutiva di periodi, aggiorna il saldo_iniziale del mese successivo
+			# = saldo_finale del mese corrente, poi ricalcola saldo_finale del mese successivo
+			for i in range(len(periods) - 1):
+				y_cur, m_cur = periods[i]
+				y_next, m_next = periods[i + 1]
+				
+				# Recupera il saldo_finale AGGIORNATO del mese corrente
+				cur_row = db.session.execute(
+					text('SELECT saldo_finale FROM saldi_mensili WHERE year=:y AND month=:m'),
+					{'y': y_cur, 'm': m_cur}
+				).fetchone()
+				if not cur_row:
+					continue
+				
+				cur_saldo_finale = float(cur_row[0] or 0.0)
+				
+				# Aggiorna saldo_iniziale del mese successivo
+				db.session.execute(
+					text('UPDATE saldi_mensili SET saldo_iniziale = :s WHERE year = :y AND month = :m'),
+					{'s': cur_saldo_finale, 'y': y_next, 'm': m_next}
+				)
+				
+				# Ricalcola saldo_finale del mese successivo = saldo_iniziale + entrate - uscite
+				next_row = db.session.execute(
+					text('SELECT entrate, uscite FROM saldi_mensili WHERE year = :y AND month = :m'),
+					{'y': y_next, 'm': m_next}
+				).fetchone()
+				if next_row:
+					entrate_next = float(next_row[0] or 0.0)
+					uscite_next = float(next_row[1] or 0.0)
+					new_next_saldo_finale = cur_saldo_finale + entrate_next - uscite_next
+					db.session.execute(
+						text('UPDATE saldi_mensili SET saldo_finale = :sf WHERE year = :y AND month = :m'),
+						{'sf': new_next_saldo_finale, 'y': y_next, 'm': m_next}
+					)
+				
 				updated += 1
 
-				db.session.commit()
+			db.session.commit()
 			return True, updated
 		except Exception as e:
 			try:

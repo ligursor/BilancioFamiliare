@@ -109,11 +109,13 @@ class ResetService(BaseService):
                 rr = recreate_generated_and_summaries(months=months, base_date=start_date, full_wipe=full_wipe)
                 created = rr.get('created_generated_transactions', 0)
                 ms_created = rr.get('monthly_summary_regenerated', 0)
+                chained = rr.get('chained_periods', 0)
                 deleted_transactions = rr.get('deleted_transazioni', deleted_transactions)
                 deleted_summaries = rr.get('deleted_monthly_summary', deleted_summaries)
             except Exception:
                 created = 0
                 ms_created = 0
+                chained = 0
 
             info = {
                 'saldo_importo': float(importo),
@@ -121,6 +123,7 @@ class ResetService(BaseService):
                 'deleted_monthly_summary_total': int(deleted_summaries) if (deleted_summaries is not None) else None,
                 'created_generated_transactions': int(created or 0),
                 'monthly_summary_regenerated': ms_created,
+                'chained_periods': chained,
                 'backup_path': backup_path,
             }
 

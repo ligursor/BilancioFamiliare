@@ -9,9 +9,7 @@
         if (typeof window.navigateMonth === 'function') return window.navigateMonth(direction);
     }
 
-    function ordinaDettaglio(tipo) {
-        if (typeof window.ordinaDettaglio === 'function') return window.ordinaDettaglio(tipo);
-    }
+    // ordinaDettaglio removed — sorting UI no longer present
 
     function modificaTransazioneAttrFromElement(el) {
         if (typeof window.modificaTransazioneAttr === 'function') return window.modificaTransazioneAttr(el);
@@ -43,9 +41,7 @@
         if (typeof window.modificaAbbonamento === 'function') return window.modificaAbbonamento(id);
     }
 
-    function applicaOrdinamento(tipo) {
-        if (typeof window.applicaOrdinamento === 'function') return window.applicaOrdinamento(tipo);
-    }
+    // applicaOrdinamento removed — sorting UI no longer present
 
     document.addEventListener('click', function(evt){
         var el = evt.target;
@@ -63,10 +59,7 @@
                     navigateMonth(parseInt(el.dataset.direction,10));
                     evt.preventDefault();
                     return;
-                case 'ordina':
-                    ordinaDettaglio(el.dataset.tipo);
-                    evt.preventDefault();
-                    return;
+                // 'ordina' removed — no-op (sorting controls removed)
                 case 'modifica-transazione-attr':
                     modificaTransazioneAttrFromElement(el);
                     evt.preventDefault();
@@ -111,9 +104,7 @@
                 case 'modifica-abbonamento':
                     modificaAbbonamento(el.dataset.id);
                     return;
-                case 'applica-ordinamento':
-                    applicaOrdinamento(el.dataset.tipo);
-                    return;
+                // 'applica-ordinamento' removed — no-op
                 default:
                     return;
             }

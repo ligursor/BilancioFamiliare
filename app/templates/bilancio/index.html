@@ -22,7 +22,7 @@
                     <div class="col-lg-4 col-md-6 mb-4">
                         <a href="{{ url_for('dettaglio_periodo.mese', anno=mese.anno_target, mese=mese.mese_target) }}" class="text-decoration-none">
                             <!-- placeholder={{ mese.is_placeholder }} -->
-                            <div class="card month-card {% if mese.mese_corrente %}current-month{% endif %}" style="cursor: pointer;">
+                            <div class="card month-card {% if mese.mese_corrente %}current-month{% endif %}">
                                 <div class="card-header bg-primary text-white">
                                     <h6 class="mb-0 text-center">
                                         <i class="fas fa-calendar-alt me-2 text-white"></i>

@@ -8,12 +8,12 @@
         var tr = document.createElement('tr');
         var descr = document.createElement('td'); descr.className='text-start'; descr.textContent = tx.descrizione || '';
         var dataTd = document.createElement('td'); dataTd.className='text-center'; dataTd.textContent = tx.data ? new Date(tx.data).toLocaleDateString('it-IT') : '';
-        var catTd = document.createElement('td'); catTd.className='text-center'; var spanCat = document.createElement('span'); spanCat.className = 'badge ' + (tx.tipo==='entrata' ? 'bg-success' : 'bg-danger'); spanCat.textContent = tx.categoria_nome || ''; catTd.appendChild(spanCat);
+    var catTd = document.createElement('td'); catTd.className='text-center'; var spanCat = document.createElement('span'); spanCat.className = 'badge ' + (tx.tipo==='entrata' ? 'bg-success' : 'bg-danger'); var catName = tx.categoria_nome || tx.categoria || ''; spanCat.textContent = catName; catTd.appendChild(spanCat);
         var tipoTd = document.createElement('td'); tipoTd.className='text-center'; tipoTd.innerHTML = tx.tipo==='entrata' ? '<span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>' : '<span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>';
         var importoTd = document.createElement('td'); importoTd.className='text-center ' + (tx.tipo==='entrata' ? 'text-success' : 'text-danger'); importoTd.textContent = (tx.tipo==='entrata' ? '+' : '-') + formatEuro(Number(tx.importo||0));
         var azTd = document.createElement('td'); azTd.className='text-center';
         var btnGroup = document.createElement('div'); btnGroup.className='btn-group btn-group-sm'; btnGroup.setAttribute('role','group');
-        var editBtn = document.createElement('button'); editBtn.className='btn btn-outline-primary btn-sm'; editBtn.setAttribute('title','Modifica transazione'); editBtn.setAttribute('data-id', tx.id); editBtn.setAttribute('data-descrizione', JSON.stringify(tx.descrizione||'')); editBtn.setAttribute('data-importo', tx.importo); editBtn.setAttribute('data-data', JSON.stringify(tx.data||'')); editBtn.setAttribute('data-categoria', tx.categoria_id||''); editBtn.setAttribute('data-action','modifica-transazione-attr'); editBtn.innerHTML = '<i class="fas fa-edit" aria-hidden="true"></i>';
+    var editBtn = document.createElement('button'); editBtn.className='btn btn-outline-primary btn-sm'; editBtn.setAttribute('title','Modifica transazione'); editBtn.setAttribute('data-id', tx.id); editBtn.setAttribute('data-descrizione', JSON.stringify(tx.descrizione||'')); editBtn.setAttribute('data-importo', tx.importo); editBtn.setAttribute('data-data', JSON.stringify(tx.data||'')); editBtn.setAttribute('data-categoria', tx.categoriaId || tx.categoria_id || tx.categoria || ''); editBtn.setAttribute('data-action','modifica-transazione-attr'); editBtn.innerHTML = '<i class="fas fa-edit" aria-hidden="true"></i>';
         btnGroup.appendChild(editBtn);
         var delForm = document.createElement('form'); delForm.method='POST'; delForm.style.display='inline'; delForm.setAttribute('action', '/dettaglio/' + encodeURIComponent(cfg.start_date) + '/' + encodeURIComponent(cfg.end_date) + '/elimina_transazione/' + encodeURIComponent(tx.id)); delForm.setAttribute('data-action','confirm-delete'); delForm.setAttribute('data-message','Sei sicuro di voler eliminare questa transazione?');
         var delBtn = document.createElement('button'); delBtn.type='submit'; delBtn.className='btn btn-outline-danger btn-sm'; delBtn.setAttribute('title','Elimina transazione'); delBtn.innerHTML = '<i class="fas fa-trash" aria-hidden="true"></i>';
@@ -160,6 +160,8 @@
             });
         }catch(e){}
     }
+
+    // sorting removed — UI no longer exposes sort controls for Data/Importo
 
     function bindDelegatedHandlers(cfg){
         document.addEventListener('submit', function(e){

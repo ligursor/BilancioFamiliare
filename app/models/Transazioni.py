@@ -15,6 +15,8 @@ class Transazioni(db.Model):
     importo = db.Column(db.Float, nullable=False)
     categoria_id = db.Column(db.Integer, db.ForeignKey('categorie.id'), nullable=True)
     categoria = db.relationship('Categorie', backref=db.backref('transazioni', lazy=True))
+    # id_periodo: integer in format YYYYMM representing the financial month (end_date year/month)
+    id_periodo = db.Column(db.Integer, nullable=True, index=True)
     tipo = db.Column(db.String(20), nullable=False)  # 'entrata' o 'uscita'
     ricorrente = db.Column(db.Boolean, default=False)
     # Nota: il campo `frequenza_giorni` e `transazione_madre_id` sono stati rimossi
