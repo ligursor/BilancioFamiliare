@@ -1,7 +1,4 @@
-"""Service implementing the monthly rollover logic (extracted from scripts/monthly_rollover.py).
-
-This service can be invoked from CLI or from the app on first access after the 27th.
-"""
+"""Service implementing the monthly rollover logic (extracted from scripts/monthly_rollover.py)."""
 from app.services import get_month_boundaries
 from datetime import date
 from dateutil.relativedelta import relativedelta
@@ -10,14 +7,7 @@ from sqlalchemy import text
 
 
 def do_monthly_rollover(force=False, months=1, base_date=None):
-    """Perform monthly rollover:
-    - generate transactions from recurring for `months` starting at the current financial period
-    - regenerate monthly_summary for the generated months
-
-    If `force` is True, generated transactions in the horizon are deleted before creating them.
-
-    Returns dict with result info.
-    """
+    """Perform monthly rollover:"""
     if base_date is None:
         base_date = date.today()
 

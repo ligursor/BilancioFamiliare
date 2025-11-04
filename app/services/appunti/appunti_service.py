@@ -1,6 +1,4 @@
-"""
-Servizio per la gestione degli appunti
-"""
+"""Servizio per la gestione degli appunti"""
 from app.services import BaseService
 from app.models.Appunti import Appunti
 from app.models.Categorie import Categorie

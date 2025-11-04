@@ -1,8 +1,4 @@
-"""Modello Strumento
-
-Contiene gli strumenti/conti usati dall'app (es. Conto Bancoposta, Postepay Evolution,
-conti personali, ecc.).
-"""
+"""Modello Strumento"""
 from app import db
 
 

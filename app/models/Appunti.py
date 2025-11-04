@@ -1,6 +1,4 @@
-"""
-Modello per gli appunti/promemoria
-"""
+"""Modello per gli appunti/promemoria"""
 from app import db
 from datetime import datetime
 

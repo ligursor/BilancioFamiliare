@@ -1,9 +1,4 @@
-"""Shim package per i servizi legati al bilancio.
-
-Questo pacchetto ora ospita le implementazioni concrete dei servizi
-relativi al bilancio. Per retrocompatibilità gli importatori che usano
-``app.services.bilancio`` continueranno a funzionare.
-"""
+"""Shim package per i servizi legati al bilancio."""
 try:
     # re-export key services implemented in this package
     from .generated_transaction_service import *  # noqa: F401,F403

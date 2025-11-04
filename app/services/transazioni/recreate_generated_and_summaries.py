@@ -1,10 +1,4 @@
-"""Reusable logic to recreate generated transactions from recurring definitions
-(`transazioni_ricorrenti`) and regenerate monthly summaries (`saldi_mensili`).
-
-This module extracts the logic previously present in scripts/recreate_generated_and_summaries.py
-and exposes a function `recreate_generated_and_summaries` that can be called from both the
-CLI script and from the ResetService (UI).
-"""
+"""Reusable logic to recreate generated transactions from recurring definitions"""
 from app.services import get_month_boundaries
 from datetime import date
 from dateutil.relativedelta import relativedelta
@@ -20,16 +14,7 @@ def round2(v):
 
 
 def recreate_generated_and_summaries(months=6, base_date=None, initial_year=None, initial_month=None, initial_saldo=None, full_wipe=False):
-    """Recreate generated transactions and regenerate monthly_summary entries.
-
-    Parameters:
-      - months: number of months from current financial period to process
-      - base_date: optional date to anchor the financial period (default: today)
-      - initial_year, initial_month, initial_saldo: optional override for initial saldo seeding
-      - full_wipe: if True, DELETE all rows from `transazioni` and `monthly_summary` before repopulating.
-
-    Returns: dict with counts and summary information.
-    """
+    """Recreate generated transactions and regenerate monthly_summary entries."""
     if base_date is None:
         base_date = date.today()
 

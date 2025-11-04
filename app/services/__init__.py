@@ -1,6 +1,4 @@
-"""
-Servizio base per la gestione della business logic
-"""
+"""Servizio base per la gestione della business logic"""
 from app import db
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta

@@ -1,7 +1,4 @@
-"""Service per la gestione degli strumenti (conti, carte, ecc.)
-
-Fornisce operazioni minime: recupero, creazione se mancante e aggiornamento saldo.
-"""
+"""Service per la gestione degli strumenti (conti, carte, ecc.)"""
 from app import db
 from app.models.ContiFinanziari import Strumento
 from sqlalchemy.exc import SQLAlchemyError

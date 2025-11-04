@@ -1,6 +1,4 @@
-"""
-Modelli base - Categorie e SaldoIniziale
-"""
+"""Modelli base - Categorie e SaldoIniziale"""
 from app import db
 from datetime import datetime
 

@@ -1,6 +1,4 @@
-"""
-Modello per le transazioni
-"""
+"""Modello per le transazioni"""
 from app import db
 from datetime import datetime, date
 

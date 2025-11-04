@@ -1,6 +1,4 @@
-"""
-Servizio per la gestione dei veicoli (auto, bolli, manutenzioni)
-"""
+"""Servizio per la gestione dei veicoli (auto, bolli, manutenzioni)"""
 from app.services import BaseService
 from app.models.Veicoli import Veicoli, AutoBolli, AutoManutenzioni
 from app import db

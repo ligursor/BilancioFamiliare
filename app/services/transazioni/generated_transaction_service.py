@@ -10,14 +10,7 @@ from dateutil.relativedelta import relativedelta
 
 
 class GeneratedTransactionService(BaseService):
-    """Servizio che popola la tabella `transazioni` a partire dalle ricorrenze.
-
-    Nota: anche se il nome del servizio è rimasto per compatibilità, ora questo inserisce
-    direttamente record nella tabella `transazioni`. Per tracciare le transazioni generate
-    dalla ricorrenza, viene creato (se non esiste) un record madre in `transazioni` con
-    descrizione marcata come `recurring_id:{id}` e `ricorrente=True`. Le istanze create per
-    ciascun mese avranno `transazione_madre_id` puntato a quella madre e `ricorrente=False`.
-    """
+    """Servizio che popola la tabella `transazioni` a partire dalle ricorrenze."""
 
     def populate_horizon_from_recurring(self, months=6, base_date=None):
         if base_date is None:

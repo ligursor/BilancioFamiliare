@@ -1,6 +1,4 @@
-"""
-Modelli per la gestione PayPal
-"""
+"""Modelli per la gestione PayPal"""
 from app import db
 from datetime import datetime, date
 

@@ -1,6 +1,4 @@
-"""
-Service per la gestione del dettaglio periodo - implementazione originale app.py
-"""
+"""Service per la gestione del dettaglio periodo - implementazione originale app.py"""
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from app.models.Transazioni import Transazioni
@@ -18,9 +16,7 @@ class DettaglioPeriodoService:
         pass
     
     def get_dettaglio_mese(self, anno, mese):
-        """
-        Implementazione fedele della funzione dettaglio_periodo_interno dell'app.py originale
-        """
+        """Implementazione fedele della funzione dettaglio_periodo_interno dell'app.py originale"""
         # Costruisci le date di inizio e fine
         data_mese = date(anno, mese, 1)
         start_date, end_date = get_month_boundaries(data_mese)
@@ -353,16 +349,7 @@ class DettaglioPeriodoService:
         }
 
     def get_statistiche_per_categoria(self, anno, mese):
-        """Ritorna statistiche (totali uscita) per categorie per il mese richiesto.
-
-        Restituisce una lista di dizionari con chiavi:
-            - categoria_id
-            - categoria_nome
-            - importo  (somma delle uscite per quella categorie nel mese)
-
-        Il formato è pensato per essere consumato direttamente dal template/JS
-        che disegna il grafico delle uscite per categorie.
-        """
+        """Ritorna statistiche (totali uscita) per categorie per il mese richiesto."""
         try:
             from datetime import date
 

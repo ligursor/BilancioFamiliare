@@ -1,6 +1,4 @@
-"""
-Blueprint per la gestione del garage (solo auto)
-"""
+"""Gestione delle pagine e operazioni relative al garage (auto)."""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from datetime import datetime, timedelta, date
 from app.models.Veicoli import Veicoli, AutoBolli, AutoManutenzioni
@@ -66,14 +64,13 @@ def garage():
 						})
 
 		return render_template('garage/auto_garage.html',
-							veicoli=veicoli,
-							totale_costo_finanziamento=totale_costo_finanziamento,
-							totale_versato=totale_versato,
-							totale_saldo_rimanente=totale_saldo_rimanente,
-							ultimi_bolli=ultimi_bolli,
-							ultime_manutenzioni=ultime_manutenzioni,
-							bolli_in_attesa=bolli_in_attesa,
-							formato_valuta=current_app.config['FORMATO_VALUTA'])
+				veicoli=veicoli,
+				totale_costo_finanziamento=totale_costo_finanziamento,
+				totale_versato=totale_versato,
+				totale_saldo_rimanente=totale_saldo_rimanente,
+				ultimi_bolli=ultimi_bolli,
+				ultime_manutenzioni=ultime_manutenzioni,
+				bolli_in_attesa=bolli_in_attesa)
 	except Exception as e:
 		flash(f'Errore nel caricamento garage: {str(e)}', 'error')
 		return redirect(url_for('main.index'))
@@ -94,13 +91,12 @@ def dettaglio(veicolo_id):
 		costo_totale = (veicolo.costo_finanziamento or 0) + totale_bolli + totale_manutenzioni
 
 		return render_template('garage/auto_dettaglio.html',
-							veicolo=veicolo,
-							bolli=bolli,
-							manutenzioni=manutenzioni,
-							totale_bolli=totale_bolli,
-							totale_manutenzioni=totale_manutenzioni,
-							costo_totale=costo_totale,
-							formato_valuta=current_app.config['FORMATO_VALUTA'])
+				veicolo=veicolo,
+				bolli=bolli,
+				manutenzioni=manutenzioni,
+				totale_bolli=totale_bolli,
+				totale_manutenzioni=totale_manutenzioni,
+				costo_totale=costo_totale)
 	except Exception as e:
 		flash(f'Errore nel caricamento dettaglio veicolo: {str(e)}', 'error')
 		return redirect(url_for('auto.garage'))

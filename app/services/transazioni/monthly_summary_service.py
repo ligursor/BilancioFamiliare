@@ -10,10 +10,7 @@ class MonthlySummaryService(BaseService):
 	"""Servizio per creare/aggiornare i riepiloghi mensili (monthly_summary)."""
 
 	def regenerate_month_summary(self, year, month):
-		"""Ricalcola e salva il monthly_summary per year/month usando la logica delle transazioni.
-
-		Il range considera i confini finanziari (27..26) usando la data del mese (prendiamo il 1 del mese richiesto).
-		"""
+		"""Ricalcola e salva il monthly_summary per year/month usando la logica delle transazioni."""
 		# costruisci una data rappresentativa per il mese
 		try:
 			data_mese = date(year, month, 1)
@@ -170,12 +167,7 @@ class MonthlySummaryService(BaseService):
 			return False, str(e)
 
 	def chain_saldo_across(self, periods):
-		"""Applica chaining saldo_finale -> saldo_iniziale per una lista ordinata di periodi.
-
-		`periods` deve essere una lista ordinata di tuple (year, month).
-		Per ogni mese i in periods, imposta il `saldo_iniziale` del mese i+1 al `saldo_finale` del mese i.
-		Restituisce (True, count) o (False, error_message).
-		"""
+		"""Applica chaining saldo_finale -> saldo_iniziale per una lista ordinata di periodi."""
 		if not periods or len(periods) < 2:
 			return True, 0
 

@@ -1,13 +1,4 @@
-"""
-Configurazione per l'applicazione di gestione bilancio familiare
-
-Aggiornato: Settembre 2025
-- Aggiunta categorie Sport e logica budget semplificata  
-- Ottimizzazioni UI e caricamento automatico categorie
-- Sistema backup migliorato con rotazione automatica
-- Configurazione Docker ottimizzata (solo volumi necessari)
-- Architettura modulare e object-oriented
-"""
+"""Configurazione per l'applicazione di gestione bilancio familiare"""
 import os
 
 class Config:

@@ -1,6 +1,4 @@
-"""
-Servizio per la gestione di PayPal (abbonamenti e movimenti)
-"""
+"""Servizio per la gestione di PayPal (abbonamenti e movimenti)"""
 from app.services import BaseService
 from app.models.Paypal import PaypalAbbonamenti, PaypalMovimenti
 from app import db

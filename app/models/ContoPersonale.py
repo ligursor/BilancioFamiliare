@@ -1,9 +1,13 @@
+<<<<<<< HEAD
 """Modelli per i conti personali.
 
 Questi modelli rappresentano conti personali collegati a record in
 `conti_finanziari` (strumenti). Il codice evita riferimenti a nomi
 specifici e lavora in modo generico con ogni conto presente nel DB.
 """
+=======
+"""Modelli per i conti personali"""
+>>>>>>> 85f0ecfa90d7764ffba387ece47ff286cccfa0f7
 from app import db
 from datetime import datetime, date
 
@@ -30,12 +34,7 @@ class ContoPersonale(db.Model):
 
 
 class ContoPersonaleMovimento(db.Model):
-    """Movimenti (ex-versamenti) sui conti personali.
-
-    Nota: questa tabella sostituisce `versamento_personale`.
-    Campo `saldo_dopo_versamento` rimosso: il saldo corrente viene calcolato aggregando
-    `importo` su tutti i movimenti e applicandolo allo `strumento` (sorgente di verità).
-    """
+    """Movimenti (ex-versamenti) sui conti personali."""
     __tablename__ = 'conto_personale_movimenti'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -55,10 +54,7 @@ from sqlalchemy import event, text
 
 
 def _recompute_and_update_strumento(connection, conto_id):
-    """Ricalcola il saldo corrente per il conto `conto_id` e aggiorna la tabella `strumento`.
-
-    Formula: nuovo_saldo = saldo_iniziale (da strumento) - sum(importo dei movimenti)
-    """
+    """Ricalcola il saldo corrente per il conto `conto_id` e aggiorna la tabella `strumento`."""
     # Recupera id_strumento per il conto
     row = connection.execute(text("SELECT id_strumento FROM conto_personale WHERE id = :cid"), {'cid': conto_id}).fetchone()
     if not row:

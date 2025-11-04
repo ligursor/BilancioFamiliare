@@ -1,9 +1,6 @@
-"""PostePay Evolution views moved into their own module.
-
-Originally the implementation lived at the package __init__ during migration.
-This module holds the actual blueprint and route handlers.
-"""
+"""Gestione dashboard e movimenti PostePay Evolution."""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from app.utils.formatting import format_currency
 from datetime import datetime, date, timedelta
 from app.models.PostePayEvolution import AbbonamentoPostePay, MovimentoPostePay
 from app.services.conti_finanziari.strumenti_service import StrumentiService
@@ -29,7 +26,7 @@ def inizializza_postepay():
 
 @ppay_bp.route('/')
 def evolution():
-    """Dashboard PostePay Evolution - replica dell'implementazione originale"""
+    """Mostra la dashboard di PostePay Evolution."""
     try:
         # Inizializza il sistema PostePay se necessario
         inizializza_postepay()
@@ -227,7 +224,7 @@ def ricarica():
         except Exception:
             pass
         
-        flash(f'Ricarica di €{importo:.2f} aggiunta con successo!', 'success')
+        flash(f'Ricarica di {format_currency(importo)} aggiunta con successo!', 'success')
         
     except ValueError:
         flash('Importo non valido', 'error')
@@ -289,7 +286,7 @@ def spesa():
         except Exception:
             pass
         
-        flash(f'Spesa di €{importo:.2f} aggiunta con successo!', 'success')
+        flash(f'Spesa di {format_currency(importo)} aggiunta con successo!', 'success')
         
     except ValueError:
         flash('Importo non valido', 'error')
@@ -421,7 +418,7 @@ def modifica_saldo():
         if differenza != 0:
             movimento = MovimentoPostePay(
                 data=date.today(),
-                descrizione=f"{motivo} (da €{saldo_precedente:.2f} a €{nuovo_saldo:.2f})",
+                descrizione=f"{motivo} (da {format_currency(saldo_precedente)} a {format_currency(nuovo_saldo)})",
                 importo=differenza,
                 tipo='correzione'
             )
@@ -430,9 +427,9 @@ def modifica_saldo():
         db.session.commit()
         
         if differenza > 0:
-            flash(f'Saldo aggiornato! Aggiunta di €{differenza:.2f}', 'success')
+            flash(f'Saldo aggiornato! Aggiunta di {format_currency(differenza)}', 'success')
         elif differenza < 0:
-            flash(f'Saldo aggiornato! Riduzione di €{abs(differenza):.2f}', 'success')
+            flash(f'Saldo aggiornato! Riduzione di {format_currency(abs(differenza))}', 'success')
         else:
             flash('Saldo confermato (nessuna modifica)', 'info')
         

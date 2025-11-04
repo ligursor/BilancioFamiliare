@@ -1,6 +1,4 @@
-"""
-Modelli base del database
-"""
+"""Modelli base del database"""
 from datetime import datetime, date
 
 class BaseModel:
