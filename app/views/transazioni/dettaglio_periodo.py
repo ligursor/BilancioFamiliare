@@ -12,6 +12,64 @@ from flask import request, jsonify
 from app.models.SaldiMensili import SaldiMensili
 from app.models.BudgetMensili import BudgetMensili
 from app.models.Categorie import Categorie
+from app.services import get_month_boundaries
+from datetime import date
+
+
+def _recompute_summaries_from(start_year=None, start_month=None):
+	"""Recompute `saldi_mensili` from a given start (year,month) up to the last month present in DB.
+
+	If start_year/start_month are None, defaults to the current financial month (end_date of get_month_boundaries(today)).
+	The function regenerates each monthly summary and then applies chaining. It's best-effort and swallows exceptions.
+	"""
+	try:
+		from app.services.transazioni.monthly_summary_service import MonthlySummaryService
+		from app.models.SaldiMensili import SaldiMensili
+		from dateutil.relativedelta import relativedelta
+
+		# determine start
+		if start_year is None or start_month is None:
+			today = date.today()
+			_, financial_end = get_month_boundaries(today)
+			start_year = financial_end.year
+			start_month = financial_end.month
+
+		# determine last available month in DB
+		last = SaldiMensili.query.order_by(SaldiMensili.year.desc(), SaldiMensili.month.desc()).first()
+		if last:
+			last_year = last.year
+			last_month = last.month
+		else:
+			# if none exist, we just compute the single start month
+			last_year = start_year
+			last_month = start_month
+
+		# build inclusive period list from start -> last
+		periods = []
+		cur = date(start_year, start_month, 1)
+		last_date = date(last_year, last_month, 1)
+		while cur <= last_date:
+			periods.append((cur.year, cur.month))
+			cur = cur + relativedelta(months=1)
+
+		if not periods:
+			return
+
+		msvc = MonthlySummaryService()
+		for (y, m) in periods:
+			try:
+				msvc.regenerate_month_summary(y, m)
+			except Exception:
+				# continue best-effort
+				pass
+
+		try:
+			msvc.chain_saldo_across(periods)
+		except Exception:
+			pass
+	except Exception:
+		# swallow to avoid breaking caller
+		pass
 
 dettaglio_periodo_bp = Blueprint('dettaglio_periodo', __name__)
 
@@ -62,6 +120,22 @@ def mese(anno, mese):
 			mese_succ, anno_succ = mese + 1, anno
 
 		# Usa il template originale (già corretto l'endpoint)
+		# If a SaldiMensili row exists for this year/month, prefer its values for the
+		# top summary boxes so the UI reflects persisted monthly summaries.
+		try:
+			ms = SaldiMensili.query.filter_by(year=anno, month=mese).first()
+		except Exception:
+			ms = None
+
+		if ms:
+			# override dettaglio values with persisted summary
+			dettaglio['entrate'] = float(ms.entrate or 0.0)
+			dettaglio['uscite'] = float(ms.uscite or 0.0)
+			dettaglio['saldo_iniziale_mese'] = float(ms.saldo_iniziale or 0.0)
+			dettaglio['saldo_finale_mese'] = float(ms.saldo_finale if ms.saldo_finale is not None else (ms.saldo_iniziale + (ms.entrate - ms.uscite)))
+			# ensure the 'saldo_previsto_fine_mese' used by the template for future months
+			dettaglio['saldo_previsto_fine_mese'] = float(ms.saldo_finale if ms.saldo_finale is not None else (ms.saldo_iniziale + (ms.entrate - ms.uscite)))
+
 		return render_template('bilancio/dettaglio_mese.html',
 			     # Spacchetta il dizionario dettaglio per compatibilità template
 			     **dettaglio,
@@ -126,6 +200,18 @@ def dettaglio_periodo(start_date, end_date):
 		except Exception:
 			available_months = []
 
+		# Prefer persisted monthly summary values for the template's top boxes
+		try:
+			ms = SaldiMensili.query.filter_by(year=anno, month=mese).first()
+		except Exception:
+			ms = None
+		if ms:
+			result['entrate'] = float(ms.entrate or 0.0)
+			result['uscite'] = float(ms.uscite or 0.0)
+			result['saldo_iniziale_mese'] = float(ms.saldo_iniziale or 0.0)
+			result['saldo_finale_mese'] = float(ms.saldo_finale if ms.saldo_finale is not None else (ms.saldo_iniziale + (ms.entrate - ms.uscite)))
+			result['saldo_previsto_fine_mese'] = float(ms.saldo_finale if ms.saldo_finale is not None else (ms.saldo_iniziale + (ms.entrate - ms.uscite)))
+
 		return render_template('bilancio/dettaglio_mese.html', **result,
 					   stats_categorie=stats_categorie,
 					   anno=anno, mese=mese,
@@ -146,6 +232,14 @@ def elimina_transazione_periodo(start_date, end_date, id):
 		tx = Transazioni.query.get_or_404(id)
 		db.session.delete(tx)
 		db.session.commit()
+		# Recompute monthly summaries starting from the month of the deleted transaction
+		try:
+			if getattr(tx, 'data', None):
+				_recompute_summaries_from(tx.data.year, tx.data.month)
+			else:
+				_recompute_summaries_from()
+		except Exception:
+			pass
 		flash('Transazioni eliminata con successo', 'success')
 	except Exception as e:
 		try:
@@ -184,17 +278,35 @@ def elimina_transazione_periodo(start_date, end_date, id):
 			except Exception:
 				stats_serial = []
 			# Keep only serializable summary fields
-			out = {
-				'entrate': float(summary.get('entrate') or 0.0),
-				'uscite': float(summary.get('uscite') or 0.0),
-				'bilancio': float(summary.get('bilancio') or 0.0),
-				'saldo_iniziale_mese': float(summary.get('saldo_iniziale_mese') or 0.0),
-				'saldo_attuale_mese': float(summary.get('saldo_attuale_mese') or 0.0),
-				'saldo_finale_mese': float(summary.get('saldo_finale_mese') or 0.0),
-				'saldo_previsto_fine_mese': float(summary.get('saldo_previsto_fine_mese') or 0.0),
-				'budget_items': summary.get('budget_items') or [],
-				'stats_categorie': stats_serial
-			}
+			# Prefer persisted monthly summary values when available
+			try:
+				ms_row = SaldiMensili.query.filter_by(year=anno, month=mese).first()
+			except Exception:
+				ms_row = None
+			if ms_row:
+				out = {
+					'entrate': float(ms_row.entrate or 0.0),
+					'uscite': float(ms_row.uscite or 0.0),
+					'bilancio': float((ms_row.entrate or 0.0) - (ms_row.uscite or 0.0)),
+					'saldo_iniziale_mese': float(ms_row.saldo_iniziale or 0.0),
+					'saldo_attuale_mese': float(summary.get('saldo_attuale_mese') or 0.0),
+					'saldo_finale_mese': float(ms_row.saldo_finale if ms_row.saldo_finale is not None else (ms_row.saldo_iniziale + ((ms_row.entrate or 0.0) - (ms_row.uscite or 0.0)))),
+					'saldo_previsto_fine_mese': float(ms_row.saldo_finale if ms_row.saldo_finale is not None else (ms_row.saldo_iniziale + ((ms_row.entrate or 0.0) - (ms_row.uscite or 0.0)))),
+					'budget_items': summary.get('budget_items') or [],
+					'stats_categorie': stats_serial
+				}
+			else:
+				out = {
+					'entrate': float(summary.get('entrate') or 0.0),
+					'uscite': float(summary.get('uscite') or 0.0),
+					'bilancio': float(summary.get('bilancio') or 0.0),
+					'saldo_iniziale_mese': float(summary.get('saldo_iniziale_mese') or 0.0),
+					'saldo_attuale_mese': float(summary.get('saldo_attuale_mese') or 0.0),
+					'saldo_finale_mese': float(summary.get('saldo_finale_mese') or 0.0),
+					'saldo_previsto_fine_mese': float(ms_row.saldo_finale if ms_row.saldo_finale is not None else (ms_row.saldo_iniziale + ((ms_row.entrate or 0.0) - (ms_row.uscite or 0.0)))),
+					'budget_items': summary.get('budget_items') or [],
+					'stats_categorie': stats_serial
+				}
 			return jsonify({'status': 'ok', 'summary': out})
 		except Exception:
 			return jsonify({'status': 'error'}), 500
@@ -261,6 +373,14 @@ def aggiungi_transazione_periodo(start_date, end_date):
 
 		db.session.add(transazioni)
 		db.session.commit()
+		# After adding a transaction, update monthly summaries starting from the transaction month
+		try:
+			if data_obj:
+				_recompute_summaries_from(data_obj.year, data_obj.month)
+			else:
+				_recompute_summaries_from()
+		except Exception:
+			pass
 		flash('Transazioni aggiunta con successo', 'success')
 		# If this is an AJAX request, return JSON with the created transaction
 		if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -340,6 +460,14 @@ def modifica_transazione_periodo(start_date, end_date, id):
 		tx.ricorrente = True if request.form.get('ricorrente') else False
 
 		db.session.commit()
+		# After modifying a transaction, update monthly summaries starting from the transaction month
+		try:
+			if getattr(tx, 'data', None):
+				_recompute_summaries_from(tx.data.year, tx.data.month)
+			else:
+				_recompute_summaries_from()
+		except Exception:
+			pass
 		flash('Transazioni modificata con successo', 'success')
 	except Exception as e:
 		try:
@@ -375,17 +503,35 @@ def modifica_transazione_periodo(start_date, end_date, id):
 						stats_serial.append({'categoria_nome': str(s), 'importo': 0.0})
 			except Exception:
 				stats_serial = []
-			out = {
-				'entrate': float(summary.get('entrate') or 0.0),
-				'uscite': float(summary.get('uscite') or 0.0),
-				'bilancio': float(summary.get('bilancio') or 0.0),
-				'saldo_iniziale_mese': float(summary.get('saldo_iniziale_mese') or 0.0),
-				'saldo_attuale_mese': float(summary.get('saldo_attuale_mese') or 0.0),
-				'saldo_finale_mese': float(summary.get('saldo_finale_mese') or 0.0),
-				'saldo_previsto_fine_mese': float(summary.get('saldo_previsto_fine_mese') or 0.0),
-				'budget_items': summary.get('budget_items') or [],
-				'stats_categorie': stats_serial
-			}
+			# Prefer persisted monthly summary values when available
+			try:
+				ms_row = SaldiMensili.query.filter_by(year=anno, month=mese).first()
+			except Exception:
+				ms_row = None
+			if ms_row:
+				out = {
+					'entrate': float(ms_row.entrate or 0.0),
+					'uscite': float(ms_row.uscite or 0.0),
+					'bilancio': float((ms_row.entrate or 0.0) - (ms_row.uscite or 0.0)),
+					'saldo_iniziale_mese': float(ms_row.saldo_iniziale or 0.0),
+					'saldo_attuale_mese': float(summary.get('saldo_attuale_mese') or 0.0),
+					'saldo_finale_mese': float(ms_row.saldo_finale if ms_row.saldo_finale is not None else (ms_row.saldo_iniziale + ((ms_row.entrate or 0.0) - (ms_row.uscite or 0.0)))),
+					'saldo_previsto_fine_mese': float(summary.get('saldo_previsto_fine_mese') or 0.0),
+					'budget_items': summary.get('budget_items') or [],
+					'stats_categorie': stats_serial
+				}
+			else:
+				out = {
+					'entrate': float(summary.get('entrate') or 0.0),
+					'uscite': float(summary.get('uscite') or 0.0),
+					'bilancio': float(summary.get('bilancio') or 0.0),
+					'saldo_iniziale_mese': float(summary.get('saldo_iniziale_mese') or 0.0),
+					'saldo_attuale_mese': float(summary.get('saldo_attuale_mese') or 0.0),
+					'saldo_finale_mese': float(summary.get('saldo_finale_mese') or 0.0),
+					'saldo_previsto_fine_mese': float(summary.get('saldo_previsto_fine_mese') or 0.0),
+					'budget_items': summary.get('budget_items') or [],
+					'stats_categorie': stats_serial
+				}
 			return jsonify({'status': 'ok', 'summary': out})
 		except Exception:
 			return jsonify({'status': 'error'}), 500
@@ -449,6 +595,11 @@ def modifica_monthly_budget(start_date, end_date):
 			tx.descrizione = descrizione_budget
 
 		db.session.commit()
+		# After budget modification, update monthly summaries starting from the budget month
+		try:
+			_recompute_summaries_from(year, month)
+		except Exception:
+			pass
 		return jsonify({'status': 'ok'})
 	except Exception as e:
 		try:
