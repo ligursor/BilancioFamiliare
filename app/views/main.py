@@ -323,14 +323,6 @@ def aggiorna_saldo_iniziale():
     
     return redirect(url_for('main.saldo_iniziale'))
 
-@main_bp.route('/forza_rollover')
-def forza_rollover():
-    """Forza rollover mensile"""
-    # Implementazione temporanea - in sviluppo
-    from flask import flash, redirect, url_for
-    flash('Funzione forza rollover - in sviluppo', 'info')
-    return redirect(url_for('main.index'))
-
 
 @main_bp.route('/gestione/reset', methods=['GET', 'POST'])
 def reset():
