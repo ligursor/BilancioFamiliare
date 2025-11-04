@@ -27,15 +27,8 @@ class Config:
     HOST = '0.0.0.0'
     PORT = 5001
         
-    # Le categorie specifiche per budget vengono determinate tramite la tabella
-    # `budget` (se esiste un record per la categorie, verrà applicata la logica di budget).
-        
     # Manteniamo il formato valuta (usato estensivamente nelle view/templates)
     FORMATO_VALUTA = "€ {:.2f}"
-    
-    # Gestione Conti Personali (settembre 2025)
-    # Il saldo iniziale reale per ogni conto è memorizzato nella tabella
-    # `conti_finanziari` (strumenti). Non usiamo valori hardcoded qui.
     
 # Mapping minimale: usa solamente la configurazione di default
 config = {
