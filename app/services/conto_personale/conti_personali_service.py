@@ -1,7 +1,4 @@
-"""
-Service per la gestione dei conti personali di Maurizio e Antonietta
-Replica l'implementazione originale con i due conti fissi
-"""
+"""Service per la gestione dei conti personali di Maurizio e Antonietta"""
 from datetime import datetime, date
 from sqlalchemy import func, and_, desc
 from app.models.ContoPersonale import ContoPersonale, ContoPersonaleMovimento as VersamentoPersonale
@@ -37,11 +34,13 @@ class ContiPersonaliService:
                 strum_id = None
 
             if not conto:
-                # se lo strumento non esiste, crealo con il valore di default preso dalla configurazione
-                if nome_conto == 'Maurizio':
-                    default_iniziale = current_app.config.get('CONTO_MAURIZIO_SALDO_INIZIALE', 0.0)
-                else:  # Antonietta
-                    default_iniziale = current_app.config.get('CONTO_ANTONIETTA_SALDO_INIZIALE', 0.0)
+                # preferisci il saldo_iniziale già presente nello Strumento (DB) se esiste;
+                # altrimenti usa 0.0 come valore di fallback.
+                try:
+                    existing = ss.get_by_descrizione(descr)
+                    default_iniziale = existing.saldo_iniziale if existing and existing.saldo_iniziale is not None else 0.0
+                except Exception:
+                    default_iniziale = 0.0
 
                 try:
                     strum = ss.ensure_strumento(descr, 'conto_personale', default_iniziale)

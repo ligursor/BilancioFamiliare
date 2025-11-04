@@ -1,8 +1,4 @@
-"""Package per le view delle transazioni.
-
-Questo package espone i moduli per la gestione delle transazioni, categorie,
-dashboard e dettaglio periodo.
-"""
+"""Package per le view delle transazioni."""
 
 # re-export module symbols from the bilancio package modules
 try:

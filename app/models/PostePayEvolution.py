@@ -1,6 +1,4 @@
-"""
-Modelli per PostePay Evolution
-"""
+"""Modelli per PostePay Evolution"""
 from app import db
 from datetime import datetime, date
 import calendar
@@ -84,11 +82,7 @@ class MovimentoPostePay(db.Model):
 
 
 class DeletedGeneration(db.Model):
-    """Tombstone for automatically generated movements that were manually deleted.
-
-    This prevents the auto-generation logic from immediately recreating a
-    movement for the same abbonamento in the same month/year.
-    """
+    """Tombstone for automatically generated movements that were manually deleted."""
     __tablename__ = 'ppay_deleted_generations'
 
     id = db.Column(db.Integer, primary_key=True)

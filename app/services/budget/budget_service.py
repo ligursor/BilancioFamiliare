@@ -1,6 +1,4 @@
-"""
-Servizio per la gestione del budget
-"""
+"""Servizio per la gestione del budget"""
 from app.services import BaseService
 from app.models.Budget import Budget
 from app.models.Categorie import Categorie

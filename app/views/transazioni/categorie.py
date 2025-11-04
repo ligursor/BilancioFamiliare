@@ -1,7 +1,4 @@
-"""
-Blueprint per le categorie
-Gestisce la visualizzazione e le operazioni sulle categorie
-"""
+"""Blueprint per le categorie"""
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from app.services.categorie.categorie_service import CategorieService
 

@@ -35,7 +35,7 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <h5 class="card-title">Totale Finanziamenti</h5>
-                            <h3>{{ formato_valuta.format(totale_costo_finanziamento) }}</h3>
+                            <h3>{{ (totale_costo_finanziamento) | format_currency }}</h3>
                         </div>
                         <div class="align-self-center">
                             <i class="fas fa-euro-sign fa-2x"></i>
@@ -50,7 +50,7 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <h5 class="card-title">Totale Versato</h5>
-                            <h3>{{ formato_valuta.format(totale_versato) }}</h3>
+                            <h3>{{ (totale_versato) | format_currency }}</h3>
                         </div>
                         <div class="align-self-center">
                             <i class="fas fa-wallet fa-2x"></i>
@@ -65,7 +65,7 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <h5 class="card-title">Saldo Rimanente</h5>
-                            <h3>{{ formato_valuta.format(totale_saldo_rimanente) }}</h3>
+                            <h3>{{ (totale_saldo_rimanente) | format_currency }}</h3>
                         </div>
                         <div class="align-self-center">
                             <i class="fas fa-coins fa-2x"></i>
@@ -147,10 +147,10 @@
                                     </p>
                                     {% if veicolo.costo_finanziamento %}
                                     <div class="mb-2">
-                                        <strong>Costo: {{ formato_valuta.format(veicolo.costo_finanziamento) }}</strong><br>
-                                        <small>Versato: {{ formato_valuta.format(veicolo.totale_versato) }}</small><br>
+                                        <strong>Costo: {{ (veicolo.costo_finanziamento) | format_currency }}</strong><br>
+                                        <small>Versato: {{ (veicolo.totale_versato) | format_currency }}</small><br>
                                         {% if veicolo.saldo_rimanente > 0 %}
-                                        <small class="text-warning">Rimanente: {{ formato_valuta.format(veicolo.saldo_rimanente) }}</small><br>
+                                        <small class="text-warning">Rimanente: {{ (veicolo.saldo_rimanente) | format_currency }}</small><br>
                                         <small class="text-info">Rate rimanenti: {{ veicolo.rate_rimanenti }}</small>
                                         {% else %}
                                         <small class="text-success">✓ Pagato completamente</small>
@@ -218,7 +218,7 @@
                                         <td class="text-start">{{ bollo.veicolo.nome_completo }}</td>
                                         <td class="text-center">{{ bollo.data_pagamento.strftime('%d/%m/%Y') }}</td>
                                         <td class="text-center">{{ bollo.anno_riferimento }}</td>
-                                        <td class="text-center">{{ formato_valuta.format(bollo.importo) }}</td>
+                                        <td class="text-center">{{ (bollo.importo) | format_currency }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -261,7 +261,7 @@
                                         <td class="text-start">{{ manutenzione.veicolo.nome_completo }}</td>
                                         <td class="text-center">{{ manutenzione.data_intervento.strftime('%d/%m/%Y') }}</td>
                                         <td class="text-start">{{ manutenzione.tipo_intervento }}<br><small class="text-muted">{{ manutenzione.officina }} - KM {{ "{:,}".format(manutenzione.km_intervento).replace(',', '.') }}</small></td>
-                                        <td class="text-center">{{ formato_valuta.format(manutenzione.costo) }}</td>
+                                        <td class="text-center">{{ (manutenzione.costo) | format_currency }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>

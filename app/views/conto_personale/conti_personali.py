@@ -1,7 +1,4 @@
-"""
-Blueprint per la gestione dei conti personali di Maurizio e Antonietta
-Replica l'implementazione originale con i due conti fissi
-"""
+"""Blueprint per la gestione dei conti personali di Maurizio e Antonietta"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from datetime import datetime, date
 from app.services.conto_personale.conti_personali_service import ContiPersonaliService

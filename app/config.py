@@ -1,13 +1,4 @@
-"""
-Configurazione per l'applicazione di gestione bilancio familiare
-
-Aggiornato: Settembre 2025
-- Aggiunta categorie Sport e logica budget semplificata  
-- Ottimizzazioni UI e caricamento automatico categorie
-- Sistema backup migliorato con rotazione automatica
-- Configurazione Docker ottimizzata (solo volumi necessari)
-- Architettura modulare e object-oriented
-"""
+"""Configurazione per l'applicazione di gestione bilancio familiare"""
 import os
 
 class Config:
@@ -27,16 +18,8 @@ class Config:
     HOST = '0.0.0.0'
     PORT = 5001
         
-    # Le categorie specifiche per budget vengono determinate tramite la tabella
-    # `budget` (se esiste un record per la categorie, verrà applicata la logica di budget).
-        
     # Manteniamo il formato valuta (usato estensivamente nelle view/templates)
     FORMATO_VALUTA = "€ {:.2f}"
-    
-    # Gestione Conti Personali (settembre 2025)
-    CONTO_MAURIZIO_SALDO_INIZIALE = 1000.00  # Saldo iniziale configurabile
-    CONTO_ANTONIETTA_SALDO_INIZIALE = 1000.00  # Saldo iniziale configurabile
-    CONTO_PERSONALE_FORMATO_VALUTA = "€ {:.2f}"  # Formato valuta per conti personali
     
 # Mapping minimale: usa solamente la configurazione di default
 config = {

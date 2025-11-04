@@ -1,7 +1,4 @@
-"""
-Blueprint per il dettaglio periodo
-Gestisce le visualizzazioni dettagliate per mese/periodo
-"""
+"""Blueprint per il dettaglio periodo"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from datetime import datetime
 from app.services.transazioni.dettaglio_periodo_service import DettaglioPeriodoService
@@ -17,11 +14,7 @@ from datetime import date
 
 
 def _recompute_summaries_from(start_year=None, start_month=None):
-	"""Recompute `saldi_mensili` from a given start (year,month) up to the last month present in DB.
-
-	If start_year/start_month are None, defaults to the current financial month (end_date of get_month_boundaries(today)).
-	The function regenerates each monthly summary and then applies chaining. It's best-effort and swallows exceptions.
-	"""
+	"""Recompute `saldi_mensili` from a given start (year,month) up to the last month present in DB."""
 	try:
 		from app.services.transazioni.monthly_summary_service import MonthlySummaryService
 		from app.models.SaldiMensili import SaldiMensili
@@ -541,10 +534,7 @@ def modifica_transazione_periodo(start_date, end_date, id):
 
 @dettaglio_periodo_bp.route('/<start_date>/<end_date>/modifica_monthly_budget', methods=['POST'])
 def modifica_monthly_budget(start_date, end_date):
-	"""Aggiorna (o crea) il BudgetMensili per la categorie/mese indicati e sincronizza
-	una transazioni 'budget' corrispondente nella tabella Transazioni per lo stesso mese.
-	Restituisce JSON {status: 'ok'} in caso di successo.
-	"""
+	"""Aggiorna (o crea) il BudgetMensili per la categorie/mese indicati e sincronizza"""
 	try:
 		# parse inputs
 		categoria_id = int(request.form.get('categoria_id')) if request.form.get('categoria_id') else None

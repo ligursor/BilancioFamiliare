@@ -1,13 +1,4 @@
-"""
-Applicazione Flask per gestione bilancio familiare
-Architettura modulare e object-oriented
-
-Struttura:
-- models/: Modelli del database
-- views/: Blueprint per le route
-- services/: Logica di business
-- utils/: Utilità e helper
-"""
+"""Applicazione Flask per gestione bilancio familiare"""
 
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
@@ -42,6 +33,28 @@ def create_app(config_name='default'):
     @app.context_processor
     def inject_datetime():
         return {'datetime': datetime}
+
+    # Jinja filter: format_currency (re-uses helper in app.utils.formatting)
+    try:
+        from app.utils.formatting import format_currency as format_currency_helper
+        app.jinja_env.filters['format_currency'] = format_currency_helper
+    except Exception:
+        # Fallback: register a minimal local formatter if the helper cannot be imported
+        def _fc(value):
+            try:
+                v = float(value) if value is not None else 0.0
+            except Exception:
+                try:
+                    v = float(str(value))
+                except Exception:
+                    v = 0.0
+            fmt = app.config.get('FORMATO_VALUTA', '€ {:.2f}')
+            try:
+                return fmt.format(v)
+            except Exception:
+                return f'€ {v:.2f}'
+
+        app.jinja_env.filters['format_currency'] = _fc
     
     # Importa e registra i blueprint
     from app.views.main import main_bp

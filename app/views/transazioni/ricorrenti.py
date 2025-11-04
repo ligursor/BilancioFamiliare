@@ -1,7 +1,4 @@
-"""
-Blueprint per la gestione delle transazioni ricorrenti.
-Fornisce interfaccia per visualizzare, creare, modificare ed eliminare transazioni ricorrenti.
-"""
+"""Blueprint per la gestione delle transazioni ricorrenti."""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from app import db
 from app.models.TransazioniRicorrenti import TransazioniRicorrenti

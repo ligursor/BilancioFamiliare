@@ -1,12 +1,10 @@
-"""
-Blueprint per la gestione PayPal
-Replica l'implementazione originale da app.py
-"""
+"""Gestione dei piani e movimenti PayPal."""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from datetime import datetime, timedelta
 from app.models.Paypal import PaypalAbbonamenti, PaypalMovimenti
 from app.models.Transazioni import Transazioni
 from app import db
+from app.utils.formatting import format_currency
 
 paypal_bp = Blueprint('paypal', __name__)
 
@@ -84,7 +82,7 @@ def aggiorna_importi_rimanenti_paypal():
 
 @paypal_bp.route('/')
 def dashboard():
-    """Dashboard per la gestione dei piani PayPal - replica dell'implementazione originale"""
+    """Mostra la dashboard dei piani PayPal e relative statistiche."""
     try:
         # Aggiorna gli importi rimanenti prima di visualizzare i dati
         aggiorna_importi_rimanenti_paypal()
@@ -164,11 +162,7 @@ def dashboard():
 
 @paypal_bp.route('/_debug_update')
 def _debug_update():
-    """Temporary debug endpoint: runs the PayPal update routine and returns traceback on error.
-
-    Call this only in a development environment. It returns JSON with a 'status' field
-    and a 'trace' when an exception occurs so you can inspect the underlying error.
-    """
+    """Esegue l'aggiornamento PayPal e restituisce lo stato (endpoint di debug)."""
     try:
         aggiorna_importi_rimanenti_paypal()
         return jsonify({'status': 'ok'})
@@ -185,7 +179,7 @@ def _debug_update():
 
 @paypal_bp.route('/piano/<int:piano_id>')
 def dettaglio(piano_id):
-    """Mostra il dettaglio di un piano PayPal e le sue rate."""
+    """Mostra il dettaglio di un piano PayPal."""
     try:
         piano = PaypalAbbonamenti.query.get_or_404(piano_id)
         # carica le rate associate ordinandole per numero
@@ -201,7 +195,7 @@ def dettaglio(piano_id):
 
 @paypal_bp.route('/nuovo', methods=['GET', 'POST'])
 def nuovo():
-    """Crea un nuovo piano PayPal"""
+    """Crea un nuovo piano PayPal."""
     if request.method == 'POST':
         try:
             descrizione = request.form.get('descrizione', '').strip().upper()
@@ -300,7 +294,7 @@ def paga_rata(rata_id):
         
         db.session.commit()
         
-        flash(f'Rata di €{rata.importo:.2f} segnata come pagata!', 'success')
+        flash(f'Rata di {format_currency(rata.importo)} segnata come pagata!', 'success')
         
     except Exception as e:
         flash(f'Errore nel pagamento della rata: {str(e)}', 'error')

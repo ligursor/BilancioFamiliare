@@ -14,13 +14,7 @@ class ResetService(BaseService):
     """Servizio per resettare il sistema: imposta saldo iniziale, rigenera transazioni e riepiloghi mensili."""
 
     def reset_horizon(self, importo, months=6, base_date=None, full_wipe=False):
-        """Esegue il reset:
-        - registra/aggiorna `SaldoIniziale` con `importo`
-        - elimina le transazioni generate dalle ricorrenze nell'orizzonte e le ricrea
-        - elimina i `monthly_summary` nell'orizzonte e li rigenera
-
-        Restituisce (True, info_dict) o (False, error_message)
-        """
+        """Esegue il reset:"""
         if base_date is None:
             base_date = date.today()
 

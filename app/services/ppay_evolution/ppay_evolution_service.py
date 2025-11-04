@@ -1,6 +1,4 @@
-"""
-Servizio per la gestione di PostePay Evolution (carta, abbonamenti e movimenti)
-"""
+"""Servizio per la gestione di PostePay Evolution (carta, abbonamenti e movimenti)"""
 from app.services import BaseService
 from app.models.PostePayEvolution import PostePayEvolution, AbbonamentoPostePay, MovimentoPostePay
 from app import db

@@ -1,6 +1,4 @@
-"""
-Servizio per la gestione dei budget mensili
-"""
+"""Servizio per la gestione dei budget mensili"""
 from app.services import BaseService
 from app.models.BudgetMensili import BudgetMensili
 from app.models.Budget import Budget

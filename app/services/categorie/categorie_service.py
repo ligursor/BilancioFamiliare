@@ -1,6 +1,4 @@
-"""
-Servizio per la gestione delle categorie
-"""
+"""Servizio per la gestione delle categorie"""
 from app.services import BaseService
 from app.models.Categorie import Categorie
 from app import db

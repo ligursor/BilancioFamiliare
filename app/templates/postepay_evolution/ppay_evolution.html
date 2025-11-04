@@ -12,7 +12,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h5 class="card-title">Saldo Attuale</h5>
-                        <h3>{{ config.FORMATO_VALUTA.format(postepay.saldo_attuale if postepay else 0) }}</h3>
+                        <h3>{{ (postepay.saldo_attuale if postepay else 0) | format_currency }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-wallet fa-2x"></i>
@@ -42,7 +42,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h5 class="card-title">Spesa Mensile</h5>
-                        <h3>{{ config.FORMATO_VALUTA.format(spesa_mensile) }}</h3>
+                        <h3>{{ (spesa_mensile) | format_currency }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-euro-sign fa-2x"></i>
@@ -103,7 +103,7 @@
                                             <br><small class="text-muted">{{ abbonamento.descrizione }}</small>
                                             {% endif %}
                                         </td>
-                                        <td>{{ config.FORMATO_VALUTA.format(abbonamento.importo) }}</td>
+                                        <td>{{ (abbonamento.importo) | format_currency }}</td>
                                         <td>{{ abbonamento.giorno_addebito }}</td>
                                         <td>
                                             {% if abbonamento.attivo %}
@@ -161,7 +161,7 @@
                             </div>
                             <div class="text-end">
                                 <span class="badge {% if not addebito.saldo_sufficiente %}bg-danger{% else %}bg-success{% endif %} text-white">{{ addebito.giorni }} giorni</span><br>
-                                <small class="text-white">{{ config.FORMATO_VALUTA.format(addebito.abbonamento.importo) }}</small>
+                                <small class="text-white">{{ (addebito.abbonamento.importo) | format_currency }}</small>
                             </div>
                         </div>
                         {% endfor %}
@@ -215,7 +215,7 @@
                                     </span>
                                 </td>
                                 <td class="text-center {% if movimento.importo > 0 %}text-success{% else %}text-danger{% endif %} align-middle">
-                                    {{ config.FORMATO_VALUTA.format(movimento.importo) }}
+                                    {{ (movimento.importo) | format_currency }}
                                 </td>
                                 <td class="text-center align-middle">
                                     <button type="button" class="btn btn-outline-primary btn-sm btn-edit-movimento" 
@@ -300,7 +300,7 @@
                 <div class="modal-body">
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>Saldo attuale:</strong> {{ config.FORMATO_VALUTA.format(postepay.saldo_attuale if postepay else 0) }}
+                        <strong>Saldo attuale:</strong> {{ (postepay.saldo_attuale if postepay else 0) | format_currency }}
                     </div>
                     <div class="mb-3">
                         <label for="nuovo_saldo" class="form-label">Nuovo Saldo (€)</label>

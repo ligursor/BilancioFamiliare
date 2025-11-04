@@ -1,7 +1,6 @@
-"""
-Blueprint principale per le route di base
-"""
+"""Blueprint principale per le route di base"""
 from flask import Blueprint, render_template, current_app
+from app.utils.formatting import format_currency
 from app.services.transazioni.transazioni_service import TransazioneService
 from app.models.Categorie import Categorie
 from app.services.conti_finanziari.strumenti_service import StrumentiService
@@ -349,7 +348,7 @@ def reset():
             ok, res = svc.reset_horizon(importo, months=months, full_wipe=full_wipe)
             if ok:
                 extra = ' (full wipe)' if full_wipe else ''
-                flash(f'Reset eseguito{extra}: saldo impostato a €{importo:.2f}. Transazioni rigenerate: {res.get("created_generated_transactions",0)}. Summaries rigenerati: {res.get("monthly_summary_regenerated",0)}', 'success')
+                flash(f'Reset eseguito{extra}: saldo impostato a {format_currency(importo)}. Transazioni rigenerate: {res.get("created_generated_transactions",0)}. Summaries rigenerati: {res.get("monthly_summary_regenerated",0)}', 'success')
             else:
                 flash(f'Errore durante reset: {res}', 'error')
         except Exception as e:

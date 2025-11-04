@@ -1,7 +1,4 @@
-"""
-Service per la gestione delle transazioni ricorrenti.
-Fornisce operazioni CRUD complete per TransazioniRicorrenti.
-"""
+"""Service per la gestione delle transazioni ricorrenti."""
 from app import db
 from app.models.TransazioniRicorrenti import TransazioniRicorrenti
 from app.models.Categorie import Categorie
@@ -13,59 +10,24 @@ class TransazioniRicorrentiService:
     """Service per gestire le transazioni ricorrenti"""
     
     def get_all(self) -> List[TransazioniRicorrenti]:
-        """
-        Recupera tutte le transazioni ricorrenti
-        
-        Returns:
-            Lista di TransazioniRicorrenti
-        """
+        """Recupera tutte le transazioni ricorrenti"""
         return TransazioniRicorrenti.query.order_by(
             TransazioniRicorrenti.giorno.asc(), 
             TransazioniRicorrenti.descrizione.asc()
         ).all()
     
     def get_by_id(self, ricorrente_id: int) -> Optional[TransazioniRicorrenti]:
-        """
-        Recupera una transazione ricorrente per ID
-        
-        Args:
-            ricorrente_id: ID della transazione ricorrente
-            
-        Returns:
-            TransazioniRicorrenti o None
-        """
+        """Recupera una transazione ricorrente per ID"""
         return TransazioniRicorrenti.query.get(ricorrente_id)
     
     def get_by_categoria(self, categoria_id: int) -> List[TransazioniRicorrenti]:
-        """
-        Recupera tutte le transazioni ricorrenti di una categoria
-        
-        Args:
-            categoria_id: ID della categoria
-            
-        Returns:
-            Lista di TransazioniRicorrenti
-        """
+        """Recupera tutte le transazioni ricorrenti di una categoria"""
         return TransazioniRicorrenti.query.filter_by(categoria_id=categoria_id).all()
     
     def create(self, descrizione: str, importo: float, tipo: str, giorno: int = 1,
                categoria_id: int = None, cadenza: str = 'mensile',
                skip_month_if_annual: bool = False) -> Tuple[bool, str, Optional[TransazioniRicorrenti]]:
-        """
-        Crea una nuova transazione ricorrente
-        
-        Args:
-            descrizione: Descrizione della transazione
-            importo: Importo (positivo per entrate, negativo per uscite)
-            tipo: 'entrata' o 'uscita'
-            giorno: Giorno del mese (1-31)
-            categoria_id: ID della categoria (opzionale)
-            cadenza: Cadenza ('mensile', 'annuale', ecc.)
-            skip_month_if_annual: Salta se esiste ricorrenza annuale
-            
-        Returns:
-            Tuple (success: bool, message: str, ricorrente: TransazioniRicorrenti)
-        """
+        """Crea una nuova transazione ricorrente"""
         try:
             # Validazioni
             if not descrizione or not descrizione.strip():
@@ -105,16 +67,7 @@ class TransazioniRicorrentiService:
     def update(self, ricorrente_id: int, descrizione: str = None, importo: float = None,
                tipo: str = None, giorno: int = None, categoria_id: int = None,
                cadenza: str = None, skip_month_if_annual: bool = None) -> Tuple[bool, str]:
-        """
-        Aggiorna una transazione ricorrente esistente
-        
-        Args:
-            ricorrente_id: ID della transazione ricorrente da aggiornare
-            Altri parametri opzionali da aggiornare
-            
-        Returns:
-            Tuple (success: bool, message: str)
-        """
+        """Aggiorna una transazione ricorrente esistente"""
         try:
             ricorrente = TransazioniRicorrenti.query.get(ricorrente_id)
             if not ricorrente:
@@ -162,15 +115,7 @@ class TransazioniRicorrentiService:
             return False, f"Errore durante l'aggiornamento: {str(e)}"
     
     def delete(self, ricorrente_id: int) -> Tuple[bool, str]:
-        """
-        Elimina una transazione ricorrente
-        
-        Args:
-            ricorrente_id: ID della transazione ricorrente da eliminare
-            
-        Returns:
-            Tuple (success: bool, message: str)
-        """
+        """Elimina una transazione ricorrente"""
         try:
             ricorrente = TransazioniRicorrenti.query.get(ricorrente_id)
             if not ricorrente:
@@ -187,12 +132,7 @@ class TransazioniRicorrentiService:
             return False, f"Errore durante l'eliminazione: {str(e)}"
     
     def get_stats(self) -> dict:
-        """
-        Restituisce statistiche sulle transazioni ricorrenti
-        
-        Returns:
-            Dict con statistiche
-        """
+        """Restituisce statistiche sulle transazioni ricorrenti"""
         try:
             totale = TransazioniRicorrenti.query.count()
             entrate = TransazioniRicorrenti.query.filter_by(tipo='entrata').all()

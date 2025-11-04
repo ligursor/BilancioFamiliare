@@ -1,7 +1,4 @@
-"""
-Blueprint per gli appunti
-Replica l'implementazione originale da app.py
-"""
+"""Blueprint per gli appunti"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from datetime import datetime
 from app.models.Appunti import Appunti

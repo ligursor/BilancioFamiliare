@@ -1,6 +1,4 @@
-"""
-Modelli per la gestione del garage auto
-"""
+"""Modelli per la gestione del garage auto"""
 from app import db
 from datetime import datetime, date
 import calendar

@@ -57,7 +57,7 @@
                             <p><strong>Numero Rate:</strong> {{ veicolo.numero_rate }}</p>
                             {% endif %}
                             {% if veicolo.rata_mensile %}
-                            <p><strong>Rata Mensile:</strong> {{ formato_valuta.format(veicolo.rata_mensile or 0) }}</p>
+                            <p><strong>Rata Mensile:</strong> {{ (veicolo.rata_mensile or 0) | format_currency }}</p>
                             {% endif %}
                         </div>
                     </div>
@@ -73,20 +73,20 @@
                     <div class="row mb-3">
                         <div class="col-6 d-flex align-items-center">
                             <span class="fw-bold me-2">Costo Finanziamento:</span>
-                            <span>{{ formato_valuta.format(veicolo.costo_finanziamento or 0) }}</span>
+                            <span>{{ (veicolo.costo_finanziamento or 0) | format_currency }}</span>
                         </div>
                         <div class="col-6 d-flex align-items-center">
                             <span class="fw-bold me-2">Totale Versato:</span>
-                            <span>{{ formato_valuta.format(veicolo.totale_versato or 0) }}</span>
+                            <span>{{ (veicolo.totale_versato or 0) | format_currency }}</span>
                         </div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-6 d-flex align-items-center">
                             <span class="fw-bold me-2">Saldo Rimanente:</span>
                             {% if (veicolo.saldo_rimanente or 0) > 0 %}
-                                <span class="text-warning">{{ formato_valuta.format(veicolo.saldo_rimanente or 0) }}</span>
+                                <span class="text-warning">{{ (veicolo.saldo_rimanente or 0) | format_currency }}</span>
                             {% else %}
-                                <span class="text-success">{{ formato_valuta.format(0) }}</span>
+                                <span class="text-success">{{ (0) | format_currency }}</span>
                             {% endif %}
                         </div>
                         <div class="col-6 d-flex align-items-center">
@@ -106,7 +106,7 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h4 class="card-title">{{ formato_valuta.format(totale_bolli or 0) }}</h4>
+                            <h4 class="card-title">{{ (totale_bolli or 0) | format_currency }}</h4>
                             <p class="card-text">Totale Bolli</p>
                         </div>
                     </div>
@@ -118,7 +118,7 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h4 class="card-title">{{ formato_valuta.format(totale_manutenzioni or 0) }}</h4>
+                            <h4 class="card-title">{{ (totale_manutenzioni or 0) | format_currency }}</h4>
                             <p class="card-text">Totale Manutenzioni</p>
                         </div>
                     </div>
@@ -130,7 +130,7 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h4 class="card-title">{{ formato_valuta.format(costo_totale or 0) }}</h4>
+                            <h4 class="card-title">{{ (costo_totale or 0) | format_currency }}</h4>
                             <p class="card-text">Costo Totale</p>
                         </div>
                     </div>
@@ -142,7 +142,7 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h4 class="card-title">{{ formato_valuta.format(costo_totale or 0) }}</h4>
+                            <h4 class="card-title">{{ (costo_totale or 0) | format_currency }}</h4>
                             <p class="card-text">Totale Costi</p>
                             <small>Finanziamento + Bolli + Manutenzioni</small>
                         </div>
@@ -200,7 +200,7 @@
                                 <tr>
                                     <td class="text-center">{{ bollo.anno_riferimento }}</td>
                                     <td class="text-center">{{ bollo.data_pagamento.strftime('%d/%m/%Y') }}</td>
-                                    <td class="text-center">{{ formato_valuta.format(bollo.importo or 0) }}</td>
+                                    <td class="text-center">{{ (bollo.importo or 0) | format_currency }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -241,7 +241,7 @@
                                     </td>
                                     <td class="text-center">{{ manutenzione.data_intervento.strftime('%d/%m/%Y') }}</td>
                                     <td class="text-center">{{ "{:,}".format(manutenzione.km_intervento).replace(',', '.') }}</td>
-                                    <td class="text-center">{{ formato_valuta.format(manutenzione.costo or 0) }}</td>
+                                    <td class="text-center">{{ (manutenzione.costo or 0) | format_currency }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

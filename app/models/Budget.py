@@ -1,6 +1,4 @@
-"""
-Modello per i budget per categorie
-"""
+"""Modello per i budget per categorie"""
 from app import db
 
 
