@@ -94,6 +94,36 @@ def dashboard():
         # Conta come attivi solo quelli con stato 'in_corso'
         piani_attivi = len([p for p in piani if p.stato == 'in_corso'])
 
+        # Ordina i piani in corso a partire dalla scadenza più prossima delle loro rate non pagate
+        from datetime import date as _date
+
+        def _next_due_date_for(piano):
+            # trova la data_scadenza minima per le rate con stato 'in_attesa'
+            dates = [r.data_scadenza for r in (piano.rate or []) if getattr(r, 'stato', None) == 'in_attesa']
+            if not dates:
+                return None
+            try:
+                return min(dates)
+            except Exception:
+                return None
+
+        # sort: active plans (stato == 'in_corso') first, ordered by next due date asc (None goes last),
+        # then the rest by creation desc
+        FAR_FUTURE = _date(9999, 12, 31)
+
+        def _sort_key(p):
+            active_flag = 0 if p.stato == 'in_corso' else 1
+            nd = _next_due_date_for(p)
+            nd_sort = nd if nd is not None else FAR_FUTURE
+            # use creation desc as tiebreaker (more recent first -> negative timestamp)
+            try:
+                created_ts = p.data_creazione.timestamp() if getattr(p, 'data_creazione', None) else 0
+            except Exception:
+                created_ts = 0
+            return (active_flag, nd_sort, -created_ts)
+
+        piani = sorted(piani, key=_sort_key)
+
         # Calcola importo rimanente: somma degli importi delle rate non pagate di tutti i piani
         importo_rimanente_totale = 0
         rate_non_pagate_totali = 0
