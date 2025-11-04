@@ -1,12 +1,8 @@
-<<<<<<< HEAD
 """Blueprint per la gestione dei conti personali.
 
 Questa versione evita riferimenti a nomi specifici e usa identificatori
 dinamici (id o nome) per risalire al conto richiesto.
 """
-=======
-"""Blueprint per la gestione dei conti personali di Maurizio e Antonietta"""
->>>>>>> 85f0ecfa90d7764ffba387ece47ff286cccfa0f7
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from datetime import datetime, date
 from app.services.conto_personale.conti_personali_service import ContiPersonaliService

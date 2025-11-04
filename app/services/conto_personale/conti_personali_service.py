@@ -1,11 +1,7 @@
-<<<<<<< HEAD
-"""
-Service per la gestione dei conti personali.
+"""Service per la gestione dei conti personali.
+
 Implementazione generica che non dipende da nomi hardcoded (es. Maurizio/Antonietta).
 """
-=======
-"""Service per la gestione dei conti personali di Maurizio e Antonietta"""
->>>>>>> 85f0ecfa90d7764ffba387ece47ff286cccfa0f7
 from datetime import datetime, date
 from sqlalchemy import func, and_, desc
 from app.models.ContoPersonale import ContoPersonale, ContoPersonaleMovimento as VersamentoPersonale
@@ -41,13 +37,6 @@ class ContiPersonaliService:
                 strum_id = None
 
             if not conto:
-<<<<<<< HEAD
-                # se lo strumento non esiste, crealo con valore iniziale 0.0.
-                # Il saldo reale è la fonte di verità nella tabella `conti_finanziari` (strumento)
-                # e può essere impostato/aggiornato da interfacce amministrative o tramite
-                # l'endpoint `aggiorna_saldo_iniziale` che aggiorna il record strumento.
-                default_iniziale = 0.0
-=======
                 # preferisci il saldo_iniziale già presente nello Strumento (DB) se esiste;
                 # altrimenti usa 0.0 come valore di fallback.
                 try:
@@ -55,7 +44,6 @@ class ContiPersonaliService:
                     default_iniziale = existing.saldo_iniziale if existing and existing.saldo_iniziale is not None else 0.0
                 except Exception:
                     default_iniziale = 0.0
->>>>>>> 85f0ecfa90d7764ffba387ece47ff286cccfa0f7
 
                 try:
                     strum = ss.ensure_strumento(descr, 'conto_personale', default_iniziale)

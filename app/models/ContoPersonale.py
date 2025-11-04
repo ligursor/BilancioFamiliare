@@ -1,13 +1,9 @@
-<<<<<<< HEAD
 """Modelli per i conti personali.
 
 Questi modelli rappresentano conti personali collegati a record in
 `conti_finanziari` (strumenti). Il codice evita riferimenti a nomi
 specifici e lavora in modo generico con ogni conto presente nel DB.
 """
-=======
-"""Modelli per i conti personali"""
->>>>>>> 85f0ecfa90d7764ffba387ece47ff286cccfa0f7
 from app import db
 from datetime import datetime, date
 

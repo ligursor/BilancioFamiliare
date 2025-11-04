@@ -34,7 +34,6 @@ def create_app(config_name='default'):
     def inject_datetime():
         return {'datetime': datetime}
 
-<<<<<<< HEAD
     @app.context_processor
     def inject_conti_personali():
         """Inietta nei template la lista dei conti personali presenti nel DB.
@@ -49,7 +48,7 @@ def create_app(config_name='default'):
             return {'conti_personali': conti_list}
         except Exception:
             return {'conti_personali': []}
-=======
+
     # Jinja filter: format_currency (re-uses helper in app.utils.formatting)
     try:
         from app.utils.formatting import format_currency as format_currency_helper
@@ -71,7 +70,6 @@ def create_app(config_name='default'):
                 return f'€ {v:.2f}'
 
         app.jinja_env.filters['format_currency'] = _fc
->>>>>>> 85f0ecfa90d7764ffba387ece47ff286cccfa0f7
     
     # Importa e registra i blueprint
     from app.views.main import main_bp
