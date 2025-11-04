@@ -40,5 +40,7 @@ env/
 .tox/
 
 # Database files and local backups
-db/bilanncio_*.db
+db/bilancio_*.db
 scripts/backup/*.db
+
+tests/
