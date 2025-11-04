@@ -117,6 +117,31 @@ def recreate_generated_and_summaries(months=6, base_date=None, initial_year=None
     from app.services.transazioni.monthly_summary_service import MonthlySummaryService
     msvc = MonthlySummaryService()
 
+    # If an explicit initial_saldo was provided, seed the first period's
+    # `saldi_mensili.saldo_iniziale` so that regenerate_month_summary will
+    # use it as starting balance for the first month.
+    if initial_saldo is not None and len(period_list) > 0:
+        try:
+            from app.models.SaldiMensili import SaldiMensili
+            first_year, first_month, _, _ = period_list[0]
+            existing = SaldiMensili.query.filter_by(year=first_year, month=first_month).first()
+            if existing:
+                existing.saldo_iniziale = float(initial_saldo)
+                db.session.add(existing)
+            else:
+                # create a minimal record with the provided saldo_iniziale; other fields
+                # will be updated by regenerate_month_summary
+                new_ms = SaldiMensili(year=first_year, month=first_month, saldo_iniziale=float(initial_saldo))
+                db.session.add(new_ms)
+            db.session.commit()
+            result['initial_saldo_seeded'] = True
+        except Exception:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            result['initial_saldo_seeded'] = False
+
     for (year, month, periodo_start, periodo_end) in period_list:
         ok, res = msvc.regenerate_month_summary(year, month)
         if ok:

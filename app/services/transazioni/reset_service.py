@@ -106,7 +106,7 @@ class ResetService(BaseService):
                 from app.services.transazioni.recreate_generated_and_summaries import recreate_generated_and_summaries
                 # Delegate deletion/repopulation to the centralized helper and
                 # perform real changes (no preview) for Reset.
-                rr = recreate_generated_and_summaries(months=months, base_date=start_date, full_wipe=full_wipe)
+                rr = recreate_generated_and_summaries(months=months, base_date=start_date, initial_saldo=float(importo) if importo is not None else None, full_wipe=full_wipe)
                 created = rr.get('created_generated_transactions', 0)
                 ms_created = rr.get('monthly_summary_regenerated', 0)
                 chained = rr.get('chained_periods', 0)
