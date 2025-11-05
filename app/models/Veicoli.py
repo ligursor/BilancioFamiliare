@@ -75,6 +75,18 @@ class Veicoli(db.Model):
     def nome_completo(self):
         """Restituisce nome completo del veicoli"""
         return f"{self.marca} {self.modello}"
+
+    @property
+    def bollo_scaduto(self):
+        """Indica se esiste un bollo non pagato per l'anno corrente."""
+        try:
+            current_year = date.today().year
+            # AutoBolli è definito più sotto nel file; la query viene eseguita a runtime
+            unpaid = AutoBolli.query.filter_by(veicolo_id=self.id, anno_riferimento=current_year).filter(AutoBolli.data_pagamento.is_(None)).first()
+            return bool(unpaid)
+        except Exception:
+            # In caso di problemi (es. sessione non inizializzata), consideriamo non scaduto
+            return False
     
     def __repr__(self):
         return f'<Veicoli {self.nome_completo}>'
