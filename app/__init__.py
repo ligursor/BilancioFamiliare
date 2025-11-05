@@ -165,4 +165,33 @@ def create_app(config_name='default'):
             except Exception:
                 pass
     
+    # If the configured SQLite file doesn't exist, create tables on app startup
+    # to make tests and local runs smoother. This is best-effort and non-destructive.
+    try:
+        db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        if db_uri.startswith('sqlite:///'):
+            # Ensure SQLAlchemy metadata is populated by importing model modules
+            with app.app_context():
+                try:
+                    import importlib
+                    models_dir = os.path.join(os.path.dirname(__file__), 'models')
+                    if os.path.isdir(models_dir):
+                        for fn in os.listdir(models_dir):
+                            if fn.endswith('.py') and not fn.startswith('__'):
+                                mod_name = f"app.models.{fn[:-3]}"
+                                try:
+                                    importlib.import_module(mod_name)
+                                except Exception:
+                                    # ignore individual model import errors; best-effort
+                                    pass
+                except Exception:
+                    pass
+                try:
+                    db.create_all()
+                except Exception:
+                    # swallow errors; migrations or manual setup may be used instead
+                    pass
+    except Exception:
+        pass
+
     return app

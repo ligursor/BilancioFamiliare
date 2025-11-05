@@ -1,7 +1,6 @@
 """Blueprint principale per le route di base"""
 from flask import Blueprint, render_template, current_app
 from app.utils.formatting import format_currency
-from app.services.transazioni.transazioni_service import TransazioneService
 from app.models.Categorie import Categorie
 from app.services.conti_finanziari.strumenti_service import StrumentiService
 from app.services import get_month_boundaries, get_current_month_name

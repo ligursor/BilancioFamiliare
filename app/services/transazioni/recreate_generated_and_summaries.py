@@ -6,14 +6,7 @@ from app import db
 from sqlalchemy import text
 
 
-def round2(v):
-    try:
-        return float(round(v + 1e-9, 2))
-    except Exception:
-        return 0.0
-
-
-def recreate_generated_and_summaries(months=6, base_date=None, initial_year=None, initial_month=None, initial_saldo=None, full_wipe=False):
+def recreate_generated_and_summaries(months=6, base_date=None, _initial_year=None, _initial_month=None, initial_saldo=None, full_wipe=False):
     """Recreate generated transactions and regenerate monthly_summary entries."""
     if base_date is None:
         base_date = date.today()

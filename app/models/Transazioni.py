@@ -22,20 +22,5 @@ class Transazioni(db.Model):
     # `id_recurring_tx` che punta alla tabella `transazioni_ricorrenti`.
     id_recurring_tx = db.Column(db.Integer, nullable=True)
     
-    @property
-    def e_programmata(self):
-        """Restituisce True se la transazioni è programmata (data futura e non ancora effettuata)"""
-        return self.data_effettiva is None and self.data > datetime.now().date()
-    
-    @property
-    def e_effettuata(self):
-        """Restituisce True se la transazioni è stata effettuata"""
-        return self.data_effettiva is not None or self.data <= datetime.now().date()
-    
-    @property
-    def e_in_attesa(self):
-        """Restituisce True se la transazioni è in attesa"""
-        return self.data_effettiva is None and self.data > datetime.now().date()
-    
     def __repr__(self):
         return f'<Transazioni {self.descrizione}: {self.importo} ({self.tipo})>'
