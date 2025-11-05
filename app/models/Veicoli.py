@@ -65,16 +65,6 @@ class Veicoli(db.Model):
         """Restituisce nome completo del veicoli"""
         return f"{self.marca} {self.modello}"
     
-    @property
-    def giorni_alla_scadenza_bollo(self):
-        """Calcola i giorni alla prossima scadenza bollo"""
-        oggi = date.today()
-        # Data di scadenza per l'anno corrente (ultimo giorno del mese di scadenza)
-        ultimo_giorno = calendar.monthrange(oggi.year, self.mese_scadenza_bollo)[1]
-        data_scadenza = date(oggi.year, self.mese_scadenza_bollo, ultimo_giorno)
-        
-        return (data_scadenza - oggi).days
-    
     def __repr__(self):
         return f'<Veicoli {self.nome_completo}>'
 

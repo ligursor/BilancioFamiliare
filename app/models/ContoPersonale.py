@@ -67,7 +67,7 @@ def _recompute_and_update_strumento(connection, conto_id):
 
 
 @event.listens_for(ContoPersonaleMovimento, 'after_insert')
-def _after_insert_movimento(mapper, connection, target):
+def _after_insert_movimento(_mapper, connection, target):
     try:
         _recompute_and_update_strumento(connection, target.conto_id)
     except Exception:
@@ -76,7 +76,7 @@ def _after_insert_movimento(mapper, connection, target):
 
 
 @event.listens_for(ContoPersonaleMovimento, 'after_delete')
-def _after_delete_movimento(mapper, connection, target):
+def _after_delete_movimento(_mapper, connection, target):
     try:
         _recompute_and_update_strumento(connection, target.conto_id)
     except Exception:
@@ -84,7 +84,7 @@ def _after_delete_movimento(mapper, connection, target):
 
 
 @event.listens_for(ContoPersonaleMovimento, 'after_update')
-def _after_update_movimento(mapper, connection, target):
+def _after_update_movimento(_mapper, connection, target):
     try:
         _recompute_and_update_strumento(connection, target.conto_id)
     except Exception:

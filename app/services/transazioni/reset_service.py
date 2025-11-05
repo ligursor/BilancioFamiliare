@@ -1,6 +1,5 @@
 from app.services import BaseService, get_month_boundaries
 from app.services.conti_finanziari.strumenti_service import StrumentiService
-from app.models.Transazioni import Transazioni as Transazione
 from app import db
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta

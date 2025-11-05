@@ -14,7 +14,11 @@
                 <div class="row">
                     {% for mese in mesi %}
                     <div class="col-lg-4 col-md-6 mb-4">
+                        {% if not mese.is_placeholder %}
                         <a href="{{ url_for('dettaglio_periodo.mese', anno=mese.anno_target, mese=mese.mese_target) }}" class="text-decoration-none">
+                        {% else %}
+                        <div class="text-decoration-none">
+                        {% endif %}
                             <!-- placeholder={{ mese.is_placeholder }} -->
                             <div class="card month-card {% if mese.mese_corrente %}current-month{% endif %}">
                                 <div class="card-header bg-primary text-white">
@@ -73,7 +77,11 @@
                                     </div>
                                 </div>
                             </div>
+                        {% if not mese.is_placeholder %}
                         </a>
+                        {% else %}
+                        </div>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>

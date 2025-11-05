@@ -310,6 +310,10 @@ def elimina_transazione_periodo(start_date, end_date, id):
 @dettaglio_periodo_bp.route('/<start_date>/<end_date>/aggiungi_transazione', methods=['POST'])
 def aggiungi_transazione_periodo(start_date, end_date):
 	"""Aggiunge una nuova transazioni per il periodo specificato e ritorna al dettaglio."""
+	# Use a single outer try/except to manage DB operations and return behavior
+	is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+	transazioni = None
+	summary_out = None
 	try:
 		# Parse submitted data
 		data_str = request.form.get('data')
@@ -323,14 +327,9 @@ def aggiungi_transazione_periodo(start_date, end_date):
 		importo = float(request.form.get('importo') or 0.0)
 		categoria_id = int(request.form.get('categoria_id')) if request.form.get('categoria_id') else None
 
-		# Determine if this is an AJAX inline add - for inline adds we MUST create non-recurring transactions
-		is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-		if is_ajax:
-			ricorrente = False
-		else:
-			ricorrente = True if request.form.get('ricorrente') else False
+		ricorrente = False if is_ajax else (True if request.form.get('ricorrente') else False)
 
-		# Validate that the provided date falls within the requested period bounds
+		# Validate date bounds
 		from datetime import datetime as _dt
 		try:
 			start_dt = _dt.strptime(start_date, '%Y-%m-%d').date()
@@ -340,7 +339,6 @@ def aggiungi_transazione_periodo(start_date, end_date):
 			end_dt = None
 
 		if data_obj is None or start_dt is None or end_dt is None:
-			# invalid/missing date
 			msg = 'Data mancante o non valida.'
 			if is_ajax:
 				return jsonify({'status': 'error', 'message': msg}), 400
@@ -354,6 +352,7 @@ def aggiungi_transazione_periodo(start_date, end_date):
 			flash(msg, 'error')
 			return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
 
+		# create transaction
 		transazioni = Transazioni(
 			data=data_obj,
 			data_effettiva=data_obj if data_obj and data_obj <= datetime.now().date() else None,
@@ -366,7 +365,8 @@ def aggiungi_transazione_periodo(start_date, end_date):
 
 		db.session.add(transazioni)
 		db.session.commit()
-		# After adding a transaction, update monthly summaries starting from the transaction month
+
+		# update summaries
 		try:
 			if data_obj:
 				_recompute_summaries_from(data_obj.year, data_obj.month)
@@ -375,17 +375,16 @@ def aggiungi_transazione_periodo(start_date, end_date):
 		except Exception:
 			pass
 		flash('Transazioni aggiunta con successo', 'success')
-		# If this is an AJAX request, return JSON with the created transaction
-		if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-			tx = Transazioni.query.get(transazioni.id)
-			# Compute updated summary so client can refresh totals
+
+		# prepare AJAX summary if requested
+		if is_ajax and transazioni:
 			try:
 				from datetime import datetime as _dt
 				start_dt = _dt.strptime(start_date, '%Y-%m-%d').date()
 				end_dt = _dt.strptime(end_date, '%Y-%m-%d').date()
 				service = DettaglioPeriodoService()
 				summary = service.dettaglio_periodo_interno(start_dt, end_dt)
-				# include stats per categoria for client-side chart updates
+				# include stats per categoria
 				try:
 					anno = end_dt.year
 					mese = end_dt.month
@@ -398,7 +397,7 @@ def aggiungi_transazione_periodo(start_date, end_date):
 							stats_serial.append({'categoria_nome': str(s), 'importo': 0.0})
 				except Exception:
 					stats_serial = []
-				out = {
+				summary_out = {
 					'entrate': float(summary.get('entrate') or 0.0),
 					'uscite': float(summary.get('uscite') or 0.0),
 					'bilancio': float(summary.get('bilancio') or 0.0),
@@ -409,24 +408,33 @@ def aggiungi_transazione_periodo(start_date, end_date):
 					'budget_items': summary.get('budget_items') or [],
 					'stats_categorie': stats_serial
 				}
-			except Exception:
-				out = None
-			return jsonify({'status': 'ok', 'transazione': {
-				'id': tx.id,
-				'data': tx.data.strftime('%Y-%m-%d') if tx.data else None,
-				'descrizione': tx.descrizione,
-				'importo': float(tx.importo or 0.0),
-				'categoria_id': tx.categoria_id,
-				'categoria_nome': tx.categoria.nome if tx.categoria else None,
-				'tipo': tx.tipo,
-				'ricorrente': bool(tx.ricorrente)
-			}, 'summary': out})
+			except Exception as e:
+				try:
+					db.session.rollback()
+				except Exception:
+					pass
+				flash(f'Errore durante l\'aggiunta della transazioni: {str(e)}', 'error')
+
 	except Exception as e:
 		try:
 			db.session.rollback()
 		except Exception:
 			pass
 		flash(f'Errore durante l\'aggiunta della transazioni: {str(e)}', 'error')
+
+	# Return AJAX response if requested, otherwise redirect back to the period view
+	if is_ajax and transazioni:
+		tx = Transazioni.query.get(transazioni.id)
+		return jsonify({'status': 'ok', 'transazione': {
+			'id': tx.id,
+			'data': tx.data.strftime('%Y-%m-%d') if tx.data else None,
+			'descrizione': tx.descrizione,
+			'importo': float(tx.importo or 0.0),
+			'categoria_id': tx.categoria_id,
+			'categoria_nome': tx.categoria.nome if tx.categoria else None,
+			'tipo': tx.tipo,
+			'ricorrente': bool(tx.ricorrente)
+		}, 'summary': summary_out})
 
 	return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
 

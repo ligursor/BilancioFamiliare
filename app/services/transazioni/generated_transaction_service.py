@@ -1,5 +1,4 @@
 from app.services import BaseService, get_month_boundaries
-from app.models.TransazioniRicorrenti import TransazioniRicorrenti as RecurringTransaction
 from app.models.Transazioni import Transazioni
 from app import db
 from sqlalchemy import text
