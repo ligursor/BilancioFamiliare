@@ -2,6 +2,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from datetime import datetime, timedelta, date
 from app.models.Veicoli import Veicoli, AutoBolli, AutoManutenzioni
+from sqlalchemy.exc import OperationalError
 from app import db
 
 auto_bp = Blueprint('auto', __name__)
@@ -12,8 +13,72 @@ def garage():
 	"""Dashboard del garage (auto solamente)"""
 	try:
 		current_app.logger.debug('Garage page requested')
-		veicoli = Veicoli.query.order_by(Veicoli.marca, Veicoli.modello).all()
-		current_app.logger.debug('Retrieved %d veicoli from DB', len(veicoli))
+		try:
+			veicoli = Veicoli.query.order_by(Veicoli.marca, Veicoli.modello).all()
+			current_app.logger.debug('Retrieved %d veicoli from DB', len(veicoli))
+		except OperationalError as oe:
+			# Fallback for older DB schemas missing recently added columns (e.g. veicoli.tipo)
+			current_app.logger.warning('ORM query failed, falling back to raw SQL: %s', oe)
+			# perform a raw select for common columns and build lightweight proxy objects
+			rows = db.session.execute(
+				"SELECT id, marca, modello, mese_scadenza_bollo, costo_finanziamento, prima_rata, numero_rate, rata_mensile, data_creazione FROM veicoli"
+			).fetchall()
+			class VehicleProxy:
+				def __init__(self, r):
+					# r is a sqlalchemy.Row
+					self.id = r['id']
+					self.marca = r['marca']
+					self.modello = r['modello']
+					self.mese_scadenza_bollo = r['mese_scadenza_bollo']
+					self.costo_finanziamento = r['costo_finanziamento']
+					self.prima_rata = r['prima_rata']
+					self.numero_rate = r['numero_rate']
+					self.rata_mensile = r['rata_mensile']
+					self.data_creazione = r['data_creazione']
+
+				@property
+				def nome_completo(self):
+					return f"{self.marca} {self.modello}"
+
+				@property
+				def totale_versato(self):
+					from datetime import date
+					oggi = date.today()
+					if not self.prima_rata or not self.numero_rate or not self.rata_mensile:
+						return 0.0
+					if oggi < self.prima_rata:
+						return 0.0
+					mesi_trascorsi = (oggi.year - self.prima_rata.year) * 12 + (oggi.month - self.prima_rata.month)
+					if oggi.day >= self.prima_rata.day:
+						mesi_trascorsi += 1
+					rate_pagate = min(mesi_trascorsi, self.numero_rate or 0)
+					return max(0, rate_pagate * (self.rata_mensile or 0))
+
+				@property
+				def rate_rimanenti(self):
+					from datetime import date
+					oggi = date.today()
+					if not self.prima_rata or not self.numero_rate or not self.rata_mensile:
+						return 0
+					if oggi < self.prima_rata:
+						return self.numero_rate
+					mesi_trascorsi = (oggi.year - self.prima_rata.year) * 12 + (oggi.month - self.prima_rata.month)
+					if oggi.day >= self.prima_rata.day:
+						mesi_trascorsi += 1
+					rate_pagate = min(mesi_trascorsi, self.numero_rate or 0)
+					return max(0, (self.numero_rate or 0) - rate_pagate)
+
+				@property
+				def saldo_rimanente(self):
+					return max(0, (self.costo_finanziamento or 0) - self.totale_versato)
+
+				@property
+				def bollo_scaduto(self):
+					# best-effort: if DB lacks schema, assume False
+					return False
+
+			veicoli = [VehicleProxy(r) for r in rows]
+
 
 		totale_costo_finanziamento = sum((v.costo_finanziamento or 0) for v in veicoli)
 		totale_versato = sum((v.totale_versato or 0) for v in veicoli)
@@ -98,7 +163,67 @@ def dettaglio(veicolo_id):
 	"""Dettaglio di un veicolo specifico"""
 	try:
 		current_app.logger.debug('caricamento dettaglio veicolo id=%s', veicolo_id)
-		veicolo = Veicoli.query.get_or_404(veicolo_id)
+		try:
+			veicolo = Veicoli.query.get_or_404(veicolo_id)
+		except OperationalError as oe:
+			current_app.logger.warning('ORM query for dettaglio failed, falling back to raw SQL: %s', oe)
+			row = db.session.execute("SELECT id, marca, modello, mese_scadenza_bollo, costo_finanziamento, prima_rata, numero_rate, rata_mensile, data_creazione FROM veicoli WHERE id = :id", {'id': veicolo_id}).fetchone()
+			if not row:
+				current_app.logger.error('Veicolo id=%s non trovato in raw SQL fallback', veicolo_id)
+				return redirect(url_for('auto.garage'))
+			class VehicleProxySingle:
+				def __init__(self, r):
+					self.id = r['id']
+					self.marca = r['marca']
+					self.modello = r['modello']
+					self.mese_scadenza_bollo = r['mese_scadenza_bollo']
+					self.costo_finanziamento = r['costo_finanziamento']
+					self.prima_rata = r['prima_rata']
+					self.numero_rate = r['numero_rate']
+					self.rata_mensile = r['rata_mensile']
+					self.data_creazione = r['data_creazione']
+
+				@property
+				def nome_completo(self):
+					return f"{self.marca} {self.modello}"
+
+				@property
+				def totale_versato(self):
+					from datetime import date
+					oggi = date.today()
+					if not self.prima_rata or not self.numero_rate or not self.rata_mensile:
+						return 0.0
+					if oggi < self.prima_rata:
+						return 0.0
+					mesi_trascorsi = (oggi.year - self.prima_rata.year) * 12 + (oggi.month - self.prima_rata.month)
+					if oggi.day >= self.prima_rata.day:
+						mesi_trascorsi += 1
+					rate_pagate = min(mesi_trascorsi, self.numero_rate or 0)
+					return max(0, rate_pagate * (self.rata_mensile or 0))
+
+				@property
+				def rate_rimanenti(self):
+					from datetime import date
+					oggi = date.today()
+					if not self.prima_rata or not self.numero_rate or not self.rata_mensile:
+						return 0
+					if oggi < self.prima_rata:
+						return self.numero_rate
+					mesi_trascorsi = (oggi.year - self.prima_rata.year) * 12 + (oggi.month - self.prima_rata.month)
+					if oggi.day >= self.prima_rata.day:
+						mesi_trascorsi += 1
+					rate_pagate = min(mesi_trascorsi, self.numero_rate or 0)
+					return max(0, (self.numero_rate or 0) - rate_pagate)
+
+				@property
+				def saldo_rimanente(self):
+					return max(0, (self.costo_finanziamento or 0) - self.totale_versato)
+
+				@property
+				def bollo_scaduto(self):
+					return False
+
+			veicolo = VehicleProxySingle(row)
 
 		bolli = AutoBolli.query.filter_by(veicolo_id=veicolo_id).order_by(AutoBolli.anno_riferimento.desc()).all()
 		manutenzioni = AutoManutenzioni.query.filter_by(veicolo_id=veicolo_id).order_by(AutoManutenzioni.data_intervento.desc()).all()
