@@ -72,7 +72,7 @@ class MovimentoPostePay(db.Model):
     # FK updated to match renamed abbonamenti table
     abbonamento_id = db.Column(db.Integer, db.ForeignKey('ppay_evolution_abbonamenti.id'), nullable=True)
     abbonamento = db.relationship('AbbonamentoPostePay', backref=db.backref('movimenti', lazy=True))
-    data_creazione = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # data_creazione removed — not required for movimenti
     
     def __repr__(self):
         return f'<MovimentoPostePay {self.descrizione}: {self.importo}>'

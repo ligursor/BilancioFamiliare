@@ -103,7 +103,7 @@ class AutoBolli(db.Model):
     anno_riferimento = db.Column(db.Integer, nullable=False)
     importo = db.Column(db.Float, nullable=False)
     data_pagamento = db.Column(db.Date, nullable=False)
-    data_creazione = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # data_creazione removed — not needed for bolli records
     
     def __repr__(self):
         return f'<AutoBolli {self.veicolo.nome_completo} {self.anno_riferimento}: {self.importo}>'
@@ -123,7 +123,7 @@ class AutoManutenzioni(db.Model):
     costo = db.Column(db.Float, nullable=False)
     km_intervento = db.Column(db.Integer, nullable=True)
     officina = db.Column(db.String(200), nullable=True)
-    data_creazione = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # data_creazione removed — not needed for manutenzioni records
     
     def __repr__(self):
         return f'<AutoManutenzioni {self.veicolo.nome_completo} - {self.tipo_intervento}: {self.costo}>'
@@ -141,7 +141,7 @@ class Assicurazioni(db.Model):
     importo = db.Column(db.Float, nullable=False)
     compagnia = db.Column(db.String(200), nullable=True)
     data_pagamento = db.Column(db.Date, nullable=False)
-    data_creazione = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # data_creazione removed — not needed for assicurazioni records
 
     def __repr__(self):
         return f'<Assicurazioni {self.veicolo.nome_completo} {self.anno_riferimento}: {self.importo}>'
