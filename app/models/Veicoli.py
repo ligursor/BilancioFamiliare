@@ -8,7 +8,6 @@ class Veicoli(db.Model):
     __tablename__ = 'veicoli'
     
     id = db.Column(db.Integer, primary_key=True)
-    marca = db.Column(db.String(100), nullable=False)
     modello = db.Column(db.String(100), nullable=False)
     # Tipo di veicolo: 'auto', 'moto', 'bici' - usiamo stringa per semplicità
     tipo = db.Column(db.String(20), nullable=False, default='auto')
@@ -20,7 +19,7 @@ class Veicoli(db.Model):
     prima_rata = db.Column(db.Date, nullable=True)
     numero_rate = db.Column(db.Integer, nullable=True)
     rata_mensile = db.Column(db.Float, nullable=True)
-    data_creazione = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # 'marca' field removed by request — use only 'modello' as display name
     
     @property
     def totale_versato(self):
@@ -74,7 +73,8 @@ class Veicoli(db.Model):
     @property
     def nome_completo(self):
         """Restituisce nome completo del veicoli"""
-        return f"{self.marca} {self.modello}"
+        # Prima era 'marca + modello'. Dopo la rimozione del campo 'marca' mostriamo solo il modello
+        return f"{self.modello}"
 
     @property
     def bollo_scaduto(self):
@@ -140,7 +140,6 @@ class Assicurazioni(db.Model):
     anno_riferimento = db.Column(db.Integer, nullable=False)
     importo = db.Column(db.Float, nullable=False)
     compagnia = db.Column(db.String(200), nullable=True)
-    numero_polizza = db.Column(db.String(200), nullable=True)
     data_pagamento = db.Column(db.Date, nullable=False)
     data_creazione = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 

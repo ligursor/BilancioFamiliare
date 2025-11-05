@@ -16,17 +16,17 @@ class VeicoliService(BaseService):
         query = Veicoli.query
         if solo_attivi and hasattr(Veicoli, 'attivo'):
             query = query.filter(Veicoli.attivo == True)
-        return query.order_by(Veicoli.marca, Veicoli.modello).all()
+        # Order by modello only since 'marca' was removed
+        return query.order_by(Veicoli.modello).all()
 
     def get_veicolo_by_id(self, veicolo_id):
         """Recupera un veicolo specifico"""
         return Veicoli.query.filter(Veicoli.id == veicolo_id).first()
 
-    def create_veicolo(self, marca, modello, tipo='auto', mese_scadenza_bollo=None,
+    def create_veicolo(self, modello, tipo='auto', mese_scadenza_bollo=None,
                        costo_finanziamento=None, prima_rata=None, numero_rate=None, rata_mensile=None):
         """Crea un nuovo veicolo"""
         veicolo = Veicoli(
-            marca=marca,
             modello=modello,
             tipo=tipo,
             mese_scadenza_bollo=mese_scadenza_bollo,
@@ -184,7 +184,7 @@ class VeicoliService(BaseService):
     def get_assicurazione_by_id(self, assicurazione_id):
         return Assicurazioni.query.filter(Assicurazioni.id == assicurazione_id).first()
 
-    def create_assicurazione(self, veicolo_id, anno_riferimento, importo, data_pagamento, compagnia=None, numero_polizza=None):
+    def create_assicurazione(self, veicolo_id, anno_riferimento, importo, data_pagamento, compagnia=None):
         """Crea un record di assicurazione"""
         assicurazione = Assicurazioni(
             veicolo_id=veicolo_id,
@@ -192,7 +192,6 @@ class VeicoliService(BaseService):
             importo=importo,
             data_pagamento=data_pagamento,
             compagnia=compagnia,
-            numero_polizza=numero_polizza
         )
         db.session.add(assicurazione)
         db.session.commit()

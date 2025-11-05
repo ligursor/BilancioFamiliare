@@ -79,7 +79,7 @@ def create_app(config_name='default'):
     from app.views.transazioni.ricorrenti import ricorrenti_bp
     from app.views.paypal import paypal_bp
     from app.views.conto_personale import conti_bp
-    from app.views.veicoli.auto import auto_bp
+    from app.views.veicoli.veicoli import veicoli_bp
     from app.views.ppay_evolution import ppay_bp
     from app.views.appunti import appunti_bp
     
@@ -91,7 +91,7 @@ def create_app(config_name='default'):
     app.register_blueprint(ricorrenti_bp, url_prefix='/ricorrenti')
     app.register_blueprint(paypal_bp, url_prefix='/paypal')
     app.register_blueprint(conti_bp, url_prefix='/conti')
-    app.register_blueprint(auto_bp, url_prefix='/auto')
+    app.register_blueprint(veicoli_bp, url_prefix='/veicoli')
     app.register_blueprint(ppay_bp, url_prefix='/ppay_evolution')
     app.register_blueprint(appunti_bp, url_prefix='/appunti')
     # database import/export blueprint removed (archived in _backup/obsolete)

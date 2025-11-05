@@ -453,7 +453,8 @@
     {{ abbonamenti_json | tojson }}
 </script>
 <script>
-var abbonamentiData = JSON.parse(document.getElementById('abbonamenti-data').textContent);
+var _abboElem = document.getElementById('abbonamenti-data');
+var abbonamentiData = _abboElem ? JSON.parse(_abboElem.textContent || '[]') : [];
 function modificaAbbonamento(id) {
     var abbo = abbonamentiData.find(a => a.id === id);
     document.getElementById('formModificaAbbonamento').action = '/ppay_evolution/modifica_abbonamento_postepay/' + id;
