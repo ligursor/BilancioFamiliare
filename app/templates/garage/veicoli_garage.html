@@ -129,43 +129,45 @@
                                 <div class="card-body">
                                     <h6 class="card-title">
                                         {{ veicolo.nome_completo }}
-                                        <span class="badge bg-secondary ms-2"><i class="fas fa-car me-1"></i>Auto</span>
+                                        {%- if veicolo.tipo == 'auto' -%}
+                                            <span class="badge bg-secondary ms-2"><i class="fas fa-car me-1"></i>Auto</span>
+                                        {%- elif veicolo.tipo == 'moto' -%}
+                                            <span class="badge bg-secondary ms-2"><i class="fas fa-motorcycle me-1"></i>Moto</span>
+                                        {%- elif veicolo.tipo == 'bici' -%}
+                                            <span class="badge bg-secondary ms-2"><i class="fas fa-bicycle me-1"></i>Bici</span>
+                                        {%- else -%}
+                                            <span class="badge bg-secondary ms-2"><i class="fas fa-car me-1"></i>{{ veicolo.tipo }}</span>
+                                        {%- endif -%}
                                     </h6>
                                     <p class="card-text">
                                         <small class="text-muted">
-                                            {% if veicolo.mese_scadenza_bollo %}
-                                                Bollo: {{ ['', 'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'][veicolo.mese_scadenza_bollo] }}
-                                                {% if veicolo.bollo_scaduto %}
-                                                    <span class="badge bg-danger ms-1">SCADUTO</span>
+                                            {# Mostra nelle card la prossima scadenza di bollo e assicurazione per auto/moto #}
+                                            {% if veicolo.tipo in ['auto','moto'] %}
+                                                {% if veicolo.next_bollo_scadenza %}
+                                                    Bollo: {{ veicolo.next_bollo_scadenza }}<br>
                                                 {% endif %}
-                                                <br>
+                                                {% if veicolo.next_assicurazione_scadenza %}
+                                                    Assicurazione: {{ veicolo.next_assicurazione_scadenza }}<br>
+                                                {% endif %}
                                             {% endif %}
-                                            {% if veicolo.prima_rata %}
-                                                Prima rata: {{ veicolo.prima_rata.strftime('%d/%m/%Y') }}<br>
-                                            {% endif %}
+                                            {# Non mostriamo i dettagli del finanziamento nella card: sono disponibili nella pagina dettaglio veicolo #}
                                         </small>
                                     </p>
-                                    {% if veicolo.costo_finanziamento %}
-                                    <div class="mb-2">
-                                        <strong>Costo: {{ (veicolo.costo_finanziamento) | format_currency }}</strong><br>
-                                        <small>Versato: {{ (veicolo.totale_versato) | format_currency }}</small><br>
-                                        {% if veicolo.saldo_rimanente > 0 %}
-                                        <small class="text-warning">Rimanente: {{ (veicolo.saldo_rimanente) | format_currency }}</small><br>
-                                        <small class="text-info">Rate rimanenti: {{ veicolo.rate_rimanenti }}</small>
-                                        {% else %}
-                                        <small class="text-success">✓ Pagato completamente</small>
-                                        {% endif %}
-                                    </div>
-                                    {% endif %}
+                                    {# I dettagli finanziari sono stati rimossi dalla card per evitare duplicazioni; usare la pagina dettaglio per informazioni complete #}
                                 </div>
                                 <div class="card-footer">
                                     <div class="btn-group w-100" role="group">
-                                        <a href="{{ url_for('auto.dettaglio', veicolo_id=veicolo.id) }}" class="btn btn-sm btn-primary">
+                                        <a href="{{ url_for('veicoli.dettaglio', veicolo_id=veicolo.id) }}" class="btn btn-sm btn-primary">
                                             <i class="fas fa-eye"></i> Dettagli
                                         </a>
+                                        {%- if veicolo.tipo in ['auto','moto'] -%}
                                         <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalNuovoBollo" data-action="set-veicolo-id" data-id="{{ veicolo.id }}">
                                             <i class="fas fa-receipt"></i> Bollo
                                         </button>
+                                        <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#modalNuovaAssicurazione" data-action="set-veicolo-id" data-id="{{ veicolo.id }}">
+                                            <i class="fas fa-shield-alt"></i> Assicuraz.
+                                        </button>
+                                        {%- endif -%}
                                         <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalNuovaManutenzione" data-action="set-veicolo-id" data-id="{{ veicolo.id }}">
                                             <i class="fas fa-wrench"></i> Manut.
                                         </button>
@@ -233,6 +235,49 @@
             </div>
         </div>
 
+        <!-- Assicurazioni (collassabile) -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Assicurazioni</h5>
+                    <button id="toggle-assicurazioni" class="btn btn-sm d-flex" type="button" data-bs-toggle="collapse" data-bs-target="#assicurazioniCollapse" aria-expanded="false" aria-controls="assicurazioniCollapse" aria-label="Mostra o nascondi assicurazioni" style="background: transparent; color: inherit; border: none; box-shadow: none; width:32px; height:32px; padding:0; align-items:center; justify-content:center;">
+                        <span id="toggle-icon-assicurazioni"><i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i></span>
+                    </button>
+                </div>
+                <div id="assicurazioniCollapse" class="collapse">
+                    <div class="card-body">
+                        {% if ultime_assicurazioni %}
+                        <div class="table-responsive">
+                            <table id="table-assicurazioni" class="table table-striped table-sm det-mese-table" data-page-size="5" tabindex="-1">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">Veicolo</th>
+                                        <th class="text-center">Data</th>
+                                        <th class="text-center">Compagnia</th>
+                                        <th class="text-center">Importo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for assicurazione in ultime_assicurazioni %}
+                                    <tr>
+                                        <td class="text-start">{{ assicurazione.veicolo.nome_completo }}</td>
+                                        <td class="text-center">{{ assicurazione.data_pagamento.strftime('%d/%m/%Y') }}</td>
+                                        <td class="text-start">{{ assicurazione.compagnia }}</td>
+                                        <td class="text-center">{{ assicurazione.importo | format_currency }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <nav id="pagination-assicurazioni" class="mt-2 d-flex justify-content-center" aria-label="Paginazione assicurazioni"></nav>
+                        {% else %}
+                        <p class="text-muted text-center">Nessuna assicurazione registrata</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Manutenzioni (collassabile) -->
         <div class="col-12 mb-4">
             <div class="card">
@@ -288,15 +333,36 @@
             </button>
         </div>
         <div class="card-body py-2">
-            <form id="form-nuovo-veicolo" method="POST" action="{{ url_for('auto.aggiungi_veicolo') }}">
-                <div class="row g-2 align-items-center">
-                    <div class="col-auto" style="min-width:140px;">
-                        <input type="text" class="form-control form-control-sm" name="marca" placeholder="Marca *" required aria-label="Marca">
+            <form id="form-nuovo-veicolo" method="POST" action="{{ url_for('veicoli.aggiungi_veicolo') }}">
+                <div class="row g-2">
+                    <!-- Row 1: tipo / checkbox finanziamento / modello -->
+                    <div class="col-4 col-md-2">
+                        <label class="visually-hidden" for="tipo">Tipo</label>
+                        <select class="form-control form-control-sm" name="tipo" id="tipo" aria-label="Tipo veicolo">
+                            <option value="auto">Auto</option>
+                            <option value="moto">Moto</option>
+                            <option value="bici">Bici</option>
+                        </select>
                     </div>
-                    <div class="col" >
-                        <input type="text" class="form-control form-control-sm" name="modello" placeholder="Modello *" required aria-label="Modello">
+                    <div class="col-4 col-md-2 d-flex align-items-center">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="has_finanziamento" name="has_finanziamento">
+                            <label class="form-check-label small" for="has_finanziamento">Finanziamento</label>
+                        </div>
                     </div>
-                    <div class="col-auto" style="min-width:110px;">
+                    <!-- 'marca' removed: keep only modello -->
+                    <div class="col-8 col-md-6">
+                        <label class="visually-hidden" for="modello">Modello</label>
+                        <input type="text" class="form-control form-control-sm" name="modello" id="modello" placeholder="Modello *" required aria-label="Modello">
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="visually-hidden" for="modello">Modello</label>
+                        <input type="text" class="form-control form-control-sm" name="modello" id="modello" placeholder="Modello *" required aria-label="Modello">
+                    </div>
+
+                    <!-- Row 2: mese bollo (hidden for bici) / financing fields (shown when checkbox selected) -->
+                    <div class="col-6 col-md-3 field-bollo">
+                        <label class="form-label small">Mese bollo</label>
                         <select class="form-control form-control-sm" name="mese_scadenza_bollo" aria-label="Mese bollo">
                             <option value="">Mese bollo</option>
                             <option value="1">Gen</option>
@@ -313,19 +379,25 @@
                             <option value="12">Dic</option>
                         </select>
                     </div>
-                    <div class="col-auto" style="min-width:110px;">
-                        <input type="number" class="form-control form-control-sm text-end" name="costo_finanziamento" placeholder="Costo" step="0.01" min="0" aria-label="Costo">
+                    <div class="col-6 col-md-3 financing-fields" style="display:none;">
+                        <label class="form-label small">Costo (€)</label>
+                        <input id="costo_finanziamento" type="number" class="form-control form-control-sm text-end financing-field" name="costo_finanziamento" placeholder="Costo" step="0.01" min="0" aria-label="Costo">
                     </div>
-                    <div class="col-auto" style="min-width:90px;">
-                        <input type="number" class="form-control form-control-sm" name="numero_rate" placeholder="N. rate" min="0" aria-label="Numero rate">
+                    <div class="col-6 col-md-2 financing-fields" style="display:none;">
+                        <label class="form-label small">N. rate</label>
+                        <input id="numero_rate" type="number" class="form-control form-control-sm financing-field" name="numero_rate" placeholder="N. rate" min="0" aria-label="Numero rate">
                     </div>
-                    <div class="col-auto" style="min-width:140px;">
-                        <input type="date" class="form-control form-control-sm" name="prima_rata" placeholder="Prima rata" aria-label="Prima rata">
+                    <div class="col-6 col-md-2 financing-fields" style="display:none;">
+                        <label class="form-label small">Rata</label>
+                        <input id="rata_mensile" type="number" class="form-control form-control-sm text-end financing-field" name="rata_mensile" placeholder="Rata" step="0.01" min="0" aria-label="Rata mensile">
                     </div>
-                    <div class="col-auto" style="min-width:110px;">
-                        <input type="number" class="form-control form-control-sm text-end" name="rata_mensile" placeholder="Rata" step="0.01" min="0" aria-label="Rata mensile">
+                    <div class="col-12 col-md-2 financing-fields" style="display:none;">
+                        <label class="form-label small">Prima rata</label>
+                        <input id="prima_rata" type="date" class="form-control form-control-sm financing-field" name="prima_rata" placeholder="Prima rata" aria-label="Prima rata">
                     </div>
-                    <div class="col-auto">
+
+                    <!-- Row 3: submit -->
+                    <div class="col-12 d-flex justify-content-end mt-1">
                         <button type="submit" id="btn-salva-nuovo-veicolo" class="btn btn-success btn-sm">Aggiungi</button>
                     </div>
                 </div>
@@ -342,7 +414,7 @@
                 <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Nuovo Bollo Auto</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ url_for('auto.aggiungi_bollo') }}">
+            <form method="POST" action="{{ url_for('veicoli.aggiungi_bollo') }}">
                 <input type="hidden" id="bollo_veicolo_id" name="veicolo_id">
                 <div class="modal-body">
                     <div class="mb-3">
@@ -375,7 +447,7 @@
                 <h5 class="modal-title"><i class="fas fa-wrench me-2"></i>Nuova Manutenzione</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ url_for('auto.aggiungi_manutenzione') }}">
+            <form method="POST" action="{{ url_for('veicoli.aggiungi_manutenzione') }}">
                 <input type="hidden" id="manutenzione_veicolo_id" name="veicolo_id">
                 <div class="modal-body">
                     <div class="row">
@@ -438,23 +510,76 @@
     </div>
 </div>
 
+<!-- Modal Nuova Assicurazione -->
+<div class="modal fade" id="modalNuovaAssicurazione" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-shield-alt me-2"></i>Nuova Assicurazione</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('veicoli.aggiungi_assicurazione') }}">
+                <input type="hidden" id="assicurazione_veicolo_id" name="veicolo_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="anno_riferimento_ass" class="form-label">Anno di Riferimento *</label>
+                        <input type="number" class="form-control" id="anno_riferimento_ass" name="anno_riferimento" min="2000" max="2100" value="{{ datetime.now().year }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="data_pagamento_ass" class="form-label">Data Pagamento *</label>
+                        <input type="date" class="form-control" id="data_pagamento_ass" name="data_pagamento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="importo_ass" class="form-label">Importo (€) *</label>
+                        <input type="number" class="form-control" id="importo_ass" name="importo" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="compagnia" class="form-label">Compagnia</label>
+                        <input type="text" class="form-control" id="compagnia" name="compagnia">
+                    </div>
+                    <!-- Numero polizza rimosso: campo non più gestito -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-success">Aggiungi Assicurazione</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 function setVeicoloId(veicoloId) {
-    document.getElementById('bollo_veicolo_id').value = veicoloId;
-    document.getElementById('manutenzione_veicolo_id').value = veicoloId;
+    var be = document.getElementById('bollo_veicolo_id'); if (be) be.value = veicoloId;
+    var me = document.getElementById('manutenzione_veicolo_id'); if (me) me.value = veicoloId;
+    var ae = document.getElementById('assicurazione_veicolo_id'); if (ae) ae.value = veicoloId;
 }
 
 // Auto-calcolo rata mensile se inseriti costo e numero rate
-document.getElementById('costo_finanziamento').addEventListener('input', calcolaRataMensile);
-document.getElementById('numero_rate').addEventListener('input', calcolaRataMensile);
+var costoGlob = document.getElementById('costo_finanziamento');
+var rateGlob = document.getElementById('numero_rate');
+if (costoGlob) costoGlob.addEventListener('input', calcolaRataMensile);
+if (rateGlob) rateGlob.addEventListener('input', calcolaRataMensile);
 
-function calcolaRataMensile() {
-    const costo = parseFloat(document.getElementById('costo_finanziamento').value) || 0;
-    const rate = parseInt(document.getElementById('numero_rate').value) || 1;
-    
-    if (costo > 0 && rate > 0) {
-        const rataMensile = costo / rate;
-        document.getElementById('rata_mensile').value = rataMensile.toFixed(2);
+function calcolaRataMensile(context){
+    // context: optional DOM node to search inputs inside (used for dynamically inserted forms)
+    var get = function(name){
+        if (context) {
+            var el = context.querySelector('[name="'+name+'"]');
+            return el;
+        }
+        return document.getElementById(name);
+    };
+
+    var costoEl = get('costo_finanziamento');
+    var rateEl = get('numero_rate');
+    var rataEl = get('rata_mensile');
+    var costo = costoEl ? parseFloat(costoEl.value) || 0 : 0;
+    var rate = rateEl ? parseInt(rateEl.value) || 1 : 1;
+
+    if (costo > 0 && rate > 0 && rataEl) {
+        var rataMensile = costo / rate;
+        rataEl.value = rataMensile.toFixed(2);
     }
 }
 </script>
@@ -512,6 +637,7 @@ function initClientPagination(tableId, paginationId) {
 
 document.addEventListener('DOMContentLoaded', function(){
     initClientPagination('table-bolli', 'pagination-bolli');
+    initClientPagination('table-assicurazioni', 'pagination-assicurazioni');
     initClientPagination('table-manutenzioni', 'pagination-manutenzioni');
 
     // Toggle icons for collapse sections
@@ -523,6 +649,18 @@ document.addEventListener('DOMContentLoaded', function(){
         });
         bolliCollapse.addEventListener('hide.bs.collapse', function(){
             bolliIcon.innerHTML = '<i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';
+        });
+    }
+
+    // assicurazioni collapse icon
+    var assicurazioniCollapse = document.getElementById('assicurazioniCollapse');
+    var assicurazioniIcon = document.getElementById('toggle-icon-assicurazioni');
+    if (assicurazioniCollapse && assicurazioniIcon) {
+        assicurazioniCollapse.addEventListener('show.bs.collapse', function(){
+            assicurazioniIcon.innerHTML = '<i class="fas fa-eye" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';
+        });
+        assicurazioniCollapse.addEventListener('hide.bs.collapse', function(){
+            assicurazioniIcon.innerHTML = '<i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';
         });
     }
 
@@ -564,6 +702,38 @@ document.addEventListener('DOMContentLoaded', function(){
                 parent.insertBefore(node, card);
             } else {
                 body.insertAdjacentElement('afterbegin', node);
+            }
+
+            // Configure visibility and handlers for the cloned inline form
+            try {
+                var tipoEl = node.querySelector('[name="tipo"]');
+                var hasFinEl = node.querySelector('[name="has_finanziamento"]');
+                var bolloBlock = node.querySelector('.field-bollo');
+                var financingBlocks = node.querySelectorAll('.financing-fields');
+
+                function updateInlineVisibility(){
+                    var tipoVal = tipoEl ? (tipoEl.value || '').toLowerCase() : '';
+                    // hide bollo for bici
+                    if (bolloBlock) {
+                        bolloBlock.style.display = (tipoVal === 'bici') ? 'none' : '';
+                    }
+                    // show financing fields only if checkbox is checked
+                    var showFin = hasFinEl ? hasFinEl.checked : false;
+                    financingBlocks.forEach(function(b){ b.style.display = showFin ? '' : 'none'; });
+                }
+
+                if (tipoEl) tipoEl.addEventListener('change', updateInlineVisibility);
+                if (hasFinEl) hasFinEl.addEventListener('change', updateInlineVisibility);
+                // initial visibility
+                updateInlineVisibility();
+
+                // attach rata calc listeners scoped to the node
+                var costoEl = node.querySelector('[name="costo_finanziamento"]');
+                var rateEl = node.querySelector('[name="numero_rate"]');
+                if (costoEl) costoEl.addEventListener('input', function(){ calcolaRataMensile(node); });
+                if (rateEl) rateEl.addEventListener('input', function(){ calcolaRataMensile(node); });
+            } catch (err) {
+                console.warn('Could not wire inline nuovo veicolo handlers', err);
             }
 
             // hook per il pulsante chiudi dentro il nodo appena inserito
@@ -624,6 +794,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
                         // re-init client-side pieces (pagination, collapse icons)
                         try { initClientPagination('table-bolli', 'pagination-bolli'); } catch(e){}
+                        try { initClientPagination('table-assicurazioni', 'pagination-assicurazioni'); } catch(e){}
                         try { initClientPagination('table-manutenzioni', 'pagination-manutenzioni'); } catch(e){}
 
                         form.dataset.submitting = '0';

@@ -105,19 +105,26 @@
 {% block scripts %}
 <script>
 // Funzioni per il modal nuova transazione
-const categorie = JSON.parse(document.getElementById('categorie-data').textContent || '[]');
+const _catElem = document.getElementById('categorie-data');
+const categorie = _catElem ? JSON.parse(_catElem.textContent || '[]') : [];
 
-function filtraCategorie() {
-    const tipo = document.getElementById('tipo').value;
-    const categoriaSelect = document.getElementById('categoria_id');
-    
+function filtraCategorie(context) {
+    // context: optional DOM node to scope the search (useful for modals)
+    var tipoEl = context ? context.querySelector('#tipo') : document.getElementById('tipo');
+    var categoriaSelect = context ? context.querySelector('#categoria_id') : document.getElementById('categoria_id');
+
+    // Se mancano gli elementi, esci silenziosamente
+    if (!tipoEl || !categoriaSelect) return;
+
+    var tipo = tipoEl.value;
+
     // Svuota le opzioni esistenti
     categoriaSelect.innerHTML = '<option value="">Seleziona categoria</option>';
-    
+
     // Filtra e aggiungi le categorie per il tipo selezionato
-    categorie.forEach(categoria => {
+    (categorie || []).forEach(function(categoria) {
         if (categoria.tipo === tipo) {
-            const option = document.createElement('option');
+            var option = document.createElement('option');
             option.value = categoria.id;
             option.textContent = categoria.nome;
             categoriaSelect.appendChild(option);
@@ -138,7 +145,9 @@ function toggleFrequenza() {
 
 // Prima inizializzazione: filtra le categorie al caricamento della pagina
 window.addEventListener('load', function() {
-    filtraCategorie();
+    if (document.getElementById('tipo') && document.getElementById('categoria_id')) {
+        filtraCategorie();
+    }
 });
 </script>
 {% endblock %}
