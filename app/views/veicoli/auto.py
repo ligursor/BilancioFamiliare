@@ -120,8 +120,11 @@ def garage():
 							veicolo.next_assicurazione_scadenza = next_ass_date.strftime('%d/%m/%Y')
 						else:
 							veicolo.next_assicurazione_scadenza = None
+					except Exception:
+						current_app.logger.debug('Could not compute next expiry for veicolo id=%s', getattr(veicolo, 'id', None))
+						continue
 			except Exception:
-				current_app.logger.debug('Could not compute next expiry for veicolo id=%s', getattr(veicolo, 'id', None))
+				current_app.logger.debug('Could not compute next expiry (outer) for veicolo id=%s', getattr(veicolo, 'id', None))
 				continue
 
 		# Ultimi bolli e manutenzioni
@@ -379,6 +382,8 @@ def aggiungi_bollo():
 		flash(f'Bollo per {veicolo.nome_completo} aggiunto con successo!', 'success')
 		if request.form.get('redirect_to_veicolo'):
 			return redirect(url_for('auto.dettaglio', veicolo_id=bollo.veicolo_id))
+		# default: redirect back to garage
+		return redirect(url_for('auto.garage'))
 	except Exception as e:
 		flash(f'Errore nell\'aggiunta del bollo: {str(e)}', 'error')
 		db.session.rollback()
@@ -403,6 +408,8 @@ def aggiungi_assicurazione():
 		flash(f'Assicurazione per {veicolo.nome_completo} aggiunta con successo!', 'success')
 		if request.form.get('redirect_to_veicolo'):
 			return redirect(url_for('auto.dettaglio', veicolo_id=ass.veicolo_id))
+		# default: redirect back to garage
+		return redirect(url_for('auto.garage'))
 	except Exception as e:
 		flash(f'Errore nell\'aggiunta dell\'assicurazione: {str(e)}', 'error')
 		db.session.rollback()
