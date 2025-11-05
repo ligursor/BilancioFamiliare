@@ -133,7 +133,8 @@ class Assicurazioni(db.Model):
     """Modello per i pagamenti assicurativi (solo per auto e moto)"""
     __tablename__ = 'assicurazioni'
 
-    id = db.Column(db.Integer, primary_key=True, autoincrement=False)
+    # allow the database to assign autoincrementing ids
+    id = db.Column(db.Integer, primary_key=True)
     veicolo_id = db.Column(db.Integer, db.ForeignKey('veicoli.id'), nullable=False)
     veicolo = db.relationship('Veicoli', backref=db.backref('assicurazioni', lazy=True, cascade='all, delete-orphan'))
     anno_riferimento = db.Column(db.Integer, nullable=False)
