@@ -60,24 +60,6 @@ def view(conto_id):
         flash(f'Errore nel caricamento conto: {str(e)}', 'error')
         return redirect(url_for('main.index'))
 
-
-@conti_bp.route('/<string:nome_conto>')
-def view_by_name(nome_conto):
-    """Compatibilità: cerca un conto per nome (case-insensitive) e redirecta al view by id.
-
-    Questo gestisce vecchi URL come `/conti/maurizio` senza hardcodare nomi nel codice.
-    """
-    try:
-        from app.models.ContoPersonale import ContoPersonale
-        conto = db.session.query(ContoPersonale).filter(func.lower(ContoPersonale.nome_conto) == nome_conto.lower()).first()
-        if not conto:
-            flash(f'Conto {nome_conto} non trovato', 'error')
-            return redirect(url_for('conti.lista'))
-        return redirect(url_for('conti.view', conto_id=conto.id))
-    except Exception as e:
-        flash(f'Errore nel redirect al conto {nome_conto}: {e}', 'error')
-        return redirect(url_for('conti.lista'))
-
 @conti_bp.route('/aggiungi_versamento/<int:conto_id>', methods=['POST'])
 def aggiungi_versamento(conto_id):
     """Aggiunge un versamento al conto specificato"""

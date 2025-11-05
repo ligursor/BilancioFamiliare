@@ -1,6 +1,5 @@
-"""Service per la gestione dei conti personali.
-
-Implementazione generica che non dipende da nomi hardcoded (es. Maurizio/Antonietta).
+"""
+Service per la gestione dei conti personali.
 """
 from datetime import datetime, date
 from sqlalchemy import func, and_, desc

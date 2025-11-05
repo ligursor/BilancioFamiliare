@@ -12,13 +12,10 @@ class ContoPersonale(db.Model):
     __tablename__ = 'conto_personale'
     
     id = db.Column(db.Integer, primary_key=True)
-    nome_conto = db.Column(db.String(50), nullable=False)  # 'Maurizio' o 'Antonietta'
-    # I saldi sono delegati alla tabella `strumento` (sorgente di verità).
-    # Manteniamo comunque i campi storici per retrocompatibilità fino alla migrazione completa.
-    # Rimosso: saldo_iniziale, saldo_corrente (ora gestiti da Strumento).
+    nome_conto = db.Column(db.String(50), nullable=False) 
     # FK verso la tabella `conti_finanziari` per collegare il conto personale al record strumento
     id_strumento = db.Column(db.Integer, db.ForeignKey('conti_finanziari.id_conto'), nullable=True)
-    # relazione per accedere allo strumento associato (lazy loading)
+    # relazione per accedere al conto personale associato (lazy loading)
     strumento = db.relationship('Strumento', backref=db.backref('conti_personali', lazy=True))
     data_creazione = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     data_aggiornamento = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

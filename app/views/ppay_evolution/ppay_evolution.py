@@ -81,19 +81,6 @@ def evolution():
 
                         if not esistente:
                             # Also check deleted-generation tombstones to avoid recreating recently-deleted auto-generated movements
-                            try:
-                                from app.models.PostePayEvolution import DeletedGeneration
-                                tomb = DeletedGeneration.query.filter_by(abbonamento_id=abbonamento.id, year=addebito_this_month.year, month=addebito_this_month.month).first()
-                                if tomb:
-                                    continue
-                            except Exception:
-                                # If tombstone check fails for any reason, fall back to previous behavior
-                                pass
-                            # Crea il movimento (importo negativo per uscita).
-                            # Usare la data programmata dell'addebito per la
-                            # tracciatura, così il movimento riflette il mese
-                            # corretto anche se l'utente visita in ritardo.
-                            # Descrizione: nome abbonamento + mese/anno; tipo: Pagamento
                             mov = MovimentoPostePay(
                                 data=addebito_this_month,
                                 descrizione=f"{abbonamento.nome} {addebito_this_month.strftime('%m/%Y')}",
@@ -347,22 +334,6 @@ def elimina_movimento(movimento_id):
         from flask import current_app
         current_app.logger.info(f"elimina_movimento called for id={movimento_id} -> movimento={movimento}")
         importo = movimento.importo
-
-        # Elimina il movimento
-        # If this movement was auto-generated (has abbonamento_id), create a tombstone
-        # for the same abbonamento/month/year so auto-generation won't recreate it.
-        if movimento.abbonamento_id:
-            try:
-                from app.models.PostePayEvolution import DeletedGeneration
-                y = movimento.data.year
-                m = movimento.data.month
-                exists = DeletedGeneration.query.filter_by(abbonamento_id=movimento.abbonamento_id, year=y, month=m).first()
-                if not exists:
-                    tomb = DeletedGeneration(abbonamento_id=movimento.abbonamento_id, year=y, month=m)
-                    db.session.add(tomb)
-            except Exception:
-                # if any issue occurs adding tombstone, continue with deletion
-                pass
 
         db.session.delete(movimento)
 

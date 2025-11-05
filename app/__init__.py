@@ -39,7 +39,6 @@ def create_app(config_name='default'):
         """Inietta nei template la lista dei conti personali presenti nel DB.
 
         Restituisce `conti_personali` come lista di dizionari con chiavi `id` e `nome`.
-        Questo evita di hardcodare nomi come 'Maurizio'/'Antonietta' nei template.
         """
         try:
             from app.models.ContoPersonale import ContoPersonale
