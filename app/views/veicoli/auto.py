@@ -11,7 +11,9 @@ auto_bp = Blueprint('auto', __name__)
 def garage():
 	"""Dashboard del garage (auto solamente)"""
 	try:
+		current_app.logger.debug('Garage page requested')
 		veicoli = Veicoli.query.order_by(Veicoli.marca, Veicoli.modello).all()
+		current_app.logger.debug('Retrieved %d veicoli from DB', len(veicoli))
 
 		totale_costo_finanziamento = sum((v.costo_finanziamento or 0) for v in veicoli)
 		totale_versato = sum((v.totale_versato or 0) for v in veicoli)
@@ -29,49 +31,63 @@ def garage():
 		}
 
 		for veicolo in veicoli:
-			if veicolo.mese_scadenza_bollo and veicolo.prima_rata:
-				oggi = datetime.now()
-				anno_corrente = oggi.year
-				mese_corrente = oggi.month
-				nome_mese_scadenza = nomi_mesi.get(veicolo.mese_scadenza_bollo, f'Mese {veicolo.mese_scadenza_bollo}')
-				primo_anno_bollo = veicolo.prima_rata.year + 1
-				for anno in range(primo_anno_bollo, anno_corrente + 1):
-					bollo_pagato = AutoBolli.query.filter_by(
-						veicolo_id=veicolo.id,
-						anno_riferimento=anno
-					).first()
-					if not bollo_pagato:
-						# Calcolo ultimo giorno del mese di scadenza
-						ultimo_giorno = datetime(anno, veicolo.mese_scadenza_bollo, 28) + timedelta(days=4)
-						ultimo_giorno = ultimo_giorno - timedelta(days=ultimo_giorno.day)
-						giorni = (ultimo_giorno.date() - oggi.date()).days
-						if anno == anno_corrente:
-							if mese_corrente > veicolo.mese_scadenza_bollo:
-								priorita = 'alta'
-							elif mese_corrente == veicolo.mese_scadenza_bollo:
-								priorita = 'media'
+			try:
+				if veicolo.mese_scadenza_bollo and veicolo.prima_rata:
+					oggi = datetime.now()
+					anno_corrente = oggi.year
+					mese_corrente = oggi.month
+					nome_mese_scadenza = nomi_mesi.get(veicolo.mese_scadenza_bollo, f'Mese {veicolo.mese_scadenza_bollo}')
+					primo_anno_bollo = veicolo.prima_rata.year + 1
+					for anno in range(primo_anno_bollo, anno_corrente + 1):
+						bollo_pagato = AutoBolli.query.filter_by(
+							veicolo_id=veicolo.id,
+							anno_riferimento=anno
+						).first()
+						if not bollo_pagato:
+							# Calcolo ultimo giorno del mese di scadenza
+							ultimo_giorno = datetime(anno, veicolo.mese_scadenza_bollo, 28) + timedelta(days=4)
+							ultimo_giorno = ultimo_giorno - timedelta(days=ultimo_giorno.day)
+							giorni = (ultimo_giorno.date() - oggi.date()).days
+							if anno == anno_corrente:
+								if mese_corrente > veicolo.mese_scadenza_bollo:
+									priorita = 'alta'
+								elif mese_corrente == veicolo.mese_scadenza_bollo:
+									priorita = 'media'
+								else:
+									priorita = 'bassa'
 							else:
-								priorita = 'bassa'
-						else:
-							priorita = 'alta'
-						bolli_in_attesa.append({
-							'veicolo': veicolo,
-							'tipo': 'Bollo Auto',
-							'anno': anno,
-							'mese_scadenza': nome_mese_scadenza,
-							'priorita': priorita,
-							'giorni': giorni
-						})
+								priorita = 'alta'
+							bolli_in_attesa.append({
+								'veicolo': veicolo,
+								'tipo': 'Bollo Auto',
+								'anno': anno,
+								'mese_scadenza': nome_mese_scadenza,
+								'priorita': priorita,
+								'giorni': giorni
+							})
+			except Exception as ve_err:
+				current_app.logger.exception('Error processing veicolo id=%s nome=%s', getattr(veicolo, 'id', None), getattr(veicolo, 'nome_completo', None))
+				# append a minimal placeholder to indicate an error for this vehicle
+				bolli_in_attesa.append({
+					'veicolo': veicolo,
+					'tipo': 'Bollo Auto',
+					'anno': None,
+					'mese_scadenza': None,
+					'priorita': 'errore',
+					'giorni': None,
+				})
 
+		current_app.logger.debug('Rendering garage template: veicoli=%d bolli=%d manutenzioni=%d', len(veicoli), len(ultimi_bolli), len(ultime_manutenzioni))
 		return render_template('garage/auto_garage.html',
-				veicoli=veicoli,
-				totale_costo_finanziamento=totale_costo_finanziamento,
-				totale_versato=totale_versato,
-				totale_saldo_rimanente=totale_saldo_rimanente,
-				ultimi_bolli=ultimi_bolli,
-				ultime_manutenzioni=ultime_manutenzioni,
-				bolli_in_attesa=bolli_in_attesa)
+					veicoli=veicoli,
+					totale_costo_finanziamento=totale_costo_finanziamento,
+					totale_versato=totale_versato,
+					totale_saldo_rimanente=totale_saldo_rimanente,
+					ultimi_bolli=ultimi_bolli,
+					ultime_manutenzioni=ultime_manutenzioni,
+					bolli_in_attesa=bolli_in_attesa)
 	except Exception as e:
+		current_app.logger.exception('Errore nel caricamento garage')
 		flash(f'Errore nel caricamento garage: {str(e)}', 'error')
 		return redirect(url_for('main.index'))
 
@@ -81,6 +97,7 @@ def garage():
 def dettaglio(veicolo_id):
 	"""Dettaglio di un veicolo specifico"""
 	try:
+		current_app.logger.debug('caricamento dettaglio veicolo id=%s', veicolo_id)
 		veicolo = Veicoli.query.get_or_404(veicolo_id)
 
 		bolli = AutoBolli.query.filter_by(veicolo_id=veicolo_id).order_by(AutoBolli.anno_riferimento.desc()).all()
@@ -90,14 +107,16 @@ def dettaglio(veicolo_id):
 		totale_manutenzioni = sum(m.costo for m in manutenzioni)
 		costo_totale = (veicolo.costo_finanziamento or 0) + totale_bolli + totale_manutenzioni
 
+		current_app.logger.debug('Rendering dettaglio veicolo id=%s nome=%s', veicolo_id, getattr(veicolo, 'nome_completo', None))
 		return render_template('garage/auto_dettaglio.html',
-				veicolo=veicolo,
-				bolli=bolli,
-				manutenzioni=manutenzioni,
-				totale_bolli=totale_bolli,
-				totale_manutenzioni=totale_manutenzioni,
-				costo_totale=costo_totale)
+					veicolo=veicolo,
+					bolli=bolli,
+					manutenzioni=manutenzioni,
+					totale_bolli=totale_bolli,
+					totale_manutenzioni=totale_manutenzioni,
+					costo_totale=costo_totale)
 	except Exception as e:
+		current_app.logger.exception('Errore nel caricamento dettaglio veicolo id=%s', veicolo_id)
 		flash(f'Errore nel caricamento dettaglio veicolo: {str(e)}', 'error')
 		return redirect(url_for('auto.garage'))
 
