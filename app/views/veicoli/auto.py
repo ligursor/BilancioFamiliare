@@ -1,8 +1,9 @@
 """Gestione delle pagine e operazioni relative al garage (auto)."""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from datetime import datetime, timedelta, date
-from app.models.Veicoli import Veicoli, AutoBolli, AutoManutenzioni
+from app.models.Veicoli import Veicoli, AutoBolli, AutoManutenzioni, Assicurazioni
 from sqlalchemy.exc import OperationalError
+from sqlalchemy import inspect
 from app import db
 
 auto_bp = Blueprint('auto', __name__)
@@ -84,9 +85,49 @@ def garage():
 		totale_versato = sum((v.totale_versato or 0) for v in veicoli)
 		totale_saldo_rimanente = sum((v.saldo_rimanente or 0) for v in veicoli)
 
+		# Calcola date di prossima scadenza per bollo e assicurazione (solo per auto/moto)
+		from calendar import month_name
+		for veicolo in veicoli:
+			try:
+				veicolo.next_bollo_scadenza = None
+				veicolo.next_assicurazione_scadenza = None
+				if getattr(veicolo, 'tipo', None) in ('auto', 'moto'):
+					# Prossima scadenza bollo: usa mese_scadenza_bollo e controlla se bollo per anno corrente è stato pagato
+					try:
+						mese = getattr(veicolo, 'mese_scadenza_bollo', None)
+						if mese:
+							oggi = datetime.now()
+							current_year = oggi.year
+							# se esiste un bollo pagato per l'anno corrente, la prossima scadenza è l'anno successivo
+							pagato_corrente = AutoBolli.query.filter_by(veicolo_id=veicolo.id, anno_riferimento=current_year).first()
+							next_year = current_year + 1 if pagato_corrente else current_year
+							# mostra come 'Mese YYYY'
+							try:
+								veicolo.next_bollo_scadenza = f"{month_name[int(mese)]} {next_year}"
+							except Exception:
+								veicolo.next_bollo_scadenza = None
+					except Exception:
+						veicolo.next_bollo_scadenza = None
+					# Prossima scadenza assicurazione: usa l'ultima assicurazione pagata e aggiungi 1 anno
+					try:
+						last_ass = Assicurazioni.query.filter_by(veicolo_id=veicolo.id).order_by(Assicurazioni.data_pagamento.desc()).first()
+						if last_ass and getattr(last_ass, 'data_pagamento', None):
+							try:
+								next_ass_date = last_ass.data_pagamento.replace(year=last_ass.data_pagamento.year + 1)
+							except ValueError:
+								# gestisci 29/02
+								next_ass_date = last_ass.data_pagamento.replace(day=28, month=2, year=last_ass.data_pagamento.year + 1)
+							veicolo.next_assicurazione_scadenza = next_ass_date.strftime('%d/%m/%Y')
+						else:
+							veicolo.next_assicurazione_scadenza = None
+			except Exception:
+				current_app.logger.debug('Could not compute next expiry for veicolo id=%s', getattr(veicolo, 'id', None))
+				continue
+
 		# Ultimi bolli e manutenzioni
 		ultimi_bolli = AutoBolli.query.join(Veicoli).order_by(AutoBolli.data_pagamento.desc()).limit(5).all()
 		ultime_manutenzioni = AutoManutenzioni.query.join(Veicoli).order_by(AutoManutenzioni.data_intervento.desc()).limit(5).all()
+		ultime_assicurazioni = Assicurazioni.query.join(Veicoli).order_by(Assicurazioni.data_pagamento.desc()).limit(5).all()
 
 		bolli_in_attesa = []
 		nomi_mesi = {
@@ -97,7 +138,8 @@ def garage():
 
 		for veicolo in veicoli:
 			try:
-				if veicolo.mese_scadenza_bollo and veicolo.prima_rata:
+				# Skip bollo processing for bikes
+				if getattr(veicolo, 'tipo', None) != 'bici' and veicolo.mese_scadenza_bollo and veicolo.prima_rata:
 					oggi = datetime.now()
 					anno_corrente = oggi.year
 					mese_corrente = oggi.month
@@ -150,6 +192,7 @@ def garage():
 					totale_saldo_rimanente=totale_saldo_rimanente,
 					ultimi_bolli=ultimi_bolli,
 					ultime_manutenzioni=ultime_manutenzioni,
+					ultime_assicurazioni=ultime_assicurazioni,
 					bolli_in_attesa=bolli_in_attesa)
 	except Exception as e:
 		current_app.logger.exception('Errore nel caricamento garage')
@@ -251,8 +294,35 @@ def dettaglio(veicolo_id):
 def aggiungi_veicolo():
 	"""Aggiunge un nuovo veicoli al garage (solo auto)"""
 	try:
-		mese_scadenza = request.form.get('mese_scadenza_bollo')
-		mese_scadenza = int(mese_scadenza) if mese_scadenza else 1
+		current_app.logger.debug('aggiungi_veicolo called')
+		# dump form data for debugging when submissions appear to be ignored
+		try:
+			current_app.logger.debug('Form data: %s', dict(request.form))
+		except Exception:
+			current_app.logger.exception('Could not serialize request.form')
+		# tipo: auto, moto, bici (read early so we can decide default for mese_scadenza)
+		tipo = (request.form.get('tipo') or 'auto').strip().lower()
+
+		# mese_scadenza: only relevant for auto/moto; for bici keep None unless explicitly provided
+		_mese_raw = request.form.get('mese_scadenza_bollo')
+		if tipo == 'bici':
+			mese_scadenza = None
+		else:
+			mese_scadenza = int(_mese_raw) if _mese_raw else 1
+
+		# Some older DB schemas may still have mese_scadenza_bollo declared NOT NULL.
+		# If that's the case and we're about to insert a bici (mese_scadenza None),
+		# pick a safe fallback (Gennaio=1) to satisfy the constraint and log it.
+		try:
+			inspector = inspect(db.engine)
+			cols = inspector.get_columns('veicoli')
+			col_info = next((c for c in cols if c['name'] == 'mese_scadenza_bollo'), None)
+			if col_info and not col_info.get('nullable', True) and mese_scadenza is None:
+				current_app.logger.warning('DB column mese_scadenza_bollo is NOT NULL in schema; using fallback value=1 for bici to allow insert')
+				mese_scadenza = 1
+		except Exception:
+			# If inspection fails (e.g., connection issues), proceed and let commit raise if needed
+			current_app.logger.debug('Could not inspect veicoli table schema before insert')
 
 		if request.form.get('prima_rata'):
 			prima_rata = datetime.strptime(request.form['prima_rata'], '%Y-%m-%d').date()
@@ -272,17 +342,21 @@ def aggiungi_veicolo():
 		veicoli = Veicoli(
 			marca=marca,
 			modello=modello,
+			tipo=tipo,
 			mese_scadenza_bollo=mese_scadenza,
 			costo_finanziamento=costo,
 			prima_rata=prima_rata,
 			numero_rate=numero_rate,
 			rata_mensile=rata_mensile
 		)
-
+		current_app.logger.debug('Creating Veicoli object: marca=%s modello=%s tipo=%s mese_scadenza=%s costo=%s numero_rate=%s rata=%s prima_rata=%s',
+			marca, modello, tipo, mese_scadenza, costo, numero_rate, rata_mensile, prima_rata)
 		db.session.add(veicoli)
 		db.session.commit()
+		current_app.logger.debug('Veicoli committed with id=%s', getattr(veicoli, 'id', None))
 		flash(f'Veicoli {veicoli.nome_completo} aggiunto con successo!', 'success')
 	except Exception as e:
+		current_app.logger.exception('Errore in aggiungi_veicolo')
 		flash(f'Errore nell\'aggiunta del veicoli: {str(e)}', 'error')
 		db.session.rollback()
 	return redirect(url_for('auto.garage'))
@@ -308,7 +382,31 @@ def aggiungi_bollo():
 	except Exception as e:
 		flash(f'Errore nell\'aggiunta del bollo: {str(e)}', 'error')
 		db.session.rollback()
-	return redirect(url_for('auto.garage'))
+		return redirect(url_for('auto.garage'))
+
+
+@auto_bp.route('/aggiungi_assicurazione', methods=['POST'])
+def aggiungi_assicurazione():
+	"""Aggiunge un pagamento di assicurazione (solo per auto/moto)"""
+	try:
+		ass = Assicurazioni(
+			veicolo_id=int(request.form['veicolo_id']),
+			anno_riferimento=int(request.form['anno_riferimento']),
+			data_pagamento=datetime.strptime(request.form['data_pagamento'], '%Y-%m-%d').date(),
+			importo=float(request.form['importo']),
+			compagnia=request.form.get('compagnia', '').strip() or None,
+			numero_polizza=request.form.get('numero_polizza', '').strip() or None
+		)
+		db.session.add(ass)
+		db.session.commit()
+		veicolo = Veicoli.query.get(ass.veicolo_id)
+		flash(f'Assicurazione per {veicolo.nome_completo} aggiunta con successo!', 'success')
+		if request.form.get('redirect_to_veicolo'):
+			return redirect(url_for('auto.dettaglio', veicolo_id=ass.veicolo_id))
+	except Exception as e:
+		flash(f'Errore nell\'aggiunta dell\'assicurazione: {str(e)}', 'error')
+		db.session.rollback()
+		return redirect(url_for('auto.garage'))
 
 
 
