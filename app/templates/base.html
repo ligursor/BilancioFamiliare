@@ -146,6 +146,53 @@
         });
     </script>
     
+    <!-- Global confirm-delete handler: intercept forms/buttons marked for deletion and show a browser confirm -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var DEFAULT_MSG = "Sei sicuro di voler procedere con l'eliminazione? Questa operazione non può essere annullata.";
+
+            // Click handler for elements with data-action="confirm-delete"
+            document.body.addEventListener('click', function(evt) {
+                try {
+                    var btn = evt.target.closest && evt.target.closest('[data-action="confirm-delete"]');
+                    if (!btn) return;
+                    if (btn.getAttribute('data-skip-confirm') !== null) return;
+                    var msg = btn.getAttribute('data-message') || DEFAULT_MSG;
+                    if (!window.confirm(msg)) {
+                        evt.preventDefault(); evt.stopPropagation(); return false;
+                    }
+                    var form = btn.closest('form');
+                    if (form && !form.querySelector('input[name="confirm"]')) {
+                        var hidden = document.createElement('input'); hidden.type='hidden'; hidden.name='confirm'; hidden.value='1'; form.appendChild(hidden);
+                    }
+                } catch (e) { /* silent */ }
+            }, true);
+
+            // Submit handler for forms that look like delete forms
+            document.body.addEventListener('submit', function(evt) {
+                try {
+                    var form = evt.target;
+                    if (!form || form.getAttribute === undefined) return;
+                    if (form.getAttribute('data-skip-confirm') !== null) return;
+                    if (form.getAttribute('onsubmit')) return; // assume page-level handler
+
+                    var dataAction = form.getAttribute('data-action') || '';
+                    var cls = (form.className || '').toLowerCase();
+                    var action = (form.getAttribute('action') || '').toLowerCase();
+                    var shouldConfirm = false;
+                    if (dataAction.indexOf('confirm-delete') !== -1) shouldConfirm = true;
+                    if (!shouldConfirm && (cls.indexOf('form-delete') !== -1 || cls.indexOf('form-elimina') !== -1)) shouldConfirm = true;
+                    if (!shouldConfirm && (action.indexOf('/elimina') !== -1 || action.indexOf('/delete') !== -1)) shouldConfirm = true;
+                    if (!shouldConfirm) return;
+
+                    var msg = form.getAttribute('data-message') || DEFAULT_MSG;
+                    if (!window.confirm(msg)) { evt.preventDefault(); evt.stopPropagation(); return false; }
+                    if (!form.querySelector('input[name="confirm"]')) { var hidden=document.createElement('input'); hidden.type='hidden'; hidden.name='confirm'; hidden.value='1'; form.appendChild(hidden); }
+                } catch (e) { /* ignore */ }
+            }, true);
+        });
+    </script>
+    
     {% block scripts %}{% endblock %}
 </body>
     </html>

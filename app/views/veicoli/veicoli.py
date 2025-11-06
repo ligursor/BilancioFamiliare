@@ -428,23 +428,3 @@ def rimuovi_veicolo(veicolo_id):
     return redirect(url_for('veicoli.garage'))
 
 
-@veicoli_bp.route('/modifica_veicolo/<int:veicolo_id>', methods=['POST'])
-def modifica_veicolo(veicolo_id):
-    try:
-        veicolo = Veicoli.query.get_or_404(veicolo_id)
-        mese_scadenza = request.form.get('mese_scadenza_bollo')
-        if mese_scadenza:
-            veicolo.mese_scadenza_bollo = int(mese_scadenza)
-        if request.form.get('prima_rata'):
-            veicolo.prima_rata = datetime.strptime(request.form['prima_rata'], '%Y-%m-%d').date()
-        # 'marca' removed: only update modello
-        veicolo.modello = request.form['modello'].strip()
-        veicolo.costo_finanziamento = float(request.form['costo_finanziamento']) if request.form.get('costo_finanziamento') else 0.0
-        veicolo.numero_rate = int(request.form['numero_rate']) if request.form.get('numero_rate') else 0
-        veicolo.rata_mensile = float(request.form['rata_mensile']) if request.form.get('rata_mensile') else 0.0
-        db.session.commit()
-        flash(f'Dati di {veicolo.nome_completo} aggiornati con successo!', 'success')
-    except Exception as e:
-        flash(f'Errore nella modifica del veicolo: {str(e)}', 'error')
-        db.session.rollback()
-    return redirect(url_for('veicoli.dettaglio', veicolo_id=veicolo_id))

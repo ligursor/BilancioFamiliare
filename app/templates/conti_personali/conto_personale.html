@@ -399,6 +399,29 @@ document.addEventListener('DOMContentLoaded', function(){
             // let the form submit normally
         }
     });
+
+    // Client-side confirmation for delete-versamento forms to avoid accidental deletes
+    document.addEventListener('submit', function(e){
+        try {
+            var form = e.target;
+            if (form && form.classList && form.classList.contains('form-elimina-versamento')) {
+                var ok = window.confirm('Sei sicuro di voler eliminare questo versamento? Questa operazione non è reversibile.');
+                if (!ok) {
+                    e.preventDefault();
+                    return false;
+                }
+                // Optionally, append a hidden confirm field so server sees explicit confirmation
+                var hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'confirm';
+                hidden.value = '1';
+                form.appendChild(hidden);
+            }
+        } catch (err) {
+            // if anything goes wrong, allow default behavior (server-side confirmation still protects)
+            return true;
+        }
+    });
     });
 </script>
 {% endblock %}

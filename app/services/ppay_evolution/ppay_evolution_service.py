@@ -171,9 +171,6 @@ class PostePayEvolutionService(BaseService):
     def create_movimento(self, data, importo, tipo, descrizione=None, 
                         abbonamento_id=None, categoria_id=None):
         """Crea un nuovo movimento PostePay.
-
-        Note: Movimenti PostePay sono indipendenti dalla tabella `transazioni`.
-        Non impostare o salvare un campo `transazione_id` qui.
         """
         movimento = MovimentoPostePay(
             data=data,

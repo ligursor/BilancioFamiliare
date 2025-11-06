@@ -127,7 +127,20 @@ def elimina_versamento(versamento_id):
         conto_id = versamento.conto.id
         nome_conto = versamento.conto.nome_conto
 
-        # Elimina il versamento
+        # If the client hasn't confirmed, show a confirmation page
+        confirm = request.form.get('confirm') or request.args.get('confirm')
+        if confirm not in ('1', 'true', 'yes'):
+            # Render a small confirmation template with versamento details
+            try:
+                return render_template('conti_personali/confirm_delete_versamento.html',
+                                       versamento=versamento,
+                                       conto_id=conto_id)
+            except Exception:
+                # Fallback: if template missing, require a query param to confirm
+                flash('Conferma richiesta per cancellare il versamento.', 'warning')
+                return redirect(url_for('conti.view', conto_id=conto_id))
+
+        # Elimina il versamento (confirmed)
         success, message = service.elimina_versamento(versamento_id)
 
         if success:

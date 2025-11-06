@@ -22,9 +22,7 @@
 					<a href="{{ url_for('veicoli.garage') }}" class="btn btn-secondary me-2">
 						<i class="fas fa-arrow-left me-1"></i>Garage
 					</a>
-					<button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#modalModificaVeicolo">
-						<i class="fas fa-edit me-1"></i>Modifica
-					</button>
+					<!-- Modifica button removed per richiesta -->
 					<form method="POST" action="{{ url_for('veicoli.rimuovi_veicolo', veicolo_id=veicolo.id) }}" style="display:inline-block;">
 						<button type="submit" class="btn btn-danger ms-2" onclick="return confirm('Confermi la rimozione del veicolo dal garage?');">
 							<i class="fas fa-trash me-1"></i>Rimuovi
@@ -257,70 +255,7 @@
 	</div>
 </div>
 
-<!-- Modal Modifica Veicolo -->
-<div class="modal fade" id="modalModificaVeicolo" tabindex="-1">
-	<div class="modal-dialog modal-lg">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title"><i class="fas fa-edit me-2"></i>Modifica Veicolo</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-			</div>
-			<form method="POST" action="{{ url_for('veicoli.modifica_veicolo', veicolo_id=veicolo.id) }}">
-				<div class="modal-body">
-					<div class="row">
-						<div class="col-md-12">
-							<div class="mb-3">
-								<label for="modello" class="form-label">Modello *</label>
-								<input type="text" class="form-control" id="modello" name="modello" value="{{ veicolo.modello }}" required>
-							</div>
-						</div>
-					</div>
-					<div class="row">
-			<div class="col-md-6">
-				<label for="mese_scadenza_bollo" class="form-label">Mese Scadenza Bollo</label>
-				<select class="form-control" id="mese_scadenza_bollo" name="mese_scadenza_bollo">
-									<option value="">-- Seleziona mese --</option>
-									{% for i in range(1, 13) %}
-									{% set mesi = ['', 'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'] %}
-									<option value="{{ i }}" {% if veicolo.mese_scadenza_bollo == i %}selected{% endif %}>{{ mesi[i] }}</option>
-									{% endfor %}
-								</select>
-							</div>
-						</div>
-						<div class="col-md-6">
-								<label for="costo_finanziamento" class="form-label">Costo Finanziamento (€)</label>
-								<input type="number" class="form-control" id="costo_finanziamento" name="costo_finanziamento" value="{{ veicolo.costo_finanziamento if veicolo.costo_finanziamento else '' }}" step="0.01" min="0">
-						</div>
-					</div>
-					<div class="row">
-						<div class="col-md-4">
-							<div class="mb-3">
-								<label for="prima_rata" class="form-label">Prima Rata</label>
-								<input type="date" class="form-control" id="prima_rata" name="prima_rata" value="{{ veicolo.prima_rata.strftime('%Y-%m-%d') if veicolo.prima_rata else '' }}">
-							</div>
-						</div>
-						<div class="col-md-4">
-							<div class="mb-3">
-								<label for="numero_rate" class="form-label">Numero Rate</label>
-								<input type="number" class="form-control" id="numero_rate" name="numero_rate" value="{{ veicolo.numero_rate if veicolo.numero_rate else '' }}" min="1">
-							</div>
-						</div>
-						<div class="col-md-4">
-							<div class="mb-3">
-								<label for="rata_mensile" class="form-label">Rata Mensile (€)</label>
-								<input type="number" class="form-control" id="rata_mensile" name="rata_mensile" value="{{ veicolo.rata_mensile if veicolo.rata_mensile else '' }}" step="0.01" min="0">
-							</div>
-						</div>
-					</div>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-					<button type="submit" class="btn btn-warning">Salva Modifiche</button>
-				</div>
-			</form>
-		</div>
-	</div>
-</div>
+<!-- Modifica modal removed -->
 
 <!-- Modal Nuovo Bollo -->
 <div class="modal fade" id="modalNuovoBollo" tabindex="-1">
