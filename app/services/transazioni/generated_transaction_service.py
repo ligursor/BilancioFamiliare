@@ -2,6 +2,7 @@ from app.services import BaseService, get_month_boundaries
 from app.models.Transazioni import Transazioni
 from app import db
 from sqlalchemy import text
+from sqlalchemy import or_
 from datetime import date
 import calendar
 from dateutil.relativedelta import relativedelta
@@ -11,7 +12,7 @@ from dateutil.relativedelta import relativedelta
 class GeneratedTransactionService(BaseService):
     """Servizio che popola la tabella `transazioni` a partire dalle ricorrenze."""
 
-    def populate_horizon_from_recurring(self, months=6, base_date=None):
+    def populate_horizon_from_recurring(self, months=6, base_date=None, create_only_future=False, mark_generated_tx_modificata=False):
         if base_date is None:
             base_date = date.today()
         start_date, _ = get_month_boundaries(base_date)
@@ -101,6 +102,14 @@ class GeneratedTransactionService(BaseService):
 
                 candidate_date = cand
 
+                # If requested, only create transactions scheduled in the future
+                # (strictly after today). This ensures that non-full wipes do not
+                # recreate past recurring transactions.
+                if create_only_future:
+                    from datetime import date as _date
+                    if candidate_date <= _date.today():
+                        continue
+
                 if not (periodo_start <= candidate_date <= periodo_end):
                     continue
 
@@ -151,6 +160,21 @@ class GeneratedTransactionService(BaseService):
                 if exists:
                     continue
 
+                # Se esiste una transazione protetta (importo_modificato==1) per la stessa data
+                # e che sia riferita a questa ricorrenza (id_recurring_tx) oppure abbia la stessa descrizione,
+                # saltiamo la creazione per evitare di sovrascrivere/interferire con modifiche manuali.
+                try:
+                    prot = Transazioni.query.filter(
+                        Transazioni.data == candidate_date,
+                        Transazioni.tx_modificata == True,
+                        or_(Transazioni.id_recurring_tx == getattr(r, 'id', None), Transazioni.descrizione == getattr(r, 'descrizione', None))
+                    ).first()
+                    if prot:
+                        continue
+                except Exception:
+                    # In case the DB schema doesn't have the column yet or other issues, proceed with default behaviour
+                    pass
+
                 # crea la transazioni programmata (data_effettiva None -> in attesa)
                 tx = Transazioni(
                     data=candidate_date,
@@ -159,8 +183,10 @@ class GeneratedTransactionService(BaseService):
                     importo=round(float(getattr(r, 'importo', 0.0)), 2),
                     categoria_id=getattr(r, 'categoria_id', None),
                     tipo=getattr(r, 'tipo', 'uscita'),
-                    ricorrente=False,
-                    id_recurring_tx=getattr(r, 'id', None)
+                    tx_ricorrente=True,
+                    tx_modificata=bool(mark_generated_tx_modificata),
+                    id_recurring_tx=getattr(r, 'id', None),
+                    id_periodo=(get_month_boundaries(candidate_date)[1].year * 100 + get_month_boundaries(candidate_date)[1].month)
                 )
                 db.session.add(tx)
                 created += 1

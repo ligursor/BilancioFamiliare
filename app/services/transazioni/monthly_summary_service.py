@@ -53,11 +53,22 @@ class MonthlySummaryService(BaseService):
 				if not tables:
 					return False, "No transactions table found"
 				tx_table = tables[0][0]
-				sql = (
-					f"SELECT data, importo, categoria_id, tipo FROM {tx_table} "
-					"WHERE data >= :start AND data <= :end AND categoria_id IS NOT NULL"
-				)
-				rows = db.session.execute(text(sql), {'start': start_date, 'end': end_date}).fetchall()
+				# Inspect table columns to detect presence of id_periodo. If present,
+				# prefer to filter by id_periodo (YYYYMM integer) to leverage the index.
+				try:
+					cols = [r[1] for r in db.session.execute(text(f"PRAGMA table_info('{tx_table}');")).fetchall()]
+				except Exception:
+					cols = []
+				if 'id_periodo' in cols:
+					period_val = int(end_date.year) * 100 + int(end_date.month)
+					sql = f"SELECT data, importo, categoria_id, tipo FROM {tx_table} WHERE id_periodo = :period AND categoria_id IS NOT NULL"
+					rows = db.session.execute(text(sql), {'period': period_val}).fetchall()
+				else:
+					sql = (
+						f"SELECT data, importo, categoria_id, tipo FROM {tx_table} "
+						"WHERE data >= :start AND data <= :end AND categoria_id IS NOT NULL"
+					)
+					rows = db.session.execute(text(sql), {'start': start_date, 'end': end_date}).fetchall()
 				entrate = sum(r[1] for r in rows if r[3] == 'entrata')
 				uscite = sum(r[1] for r in rows if r[3] == 'uscita')
 				bilancio = entrate - uscite

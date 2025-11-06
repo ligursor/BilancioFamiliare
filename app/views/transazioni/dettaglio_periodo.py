@@ -5,6 +5,7 @@ from app.services.transazioni.dettaglio_periodo_service import DettaglioPeriodoS
 from app.models.Transazioni import Transazioni
 from app import db
 from app.services.categorie.categorie_service import CategorieService
+from app.services import get_month_boundaries
 from flask import request, jsonify
 from app.models.SaldiMensili import SaldiMensili
 from app.models.BudgetMensili import BudgetMensili
@@ -327,7 +328,7 @@ def aggiungi_transazione_periodo(start_date, end_date):
 		importo = float(request.form.get('importo') or 0.0)
 		categoria_id = int(request.form.get('categoria_id')) if request.form.get('categoria_id') else None
 
-		ricorrente = False if is_ajax else (True if request.form.get('ricorrente') else False)
+		tx_ricorrente = False if is_ajax else (True if request.form.get('tx_ricorrente') else False)
 
 		# Validate date bounds
 		from datetime import datetime as _dt
@@ -360,8 +361,16 @@ def aggiungi_transazione_periodo(start_date, end_date):
 			importo=importo,
 			categoria_id=categoria_id,
 			tipo=tipo,
-			ricorrente=ricorrente
+			tx_ricorrente=tx_ricorrente
 		)
+
+		# populate id_periodo according to financial month ending month
+		try:
+			period_end = get_month_boundaries(transazioni.data_effettiva or transazioni.data)[1]
+			transazioni.id_periodo = int(period_end.year) * 100 + int(period_end.month)
+		except Exception:
+			# best-effort: leave id_periodo None on failure
+			pass
 
 		db.session.add(transazioni)
 		db.session.commit()
@@ -433,7 +442,7 @@ def aggiungi_transazione_periodo(start_date, end_date):
 			'categoria_id': tx.categoria_id,
 			'categoria_nome': tx.categoria.nome if tx.categoria else None,
 			'tipo': tx.tipo,
-			'ricorrente': bool(tx.ricorrente)
+			'tx_ricorrente': bool(getattr(tx, 'tx_ricorrente', False))
 		}, 'summary': summary_out})
 
 	return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
@@ -457,8 +466,25 @@ def modifica_transazione_periodo(start_date, end_date, id):
 			tx.categoria_id = int(request.form.get('categoria_id')) if request.form.get('categoria_id') else None
 		if 'tipo' in request.form:
 			tx.tipo = request.form.get('tipo') or tx.tipo
-		# Ricorrente checkbox
-		tx.ricorrente = True if request.form.get('ricorrente') else False
+		# Ricorrente checkbox -> mappiamo al flag tx_ricorrente
+		tx.tx_ricorrente = True if request.form.get('tx_ricorrente') else False
+
+		# Segna la transazione come modificata manualmente dall'utente.
+		# Questo impedisce che operazioni di soft-reset cancellino o ricreino
+		# automaticamente questa occorrenza.
+		try:
+			tx.tx_modificata = True
+		except Exception:
+			# se per qualche motivo la colonna non esiste (vecchio schema), prosegui
+			pass
+
+		# Update id_periodo if date changed (recompute financial month)
+		try:
+			from app.services import get_month_boundaries as _gmb
+			period_end = _gmb(tx.data_effettiva or tx.data)[1]
+			tx.id_periodo = int(period_end.year) * 100 + int(period_end.month)
+		except Exception:
+			pass
 
 		db.session.commit()
 		# After modifying a transaction, update monthly summaries starting from the transaction month
@@ -574,11 +600,19 @@ def modifica_monthly_budget(start_date, end_date):
 		start_dt, end_dt = get_month_boundaries(ed)
 
 		# Try to find an existing transazioni for this category/month (prefer non-recurring)
-		tx = Transazioni.query.filter(
-			Transazioni.categoria_id == categoria_id,
-			Transazioni.data >= start_dt,
-			Transazioni.data <= end_dt
-		).order_by(Transazioni.ricorrente.asc(), Transazioni.id.asc()).first()
+		# Prefer to use id_periodo for month-scoped lookup (faster when indexed)
+		try:
+			period_val = int(get_month_boundaries(ed)[1].year) * 100 + int(get_month_boundaries(ed)[1].month)
+			tx = Transazioni.query.filter(
+				Transazioni.categoria_id == categoria_id,
+				Transazioni.id_periodo == period_val
+			).order_by(Transazioni.tx_ricorrente.asc(), Transazioni.id.asc()).first()
+		except Exception:
+			tx = Transazioni.query.filter(
+				Transazioni.categoria_id == categoria_id,
+				Transazioni.data >= start_dt,
+				Transazioni.data <= end_dt
+			).order_by(Transazioni.tx_ricorrente.asc(), Transazioni.id.asc()).first()
 
 		categoria = Categorie.query.get(categoria_id)
 		nome_cat = categoria.nome if categoria else f'Categoria {categoria_id}'

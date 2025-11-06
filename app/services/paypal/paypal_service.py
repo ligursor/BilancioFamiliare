@@ -124,14 +124,17 @@ class PaypalService(BaseService):
             )
         ).first()
     
-    def create_movimento(self, abbonamento_id, data, importo, descrizione=None, transazione_id=None):
-        """Crea un nuovo movimento PayPal"""
+    def create_movimento(self, abbonamento_id, data, importo, descrizione=None):
+        """Crea un nuovo movimento PayPal.
+
+        NOTE: PayPal movements are intentionally kept independent from the
+        `transazioni` table. Do not pass or set a `transazione_id` here.
+        """
         movimento = PaypalMovimenti(
             abbonamento_id=abbonamento_id,
             data=data,
             importo=importo,
-            descrizione=descrizione,
-            transazione_id=transazione_id
+            descrizione=descrizione
         )
         db.session.add(movimento)
         db.session.commit()

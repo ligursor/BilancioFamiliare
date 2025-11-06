@@ -64,7 +64,7 @@
             inlineForm.parentNode.replaceChild(clone, inlineForm);
             clone.addEventListener('submit', function(evt){
                 evt.preventDefault();
-                var fd = new FormData(clone); fd.set('ricorrente','');
+                var fd = new FormData(clone); fd.set('tx_ricorrente','');
                 var d = fd.get('data');
                 if (!d || d < cfg.start_date || d > cfg.end_date) { showToast('La data deve essere compresa nel periodo ' + cfg.start_date + ' - ' + cfg.end_date, 'warning'); return; }
                 var url = '/dettaglio/' + encodeURIComponent(cfg.start_date) + '/' + encodeURIComponent(cfg.end_date) + '/aggiungi_transazione';

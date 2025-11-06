@@ -1,10 +1,12 @@
 """Servizio per la gestione di PostePay Evolution (carta, abbonamenti e movimenti)"""
 from app.services import BaseService
-from app.models.PostePayEvolution import PostePayEvolution, AbbonamentoPostePay, MovimentoPostePay
+from app.models.PostePayEvolution import AbbonamentoPostePay, MovimentoPostePay
 from app import db
 from datetime import datetime, date
 from sqlalchemy import desc, and_
 from dateutil.relativedelta import relativedelta
+from types import SimpleNamespace
+from app.services.conti_finanziari.strumenti_service import StrumentiService
 
 
 class PostePayEvolutionService(BaseService):
@@ -12,46 +14,44 @@ class PostePayEvolutionService(BaseService):
     
     # === Gestione Carta ===
     
-    def get_carta(self):
-        """Recupera l'istanza della carta PostePay Evolution"""
-        return PostePayEvolution.query.first()
+    def _get_strumento(self):
+        """Recupera lo Strumento 'Postepay Evolution' dai conti_finanziari (source of truth).
+        """
+        try:
+            ss = StrumentiService()
+            return ss.get_by_descrizione('Postepay Evolution')
+        except Exception:
+            return None
     
     def create_or_update_carta(self, numero_carta=None, intestatario=None, saldo=None):
         """Crea o aggiorna la carta PostePay Evolution"""
-        carta = self.get_carta()
-        
-        if carta:
-            if numero_carta is not None:
-                carta.numero_carta = numero_carta
-            if intestatario is not None:
-                carta.intestatario = intestatario
+        # Update (or create) the Strumento that holds the saldo. We no longer touch any legacy model.
+        try:
+            ss = StrumentiService()
             if saldo is not None:
-                carta.saldo = saldo
-        else:
-            carta = PostePayEvolution(
-                numero_carta=numero_carta,
-                intestatario=intestatario,
-                saldo=saldo or 0
-            )
-            db.session.add(carta)
-        
-        db.session.commit()
-        return carta
+                strum = ss.update_saldo('Postepay Evolution', saldo)
+            else:
+                # Ensure strumento exists even if saldo not provided
+                strum = ss.ensure_strumento('Postepay Evolution', 'carta', 0.0)
+            return strum
+        except Exception:
+            return None
     
     def get_saldo(self):
         """Recupera il saldo attuale"""
-        carta = self.get_carta()
-        return float(carta.saldo or 0) if carta else 0.0
+        strum = self._get_strumento()
+        try:
+            return float(getattr(strum, 'saldo_corrente', 0.0) or 0.0)
+        except Exception:
+            return 0.0
     
     def update_saldo(self, nuovo_saldo):
         """Aggiorna il saldo della carta"""
-        carta = self.get_carta()
-        if not carta:
-            carta = self.create_or_update_carta(saldo=nuovo_saldo)
-        else:
-            carta.saldo = nuovo_saldo
-            db.session.commit()
-        return carta
+        try:
+            ss = StrumentiService()
+            return ss.update_saldo('Postepay Evolution', nuovo_saldo)
+        except Exception:
+            return None
     
     # === Gestione Abbonamenti ===
     
@@ -169,28 +169,41 @@ class PostePayEvolutionService(BaseService):
         ).first()
     
     def create_movimento(self, data, importo, tipo, descrizione=None, 
-                        abbonamento_id=None, categoria_id=None, transazione_id=None):
-        """Crea un nuovo movimento PostePay"""
+                        abbonamento_id=None, categoria_id=None):
+        """Crea un nuovo movimento PostePay.
+
+        Note: Movimenti PostePay sono indipendenti dalla tabella `transazioni`.
+        Non impostare o salvare un campo `transazione_id` qui.
+        """
         movimento = MovimentoPostePay(
             data=data,
             importo=importo,
             tipo=tipo,
             descrizione=descrizione,
             abbonamento_id=abbonamento_id,
-            categoria_id=categoria_id,
-            transazione_id=transazione_id
+            categoria_id=categoria_id
         )
         db.session.add(movimento)
-        
-        # Aggiorna il saldo della carta
-        carta = self.get_carta()
-        if carta:
-            if tipo == 'U':  # Uscita
-                carta.saldo -= float(importo or 0)
-            elif tipo == 'E':  # Entrata
-                carta.saldo += float(importo or 0)
-        
-        db.session.commit()
+        # Persistiamo il movimento e aggiorniamo lo Strumento (source of truth)
+        try:
+            db.session.commit()
+        except Exception:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            raise
+
+        # Aggiorna saldo nello strumento: importo è già con segno (+ entrata, - uscita)
+        try:
+            ss = StrumentiService()
+            strum = ss.get_by_descrizione('Postepay Evolution')
+            if strum:
+                new_bal = (strum.saldo_corrente or 0.0) + float(movimento.importo or 0)
+                ss.update_saldo_by_id(strum.id_conto, new_bal)
+        except Exception:
+            pass
+
         return movimento
     
     def update_movimento(self, movimento_id, **kwargs):
@@ -207,22 +220,19 @@ class PostePayEvolutionService(BaseService):
             if hasattr(movimento, key):
                 setattr(movimento, key, value)
         
-        # Ricalcola effetto sul saldo
+        # Ricalcola effetto sul saldo usando lo Strumento come source of truth
         if 'importo' in kwargs or 'tipo' in kwargs:
-            carta = self.get_carta()
-            if carta:
-                # Annulla vecchio effetto
-                if old_tipo == 'U':
-                    carta.saldo += old_importo
-                elif old_tipo == 'E':
-                    carta.saldo -= old_importo
-                
-                # Applica nuovo effetto
-                new_importo = float(movimento.importo or 0)
-                if movimento.tipo == 'U':
-                    carta.saldo -= new_importo
-                elif movimento.tipo == 'E':
-                    carta.saldo += new_importo
+            try:
+                ss = StrumentiService()
+                strum = ss.get_by_descrizione('Postepay Evolution')
+                if strum:
+                    new_importo = float(movimento.importo or 0)
+                    # delta to apply to the strumento is new - old
+                    delta = new_importo - old_importo
+                    new_bal = (strum.saldo_corrente or 0.0) + delta
+                    ss.update_saldo_by_id(strum.id_conto, new_bal)
+            except Exception:
+                pass
         
         db.session.commit()
         return movimento
@@ -232,16 +242,17 @@ class PostePayEvolutionService(BaseService):
         movimento = self.get_movimento_by_id(movimento_id)
         if not movimento:
             return False
-        
-        # Aggiorna il saldo annullando l'effetto del movimento
-        carta = self.get_carta()
-        if carta:
-            importo = float(movimento.importo or 0)
-            if movimento.tipo == 'U':  # Era un'uscita, riaggiunge il saldo
-                carta.saldo += importo
-            elif movimento.tipo == 'E':  # Era un'entrata, toglie il saldo
-                carta.saldo -= importo
-        
+        # Aggiorna il saldo annullando l'effetto del movimento sullo Strumento
+        try:
+            ss = StrumentiService()
+            strum = ss.get_by_descrizione('Postepay Evolution')
+            if strum:
+                # remove movimento effect: subtract movimento.importo
+                new_bal = (strum.saldo_corrente or 0.0) - float(movimento.importo or 0)
+                ss.update_saldo_by_id(strum.id_conto, new_bal)
+        except Exception:
+            pass
+
         db.session.delete(movimento)
         db.session.commit()
         return True

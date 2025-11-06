@@ -133,13 +133,15 @@ function filtraCategorie(context) {
 }
 
 function toggleFrequenza() {
-    const ricorrente = document.getElementById('ricorrente').checked;
+    // Prefer the explicit tx_ricorrente form field if present
+    const ricEl = document.querySelector('input[name="tx_ricorrente"]') || document.getElementById('ricorrente');
+    const ricorrente = ricEl ? ricEl.checked : false;
     const container = document.getElementById('frequenza-container');
-    container.style.display = ricorrente ? 'block' : 'none';
+    if (container) container.style.display = ricorrente ? 'block' : 'none';
     
     // Se non è ricorrente, rimuovi il valore
     if (!ricorrente) {
-        document.getElementById('frequenza_giorni').value = '';
+        const freq = document.getElementById('frequenza_giorni'); if (freq) freq.value = '';
     }
 }
 

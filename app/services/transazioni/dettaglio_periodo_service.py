@@ -26,14 +26,24 @@ class DettaglioPeriodoService:
     def dettaglio_periodo_interno(self, start_date, end_date):
         """Funzione interna per gestire il dettaglio del periodo - copia fedele da app.py"""
         
-        # Prendi tutte le transazioni del periodo (escluse PayPal)
-        query = Transazioni.query.filter(
-            Transazioni.data >= start_date,
-            Transazioni.data <= end_date,
-            Transazioni.categoria_id.isnot(None)  # Escludi transazioni PayPal (senza categorie)
-        )
-        # No category filter applied here (categorie filtering removed)
-        transazioni = query.order_by(Transazioni.data.desc()).all()
+        # Prefer to fetch transactions by `id_periodo` (YYYYMM) when possible to
+        # take advantage of the index. `id_periodo` represents the financial
+        # month containing `end_date`.
+        try:
+            period_id = int(get_month_boundaries(end_date)[1].year) * 100 + int(get_month_boundaries(end_date)[1].month)
+            query = Transazioni.query.filter(
+                Transazioni.id_periodo == period_id,
+                Transazioni.categoria_id.isnot(None)
+            )
+            transazioni = query.order_by(Transazioni.data.desc()).all()
+        except Exception:
+            # Fallback to date range if id_periodo is not available in the schema
+            query = Transazioni.query.filter(
+                Transazioni.data >= start_date,
+                Transazioni.data <= end_date,
+                Transazioni.categoria_id.isnot(None)  # Escludi transazioni PayPal (senza categorie)
+            )
+            transazioni = query.order_by(Transazioni.data.desc()).all()
         
         # Separa transazioni effettuate da quelle in attesa
         transazioni_effettuate = []
@@ -47,18 +57,30 @@ class DettaglioPeriodoService:
             else:
                 transazioni_in_attesa.append(t)
 
+        # Ensure both performed and pending transactions are ordered in ascending order (oldest -> newest)
+        try:
+            transazioni_effettuate.sort(key=lambda x: x.data)
+        except Exception:
+            # If sorting fails for any reason, ignore to avoid breaking the view
+            pass
+        try:
+            transazioni_in_attesa.sort(key=lambda x: x.data)
+        except Exception:
+            # If sorting fails for any reason, ignore to avoid breaking the view
+            pass
+
         # Filtra manualmente per evitare duplicazioni madri/figlie nello stesso mese (solo per quelle effettuate)
         transazioni_filtrate = []
         for t in transazioni_effettuate:
-            if t.ricorrente == 0:  # Figlie e manuali: sempre incluse
+            if not getattr(t, 'tx_ricorrente', False):  # Figlie e manuali: sempre incluse
                 transazioni_filtrate.append(t)
-            elif t.ricorrente == 1:  # Madri: includi solo se non hanno figlie nello stesso mese
+            elif getattr(t, 'tx_ricorrente', False):  # Madri: includi solo se non hanno figlie nello stesso mese
                 # Controlla se esistono figlie di questa madre nello stesso mese
                 ha_figlie_stesso_mese = any(
                     f.transazione_madre_id == t.id and 
                     f.data.month == t.data.month and 
                     f.data.year == t.data.year
-                    for f in transazioni_effettuate if f.ricorrente == 0 and f.transazione_madre_id
+                    for f in transazioni_effettuate if (not getattr(f, 'tx_ricorrente', False)) and f.transazione_madre_id
                 )
                 if not ha_figlie_stesso_mese:
                     transazioni_filtrate.append(t)
@@ -114,11 +136,19 @@ class DettaglioPeriodoService:
                 break
 
             # Calcola il bilancio di questo mese e aggiungilo al saldo
-            tutte_transazioni_mese = Transazioni.query.filter(
-                Transazioni.data >= mese_corrente_start,
-                Transazioni.data <= mese_corrente_end,
-                Transazioni.categoria_id.isnot(None)  # Escludi transazioni PayPal (senza categorie)
-            ).all()
+            # Use id_periodo to fetch transactions for the current financial month
+            try:
+                mese_id = int(get_month_boundaries(mese_corrente)[1].year) * 100 + int(get_month_boundaries(mese_corrente)[1].month)
+                tutte_transazioni_mese = Transazioni.query.filter(
+                    Transazioni.id_periodo == mese_id,
+                    Transazioni.categoria_id.isnot(None)
+                ).all()
+            except Exception:
+                tutte_transazioni_mese = Transazioni.query.filter(
+                    Transazioni.data >= mese_corrente_start,
+                    Transazioni.data <= mese_corrente_end,
+                    Transazioni.categoria_id.isnot(None)
+                ).all()
             # Do not apply category filter to monthly aggregates (categorie filtering removed)
             
             # Per mesi passati, usa solo transazioni effettuate
@@ -141,14 +171,14 @@ class DettaglioPeriodoService:
                 uscite_mese = 0
                 for t in lista_transazioni:
                     includi = False
-                    if t.ricorrente == 0:  # Figlie e manuali: sempre incluse
+                    if not getattr(t, 'tx_ricorrente', False):  # Figlie e manuali: sempre incluse
                         includi = True
-                    elif t.ricorrente == 1:  # Madri: includi solo se non hanno figlie nello stesso mese
+                    elif getattr(t, 'tx_ricorrente', False):  # Madri: includi solo se non hanno figlie nello stesso mese
                         ha_figlie_stesso_mese = any(
                             f.transazione_madre_id == t.id and 
                             f.data.month == t.data.month and 
                             f.data.year == t.data.year
-                            for f in lista_transazioni if f.ricorrente == 0 and f.transazione_madre_id
+                            for f in lista_transazioni if (not getattr(f, 'tx_ricorrente', False)) and f.transazione_madre_id
                         )
                         if not ha_figlie_stesso_mese:
                             includi = True

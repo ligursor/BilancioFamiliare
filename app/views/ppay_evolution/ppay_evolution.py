@@ -1,5 +1,5 @@
 """Gestione dashboard e movimenti PostePay Evolution."""
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response
 from app.utils.formatting import format_currency
 from datetime import datetime, date, timedelta
 from app.models.PostePayEvolution import AbbonamentoPostePay, MovimentoPostePay
@@ -20,7 +20,8 @@ def inizializza_postepay():
     except Exception:
         # best-effort: fallback to creating a local PostePayEvolution record
         strum = None
-    # Return the strumento (or None). We no longer persist a PostePayEvolution row;
+    # The saldo is kept exclusively in `conti_finanziari.Strumento` (StrumentiService).
+    # Return the strumento (or None).
     # templates and logic should read the saldo from the Strumento.
     return strum
 
@@ -153,14 +154,16 @@ def evolution():
                 'attivo': abbo.attivo
             })
 
-        return render_template('postepay_evolution/ppay_evolution.html',
+        resp = make_response(render_template('postepay_evolution/ppay_evolution.html',
                              postepay=postepay,
                              abbonamenti=abbonamenti,
                              abbonamenti_json=abbonamenti_serializzati,
                              movimenti=movimenti,
                              spesa_mensile=spesa_mensile,
                              prossimi_addebiti=prossimi_addebiti,
-                             addebiti_problematici=addebiti_problematici)
+                             addebiti_problematici=addebiti_problematici))
+        resp.headers['X-Partial-Response'] = '1'
+        return resp
 
     except Exception as e:
         flash(f'Errore nel caricamento PostePay Evolution: {str(e)}', 'error')
@@ -174,43 +177,46 @@ def ricarica():
         strum = inizializza_postepay()
         ss = StrumentiService()
         strum = ss.get_by_descrizione('Postepay Evolution')
-        
+
         importo = float(request.form.get('importo', 0))
         descrizione = request.form.get('descrizione', '').strip()
         data_str = request.form.get('data', '')
-        
+
         if importo <= 0:
             flash('L\'importo deve essere maggiore di zero', 'error')
             return redirect(url_for('ppay.evolution'))
-        
+
         if not descrizione:
             descrizione = f'Ricarica PostePay'
-        
+
         # Parsing della data
         if data_str:
             data_movimento = datetime.strptime(data_str, '%Y-%m-%d').date()
         else:
             data_movimento = date.today()
-        
-        # Crea movimento
+
+        # Normalize: entrata -> positive importo
+        signed_importo = abs(importo)
+
+        # Crea movimento (tipo = categoria)
         movimento = MovimentoPostePay(
             data=data_movimento,
-            tipo='ricarica',
-            importo=importo,
             descrizione=descrizione,
+            importo=signed_importo,
+            tipo='Ricarica'
         )
-        
+
         db.session.add(movimento)
         db.session.commit()
 
-        # Aggiorna saldo nello strumento (sorgente di verità)
+        # Aggiorna saldo nello strumento (sorgente di verità) by adding the signed importo
         try:
             if strum:
-                new_bal = (strum.saldo_corrente or 0.0) + importo
+                new_bal = (strum.saldo_corrente or 0.0) + signed_importo
                 ss.update_saldo_by_id(strum.id_conto, new_bal)
         except Exception:
             pass
-        
+
         flash(f'Ricarica di {format_currency(importo)} aggiunta con successo!', 'success')
         
     except ValueError:
@@ -230,49 +236,51 @@ def spesa():
         strum = inizializza_postepay()
         ss = StrumentiService()
         strum = ss.get_by_descrizione('Postepay Evolution')
-        
+
         importo = float(request.form.get('importo', 0))
         descrizione = request.form.get('descrizione', '').strip()
         data_str = request.form.get('data', '')
-        
+
         if importo <= 0:
             flash('L\'importo deve essere maggiore di zero', 'error')
             return redirect(url_for('ppay.evolution'))
-        
+
         if not descrizione:
             descrizione = f'Spesa PostePay'
-        
+
         # Parsing della data
         if data_str:
             data_movimento = datetime.strptime(data_str, '%Y-%m-%d').date()
         else:
             data_movimento = date.today()
-        
-        # Verifica saldo disponibile
+
+        # Verifica saldo disponibile (compare with absolute amount)
         current_balance = (strum.saldo_corrente if strum else 0.0)
-        if current_balance < importo:
+        if current_balance < abs(importo):
             flash('Saldo insufficiente per questa spesa', 'error')
             return redirect(url_for('ppay.evolution'))
-        
-        # Crea movimento
+
+        # Normalize: uscita -> negative importo stored
+        signed_importo = -abs(importo)
+
         movimento = MovimentoPostePay(
             data=data_movimento,
-            tipo='spesa',
-            importo=importo,
             descrizione=descrizione,
+            importo=signed_importo,
+            tipo='Pagamento'
         )
-        
+
         db.session.add(movimento)
         db.session.commit()
 
-        # Aggiorna saldo nello strumento (sorgente di verità)
+        # Aggiorna saldo nello strumento (sorgente di verità) by adding the signed importo
         try:
             if strum:
-                new_bal = (strum.saldo_corrente or 0.0) - importo
+                new_bal = (strum.saldo_corrente or 0.0) + signed_importo
                 ss.update_saldo_by_id(strum.id_conto, new_bal)
         except Exception:
             pass
-        
+
         flash(f'Spesa di {format_currency(importo)} aggiunta con successo!', 'success')
         
     except ValueError:
@@ -281,7 +289,79 @@ def spesa():
         flash(f'Errore nell\'aggiunta spesa: {str(e)}', 'error')
         db.session.rollback()
     
-    return redirect(url_for('ppay.evolution'))
+    # Return rendered template for fetch-based updates (no redirect)
+    try:
+        inizializza_postepay()
+        ss = StrumentiService()
+        strum = ss.get_by_descrizione('Postepay Evolution')
+        if strum is not None:
+            postepay = SimpleNamespace(saldo_attuale=(strum.saldo_corrente or 0.0))
+        else:
+            postepay = SimpleNamespace(saldo_attuale=0.0)
+        abbonamenti = AbbonamentoPostePay.query.order_by(AbbonamentoPostePay.nome).all()
+        movimenti = MovimentoPostePay.query.order_by(MovimentoPostePay.data.desc()).limit(10).all()
+
+        abbonamenti_attivi = [a for a in abbonamenti if a.attivo]
+        spesa_mensile = sum(a.importo for a in abbonamenti_attivi)
+
+        # Calcola prossimi addebiti con saldo sufficiente
+        oggi = date.today()
+        prossimi_addebiti = []
+        for abbonamento in abbonamenti_attivi:
+            prossimo = abbonamento.prossimo_addebito
+            if (prossimo - oggi).days <= 30:
+                prossimi_addebiti.append({
+                    'abbonamento': abbonamento,
+                    'data': prossimo,
+                    'giorni': (prossimo - oggi).days
+                })
+        prossimi_addebiti.sort(key=lambda x: x['data'])
+
+        # Calcola saldo sufficiente per ogni addebito (progressivo)
+        saldo_simulato = postepay.saldo_attuale if postepay else 0
+        for addebito in prossimi_addebiti:
+            if saldo_simulato >= addebito['abbonamento'].importo:
+                addebito['saldo_sufficiente'] = True
+                saldo_simulato -= addebito['abbonamento'].importo
+            else:
+                addebito['saldo_sufficiente'] = False
+
+        # Calcola addebiti problematici (per alert)
+        saldo_alert = postepay.saldo_attuale if postepay else 0
+        addebiti_problematici = []
+        for addebito in prossimi_addebiti:
+            if saldo_alert < addebito['abbonamento'].importo:
+                addebiti_problematici.append({
+                    'abbonamento': addebito['abbonamento'],
+                    'data': addebito['data'],
+                    'giorni': addebito['giorni'],
+                    'importo_mancante': addebito['abbonamento'].importo - saldo_alert
+                })
+            saldo_alert -= addebito['abbonamento'].importo
+
+        # Serializza abbonamenti per JavaScript
+        import json
+        abbonamenti_serializzati = json.dumps([{
+            'id': a.id,
+            'nome': a.nome,
+            'importo': float(a.importo),
+            'giorno_addebito': a.giorno_addebito,
+            'attivo': a.attivo
+        } for a in abbonamenti])
+
+        return render_template('postepay_evolution/ppay_evolution.html',
+                             postepay=postepay,
+                             abbonamenti=abbonamenti,
+                             abbonamenti_json=abbonamenti_serializzati,
+                             movimenti=movimenti,
+                             spesa_mensile=spesa_mensile,
+                             prossimi_addebiti=prossimi_addebiti,
+                             addebiti_problematici=addebiti_problematici)
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.exception(f"Errore nel rendering dopo aggiunta movimento: {e}")
+        # Fallback to redirect if rendering fails
+        return redirect(url_for('ppay.evolution'))
 
 @ppay_bp.route('/toggle_abbonamento/<int:abbonamento_id>', methods=['POST'])
 def toggle_abbonamento(abbonamento_id):
@@ -303,7 +383,80 @@ def toggle_abbonamento(abbonamento_id):
     except Exception as e:
         flash(f'Errore nella modifica dell\'abbonamento: {str(e)}', 'error')
     
-    return redirect(url_for('ppay.evolution'))
+    # Return rendered template for fetch-based updates (no redirect)
+    try:
+        inizializza_postepay()
+        ss = StrumentiService()
+        strum = ss.get_by_descrizione('Postepay Evolution')
+        if strum is not None:
+            postepay = SimpleNamespace(saldo_attuale=(strum.saldo_corrente or 0.0))
+        else:
+            postepay = SimpleNamespace(saldo_attuale=0.0)
+        abbonamenti = AbbonamentoPostePay.query.order_by(AbbonamentoPostePay.nome).all()
+        movimenti = MovimentoPostePay.query.order_by(MovimentoPostePay.data.desc()).limit(10).all()
+
+        abbonamenti_attivi = [a for a in abbonamenti if a.attivo]
+        spesa_mensile = sum(a.importo for a in abbonamenti_attivi)
+
+        # Calcola prossimi addebiti con saldo sufficiente
+        oggi = date.today()
+        prossimi_addebiti = []
+        for abbonamento in abbonamenti_attivi:
+            prossimo = abbonamento.prossimo_addebito
+            if (prossimo - oggi).days <= 30:
+                prossimi_addebiti.append({
+                    'abbonamento': abbonamento,
+                    'data': prossimo,
+                    'giorni': (prossimo - oggi).days
+                })
+        prossimi_addebiti.sort(key=lambda x: x['data'])
+
+        # Calcola saldo sufficiente per ogni addebito (progressivo)
+        saldo_simulato = postepay.saldo_attuale if postepay else 0
+        for addebito in prossimi_addebiti:
+            if saldo_simulato >= addebito['abbonamento'].importo:
+                addebito['saldo_sufficiente'] = True
+                saldo_simulato -= addebito['abbonamento'].importo
+            else:
+                addebito['saldo_sufficiente'] = False
+
+        # Calcola addebiti problematici (per alert)
+        saldo_alert = postepay.saldo_attuale if postepay else 0
+        addebiti_problematici = []
+        for addebito in prossimi_addebiti:
+            if saldo_alert < addebito['abbonamento'].importo:
+                addebiti_problematici.append({
+                    'abbonamento': addebito['abbonamento'],
+                    'data': addebito['data'],
+                    'giorni': addebito['giorni'],
+                    'importo_mancante': addebito['abbonamento'].importo - saldo_alert
+                })
+            saldo_alert -= addebito['abbonamento'].importo
+
+        # Serializza abbonamenti per JavaScript
+        import json
+        abbonamenti_serializzati = json.dumps([{
+            'id': a.id,
+            'nome': a.nome,
+            'importo': float(a.importo),
+            'giorno_addebito': a.giorno_addebito,
+            'attivo': a.attivo
+        } for a in abbonamenti])
+
+        return render_template('postepay_evolution/ppay_evolution.html',
+                             postepay=postepay,
+                             abbonamenti=abbonamenti,
+                             abbonamenti_json=abbonamenti_serializzati,
+                             movimenti=movimenti,
+                             spesa_mensile=spesa_mensile,
+                             prossimi_addebiti=prossimi_addebiti,
+                             addebiti_problematici=addebiti_problematici)
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.exception(f"Errore nel rendering dopo aggiunta movimento: {e}")
+        # Fallback to redirect if rendering fails
+        return redirect(url_for('ppay.evolution'))
+
 
 @ppay_bp.route('/elimina_abbonamento/<int:abbonamento_id>', methods=['POST'])
 def elimina_abbonamento(abbonamento_id):
@@ -324,7 +477,79 @@ def elimina_abbonamento(abbonamento_id):
         flash(f'Errore nell\'eliminazione dell\'abbonamento: {str(e)}', 'error')
         db.session.rollback()
     
-    return redirect(url_for('ppay.evolution'))
+    # Return rendered template for fetch-based updates (no redirect)
+    try:
+        inizializza_postepay()
+        ss = StrumentiService()
+        strum = ss.get_by_descrizione('Postepay Evolution')
+        if strum is not None:
+            postepay = SimpleNamespace(saldo_attuale=(strum.saldo_corrente or 0.0))
+        else:
+            postepay = SimpleNamespace(saldo_attuale=0.0)
+        abbonamenti = AbbonamentoPostePay.query.order_by(AbbonamentoPostePay.nome).all()
+        movimenti = MovimentoPostePay.query.order_by(MovimentoPostePay.data.desc()).limit(10).all()
+
+        abbonamenti_attivi = [a for a in abbonamenti if a.attivo]
+        spesa_mensile = sum(a.importo for a in abbonamenti_attivi)
+
+        # Calcola prossimi addebiti con saldo sufficiente
+        oggi = date.today()
+        prossimi_addebiti = []
+        for abbonamento in abbonamenti_attivi:
+            prossimo = abbonamento.prossimo_addebito
+            if (prossimo - oggi).days <= 30:
+                prossimi_addebiti.append({
+                    'abbonamento': abbonamento,
+                    'data': prossimo,
+                    'giorni': (prossimo - oggi).days
+                })
+        prossimi_addebiti.sort(key=lambda x: x['data'])
+
+        # Calcola saldo sufficiente per ogni addebito (progressivo)
+        saldo_simulato = postepay.saldo_attuale if postepay else 0
+        for addebito in prossimi_addebiti:
+            if saldo_simulato >= addebito['abbonamento'].importo:
+                addebito['saldo_sufficiente'] = True
+                saldo_simulato -= addebito['abbonamento'].importo
+            else:
+                addebito['saldo_sufficiente'] = False
+
+        # Calcola addebiti problematici (per alert)
+        saldo_alert = postepay.saldo_attuale if postepay else 0
+        addebiti_problematici = []
+        for addebito in prossimi_addebiti:
+            if saldo_alert < addebito['abbonamento'].importo:
+                addebiti_problematici.append({
+                    'abbonamento': addebito['abbonamento'],
+                    'data': addebito['data'],
+                    'giorni': addebito['giorni'],
+                    'importo_mancante': addebito['abbonamento'].importo - saldo_alert
+                })
+            saldo_alert -= addebito['abbonamento'].importo
+
+        # Serializza abbonamenti per JavaScript
+        import json
+        abbonamenti_serializzati = json.dumps([{
+            'id': a.id,
+            'nome': a.nome,
+            'importo': float(a.importo),
+            'giorno_addebito': a.giorno_addebito,
+            'attivo': a.attivo
+        } for a in abbonamenti])
+
+        return render_template('postepay_evolution/ppay_evolution.html',
+                             postepay=postepay,
+                             abbonamenti=abbonamenti,
+                             abbonamenti_json=abbonamenti_serializzati,
+                             movimenti=movimenti,
+                             spesa_mensile=spesa_mensile,
+                             prossimi_addebiti=prossimi_addebiti,
+                             addebiti_problematici=addebiti_problematici)
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.exception(f"Errore nel rendering dopo aggiunta movimento: {e}")
+        # Fallback to redirect if rendering fails
+        return redirect(url_for('ppay.evolution'))
 
 @ppay_bp.route('/elimina_movimento/<int:movimento_id>', methods=['POST'])
 def elimina_movimento(movimento_id):
@@ -359,8 +584,81 @@ def elimina_movimento(movimento_id):
             db.session.rollback()
         except Exception:
             pass
-    # Redirect to evolution but skip automatic generation to avoid immediately recreating generated movements
-    return redirect(url_for('ppay.evolution', skip_auto=1))
+    
+    # Return rendered template for fetch-based updates (no redirect)
+    # Recupera dati aggiornati come fa evolution()
+    try:
+        inizializza_postepay()
+        ss = StrumentiService()
+        strum = ss.get_by_descrizione('Postepay Evolution')
+        if strum is not None:
+            postepay = SimpleNamespace(saldo_attuale=(strum.saldo_corrente or 0.0))
+        else:
+            postepay = SimpleNamespace(saldo_attuale=0.0)
+        abbonamenti = AbbonamentoPostePay.query.order_by(AbbonamentoPostePay.nome).all()
+        movimenti = MovimentoPostePay.query.order_by(MovimentoPostePay.data.desc()).limit(10).all()
+        
+        abbonamenti_attivi = [a for a in abbonamenti if a.attivo]
+        spesa_mensile = sum(a.importo for a in abbonamenti_attivi)
+        
+        # Calcola prossimi addebiti con saldo sufficiente
+        oggi = date.today()
+        prossimi_addebiti = []
+        for abbonamento in abbonamenti_attivi:
+            prossimo = abbonamento.prossimo_addebito
+            if (prossimo - oggi).days <= 30:
+                prossimi_addebiti.append({
+                    'abbonamento': abbonamento,
+                    'data': prossimo,
+                    'giorni': (prossimo - oggi).days
+                })
+        prossimi_addebiti.sort(key=lambda x: x['data'])
+        
+        # Calcola saldo sufficiente per ogni addebito (progressivo)
+        saldo_simulato = postepay.saldo_attuale if postepay else 0
+        for addebito in prossimi_addebiti:
+            if saldo_simulato >= addebito['abbonamento'].importo:
+                addebito['saldo_sufficiente'] = True
+                saldo_simulato -= addebito['abbonamento'].importo
+            else:
+                addebito['saldo_sufficiente'] = False
+        
+        # Calcola addebiti problematici (per alert)
+        saldo_alert = postepay.saldo_attuale if postepay else 0
+        addebiti_problematici = []
+        for addebito in prossimi_addebiti:
+            if saldo_alert < addebito['abbonamento'].importo:
+                addebiti_problematici.append({
+                    'abbonamento': addebito['abbonamento'],
+                    'data': addebito['data'],
+                    'giorni': addebito['giorni'],
+                    'importo_mancante': addebito['abbonamento'].importo - saldo_alert
+                })
+            saldo_alert -= addebito['abbonamento'].importo
+        
+        # Serializza abbonamenti per JavaScript
+        import json
+        abbonamenti_serializzati = json.dumps([{
+            'id': a.id,
+            'nome': a.nome,
+            'importo': float(a.importo),
+            'giorno_addebito': a.giorno_addebito,
+            'attivo': a.attivo
+        } for a in abbonamenti])
+        
+        return render_template('postepay_evolution/ppay_evolution.html',
+                             postepay=postepay,
+                             abbonamenti=abbonamenti,
+                             abbonamenti_json=abbonamenti_serializzati,
+                             movimenti=movimenti,
+                             spesa_mensile=spesa_mensile,
+                             prossimi_addebiti=prossimi_addebiti,
+                             addebiti_problematici=addebiti_problematici)
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.exception(f"Errore nel rendering dopo eliminazione: {e}")
+        # Fallback to redirect if rendering fails
+        return redirect(url_for('ppay.evolution', skip_auto=1))
 
 @ppay_bp.route('/modifica_saldo', methods=['POST'])
 def modifica_saldo():
@@ -410,7 +708,79 @@ def modifica_saldo():
         flash(f'Errore nella modifica del saldo: {str(e)}', 'error')
         db.session.rollback()
     
-    return redirect(url_for('ppay.evolution'))
+    # Return rendered template for fetch-based updates (no redirect)
+    try:
+        inizializza_postepay()
+        ss = StrumentiService()
+        strum = ss.get_by_descrizione('Postepay Evolution')
+        if strum is not None:
+            postepay = SimpleNamespace(saldo_attuale=(strum.saldo_corrente or 0.0))
+        else:
+            postepay = SimpleNamespace(saldo_attuale=0.0)
+        abbonamenti = AbbonamentoPostePay.query.order_by(AbbonamentoPostePay.nome).all()
+        movimenti = MovimentoPostePay.query.order_by(MovimentoPostePay.data.desc()).limit(10).all()
+
+        abbonamenti_attivi = [a for a in abbonamenti if a.attivo]
+        spesa_mensile = sum(a.importo for a in abbonamenti_attivi)
+
+        # Calcola prossimi addebiti con saldo sufficiente
+        oggi = date.today()
+        prossimi_addebiti = []
+        for abbonamento in abbonamenti_attivi:
+            prossimo = abbonamento.prossimo_addebito
+            if (prossimo - oggi).days <= 30:
+                prossimi_addebiti.append({
+                    'abbonamento': abbonamento,
+                    'data': prossimo,
+                    'giorni': (prossimo - oggi).days
+                })
+        prossimi_addebiti.sort(key=lambda x: x['data'])
+
+        # Calcola saldo sufficiente per ogni addebito (progressivo)
+        saldo_simulato = postepay.saldo_attuale if postepay else 0
+        for addebito in prossimi_addebiti:
+            if saldo_simulato >= addebito['abbonamento'].importo:
+                addebito['saldo_sufficiente'] = True
+                saldo_simulato -= addebito['abbonamento'].importo
+            else:
+                addebito['saldo_sufficiente'] = False
+
+        # Calcola addebiti problematici (per alert)
+        saldo_alert = postepay.saldo_attuale if postepay else 0
+        addebiti_problematici = []
+        for addebito in prossimi_addebiti:
+            if saldo_alert < addebito['abbonamento'].importo:
+                addebiti_problematici.append({
+                    'abbonamento': addebito['abbonamento'],
+                    'data': addebito['data'],
+                    'giorni': addebito['giorni'],
+                    'importo_mancante': addebito['abbonamento'].importo - saldo_alert
+                })
+            saldo_alert -= addebito['abbonamento'].importo
+
+        # Serializza abbonamenti per JavaScript
+        import json
+        abbonamenti_serializzati = json.dumps([{
+            'id': a.id,
+            'nome': a.nome,
+            'importo': float(a.importo),
+            'giorno_addebito': a.giorno_addebito,
+            'attivo': a.attivo
+        } for a in abbonamenti])
+
+        return render_template('postepay_evolution/ppay_evolution.html',
+                             postepay=postepay,
+                             abbonamenti=abbonamenti,
+                             abbonamenti_json=abbonamenti_serializzati,
+                             movimenti=movimenti,
+                             spesa_mensile=spesa_mensile,
+                             prossimi_addebiti=prossimi_addebiti,
+                             addebiti_problematici=addebiti_problematici)
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.exception(f"Errore nel rendering dopo aggiunta movimento: {e}")
+        # Fallback to redirect if rendering fails
+        return redirect(url_for('ppay.evolution'))
 
 @ppay_bp.route('/aggiungi_abbonamento', methods=['POST'])
 def aggiungi_abbonamento():
@@ -467,7 +837,79 @@ def aggiungi_abbonamento():
         flash(f'Errore nell\'aggiunta dell\'abbonamento: {str(e)}', 'error')
         db.session.rollback()
     
-    return redirect(url_for('ppay.evolution'))
+    # Return rendered template for fetch-based updates (no redirect)
+    try:
+        inizializza_postepay()
+        ss = StrumentiService()
+        strum = ss.get_by_descrizione('Postepay Evolution')
+        if strum is not None:
+            postepay = SimpleNamespace(saldo_attuale=(strum.saldo_corrente or 0.0))
+        else:
+            postepay = SimpleNamespace(saldo_attuale=0.0)
+        abbonamenti = AbbonamentoPostePay.query.order_by(AbbonamentoPostePay.nome).all()
+        movimenti = MovimentoPostePay.query.order_by(MovimentoPostePay.data.desc()).limit(10).all()
+
+        abbonamenti_attivi = [a for a in abbonamenti if a.attivo]
+        spesa_mensile = sum(a.importo for a in abbonamenti_attivi)
+
+        # Calcola prossimi addebiti con saldo sufficiente
+        oggi = date.today()
+        prossimi_addebiti = []
+        for abbonamento in abbonamenti_attivi:
+            prossimo = abbonamento.prossimo_addebito
+            if (prossimo - oggi).days <= 30:
+                prossimi_addebiti.append({
+                    'abbonamento': abbonamento,
+                    'data': prossimo,
+                    'giorni': (prossimo - oggi).days
+                })
+        prossimi_addebiti.sort(key=lambda x: x['data'])
+
+        # Calcola saldo sufficiente per ogni addebito (progressivo)
+        saldo_simulato = postepay.saldo_attuale if postepay else 0
+        for addebito in prossimi_addebiti:
+            if saldo_simulato >= addebito['abbonamento'].importo:
+                addebito['saldo_sufficiente'] = True
+                saldo_simulato -= addebito['abbonamento'].importo
+            else:
+                addebito['saldo_sufficiente'] = False
+
+        # Calcola addebiti problematici (per alert)
+        saldo_alert = postepay.saldo_attuale if postepay else 0
+        addebiti_problematici = []
+        for addebito in prossimi_addebiti:
+            if saldo_alert < addebito['abbonamento'].importo:
+                addebiti_problematici.append({
+                    'abbonamento': addebito['abbonamento'],
+                    'data': addebito['data'],
+                    'giorni': addebito['giorni'],
+                    'importo_mancante': addebito['abbonamento'].importo - saldo_alert
+                })
+            saldo_alert -= addebito['abbonamento'].importo
+
+        # Serializza abbonamenti per JavaScript
+        import json
+        abbonamenti_serializzati = json.dumps([{
+            'id': a.id,
+            'nome': a.nome,
+            'importo': float(a.importo),
+            'giorno_addebito': a.giorno_addebito,
+            'attivo': a.attivo
+        } for a in abbonamenti])
+
+        return render_template('postepay_evolution/ppay_evolution.html',
+                             postepay=postepay,
+                             abbonamenti=abbonamenti,
+                             abbonamenti_json=abbonamenti_serializzati,
+                             movimenti=movimenti,
+                             spesa_mensile=spesa_mensile,
+                             prossimi_addebiti=prossimi_addebiti,
+                             addebiti_problematici=addebiti_problematici)
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.exception(f"Errore nel rendering dopo aggiunta movimento: {e}")
+        # Fallback to redirect only if rendering fails
+        return redirect(url_for('ppay.evolution'))
 
 @ppay_bp.route('/aggiungi_movimento', methods=['POST'])
 def aggiungi_movimento():
@@ -509,7 +951,81 @@ def aggiungi_movimento():
         flash(f'Errore nell\'aggiunta del movimento: {str(e)}', 'error')
         db.session.rollback()
     
-    return redirect(url_for('ppay.evolution'))
+    # Return rendered template for fetch-based updates (no redirect)
+    try:
+        inizializza_postepay()
+        ss = StrumentiService()
+        strum = ss.get_by_descrizione('Postepay Evolution')
+        if strum is not None:
+            postepay = SimpleNamespace(saldo_attuale=(strum.saldo_corrente or 0.0))
+        else:
+            postepay = SimpleNamespace(saldo_attuale=0.0)
+        abbonamenti = AbbonamentoPostePay.query.order_by(AbbonamentoPostePay.nome).all()
+        movimenti = MovimentoPostePay.query.order_by(MovimentoPostePay.data.desc()).limit(10).all()
+
+        abbonamenti_attivi = [a for a in abbonamenti if a.attivo]
+        spesa_mensile = sum(a.importo for a in abbonamenti_attivi)
+
+        # Calcola prossimi addebiti con saldo sufficiente
+        oggi = date.today()
+        prossimi_addebiti = []
+        for abbonamento in abbonamenti_attivi:
+            prossimo = abbonamento.prossimo_addebito
+            if (prossimo - oggi).days <= 30:
+                prossimi_addebiti.append({
+                    'abbonamento': abbonamento,
+                    'data': prossimo,
+                    'giorni': (prossimo - oggi).days
+                })
+        prossimi_addebiti.sort(key=lambda x: x['data'])
+
+        # Calcola saldo sufficiente per ogni addebito (progressivo)
+        saldo_simulato = postepay.saldo_attuale if postepay else 0
+        for addebito in prossimi_addebiti:
+            if saldo_simulato >= addebito['abbonamento'].importo:
+                addebito['saldo_sufficiente'] = True
+                saldo_simulato -= addebito['abbonamento'].importo
+            else:
+                addebito['saldo_sufficiente'] = False
+
+        # Calcola addebiti problematici (per alert)
+        saldo_alert = postepay.saldo_attuale if postepay else 0
+        addebiti_problematici = []
+        for addebito in prossimi_addebiti:
+            if saldo_alert < addebito['abbonamento'].importo:
+                addebiti_problematici.append({
+                    'abbonamento': addebito['abbonamento'],
+                    'data': addebito['data'],
+                    'giorni': addebito['giorni'],
+                    'importo_mancante': addebito['abbonamento'].importo - saldo_alert
+                })
+            saldo_alert -= addebito['abbonamento'].importo
+
+        # Serializza abbonamenti per JavaScript
+        import json
+        abbonamenti_serializzati = json.dumps([{
+            'id': a.id,
+            'nome': a.nome,
+            'importo': float(a.importo),
+            'giorno_addebito': a.giorno_addebito,
+            'attivo': a.attivo
+        } for a in abbonamenti])
+
+        resp = make_response(render_template('postepay_evolution/ppay_evolution.html',
+                             postepay=postepay,
+                             abbonamenti=abbonamenti,
+                             abbonamenti_json=abbonamenti_serializzati,
+                             movimenti=movimenti,
+                             spesa_mensile=spesa_mensile,
+                             prossimi_addebiti=prossimi_addebiti,
+                             addebiti_problematici=addebiti_problematici))
+        resp.headers['X-Partial-Response'] = '1'
+        return resp
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.exception(f"Errore nel rendering dopo aggiunta movimento: {e}")
+        # Fallback to redirect if rendering fails
+        return redirect(url_for('ppay.evolution'))
 
 @ppay_bp.route('/modifica_movimento_postepay/<int:movimento_id>', methods=['POST'])
 def modifica_movimento_postepay(movimento_id):
@@ -553,7 +1069,79 @@ def modifica_movimento_postepay(movimento_id):
     except Exception as e:
         flash(f'Errore nella modifica del movimento: {str(e)}', 'error')
         db.session.rollback()
-    return redirect(url_for('ppay.evolution'))
+    # Return rendered template for fetch-based updates (no redirect)
+    try:
+        inizializza_postepay()
+        ss = StrumentiService()
+        strum = ss.get_by_descrizione('Postepay Evolution')
+        if strum is not None:
+            postepay = SimpleNamespace(saldo_attuale=(strum.saldo_corrente or 0.0))
+        else:
+            postepay = SimpleNamespace(saldo_attuale=0.0)
+        abbonamenti = AbbonamentoPostePay.query.order_by(AbbonamentoPostePay.nome).all()
+        movimenti = MovimentoPostePay.query.order_by(MovimentoPostePay.data.desc()).limit(10).all()
+
+        abbonamenti_attivi = [a for a in abbonamenti if a.attivo]
+        spesa_mensile = sum(a.importo for a in abbonamenti_attivi)
+
+        # Calcola prossimi addebiti con saldo sufficiente
+        oggi = date.today()
+        prossimi_addebiti = []
+        for abbonamento in abbonamenti_attivi:
+            prossimo = abbonamento.prossimo_addebito
+            if (prossimo - oggi).days <= 30:
+                prossimi_addebiti.append({
+                    'abbonamento': abbonamento,
+                    'data': prossimo,
+                    'giorni': (prossimo - oggi).days
+                })
+        prossimi_addebiti.sort(key=lambda x: x['data'])
+
+        # Calcola saldo sufficiente per ogni addebito (progressivo)
+        saldo_simulato = postepay.saldo_attuale if postepay else 0
+        for addebito in prossimi_addebiti:
+            if saldo_simulato >= addebito['abbonamento'].importo:
+                addebito['saldo_sufficiente'] = True
+                saldo_simulato -= addebito['abbonamento'].importo
+            else:
+                addebito['saldo_sufficiente'] = False
+
+        # Calcola addebiti problematici (per alert)
+        saldo_alert = postepay.saldo_attuale if postepay else 0
+        addebiti_problematici = []
+        for addebito in prossimi_addebiti:
+            if saldo_alert < addebito['abbonamento'].importo:
+                addebiti_problematici.append({
+                    'abbonamento': addebito['abbonamento'],
+                    'data': addebito['data'],
+                    'giorni': addebito['giorni'],
+                    'importo_mancante': addebito['abbonamento'].importo - saldo_alert
+                })
+            saldo_alert -= addebito['abbonamento'].importo
+
+        # Serializza abbonamenti per JavaScript
+        import json
+        abbonamenti_serializzati = json.dumps([{
+            'id': a.id,
+            'nome': a.nome,
+            'importo': float(a.importo),
+            'giorno_addebito': a.giorno_addebito,
+            'attivo': a.attivo
+        } for a in abbonamenti])
+
+        return render_template('postepay_evolution/ppay_evolution.html',
+                             postepay=postepay,
+                             abbonamenti=abbonamenti,
+                             abbonamenti_json=abbonamenti_serializzati,
+                             movimenti=movimenti,
+                             spesa_mensile=spesa_mensile,
+                             prossimi_addebiti=prossimi_addebiti,
+                             addebiti_problematici=addebiti_problematici)
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.exception(f"Errore nel rendering dopo modifica movimento: {e}")
+        # Fallback to redirect if rendering fails
+        return redirect(url_for('ppay.evolution'))
 
 
 @ppay_bp.route('/reset_postepay', methods=['POST'])

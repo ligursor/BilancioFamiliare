@@ -58,12 +58,30 @@ def recreate_generated_and_summaries(months=6, base_date=None, _initial_year=Non
             except Exception:
                 pass
     else:
-        # delete only generated child transazioni in the horizon
+        # delete only generated child transazioni in the horizon BUT preserve
+        # recurring transactions that are already effectuated (past or today).
+        # We only delete generated transactions scheduled strictly in the future
+        # relative to today's date so that already-executed recurring entries
+        # are kept and not re-created.
         last_period_date = start_date + relativedelta(months=months-1)
         _, last_end = get_month_boundaries(last_period_date)
+        # compute id_periodo bounds for the horizon (YYYYMM integer) to use the indexed column
+        start_period_val = int(get_month_boundaries(start_date)[1].year) * 100 + int(get_month_boundaries(start_date)[1].month)
+        last_period_val = int(last_end.year) * 100 + int(last_end.month)
         try:
             from app.models.Transazioni import Transazioni
-            deleted = db.session.query(Transazioni).filter(Transazioni.id_recurring_tx.isnot(None), Transazioni.data >= start_date, Transazioni.data <= last_end).delete(synchronize_session=False)
+            from datetime import date as _date
+            today = _date.today()
+            # Delete generated transactions whose id_periodo is within the horizon and strictly in the future
+            # Use id_periodo to leverage the DB index; keep the additional data>today guard
+            deleted = db.session.query(Transazioni).filter(
+                Transazioni.id_recurring_tx.isnot(None),
+                Transazioni.id_periodo >= start_period_val,
+                Transazioni.id_periodo <= last_period_val,
+                Transazioni.data > today,
+                # do not delete transactions that were manually modified by the user
+                Transazioni.tx_modificata == False
+            ).delete(synchronize_session=False)
             db.session.commit()
             result['deleted_transazioni'] = int(deleted)
         except Exception:
@@ -78,8 +96,40 @@ def recreate_generated_and_summaries(months=6, base_date=None, _initial_year=Non
         # which encapsulates insertion logic and corner cases.
         from app.services.transazioni.generated_transaction_service import GeneratedTransactionService
         svc = GeneratedTransactionService()
-        created = svc.populate_horizon_from_recurring(months=months, base_date=start_date)
+        # record current max id so we can identify rows created by the generator
+        try:
+            max_before = db.session.execute(text('SELECT COALESCE(MAX(id), 0) FROM transazioni')).fetchone()[0] or 0
+        except Exception:
+            max_before = 0
+        # For non-full wipe we want to avoid recreating past recurring transactions
+        # (we only recreate future ones). For full wipe we recreate the whole horizon.
+        # For soft-reset (not full_wipe) we recreate only future generated transactions
+        # and we MUST mark regenerated rows as tx_modificata=False so that only
+        # transactions that were manually modified before the reset keep tx_modificata=True.
+        mark_generated = True if full_wipe else False
+        created = svc.populate_horizon_from_recurring(
+            months=months,
+            base_date=start_date,
+            create_only_future=(not full_wipe),
+            mark_generated_tx_modificata=mark_generated
+        )
         result['created_generated_transactions'] = int(created or 0)
+        # Post-process: ensure that rows created by the generator in this run
+        # have tx_modificata set according to mark_generated. This is defensive
+        # in case other code paths or DB defaults set the flag differently.
+        try:
+            if not mark_generated:
+                # soft-reset: set tx_modificata = False for newly created generated rows
+                db.session.execute(text('UPDATE transazioni SET tx_modificata = 0 WHERE id > :max_before AND id_recurring_tx IS NOT NULL'), {'max_before': max_before})
+            else:
+                # full_wipe: ensure newly created generated rows are marked True
+                db.session.execute(text('UPDATE transazioni SET tx_modificata = 1 WHERE id > :max_before AND id_recurring_tx IS NOT NULL'), {'max_before': max_before})
+            db.session.commit()
+        except Exception:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
     except Exception:
         result['created_generated_transactions'] = 0
 

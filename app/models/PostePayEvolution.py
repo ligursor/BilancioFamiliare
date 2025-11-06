@@ -3,17 +3,6 @@ from app import db
 from datetime import datetime, date
 import calendar
 
-class PostePayEvolution(db.Model):
-    """Modello per il saldo PostePay Evolution"""
-    __tablename__ = 'poste_pay_evolution'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    saldo_attuale = db.Column(db.Float, nullable=False, default=0.0)
-    data_ultimo_aggiornamento = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    
-    def __repr__(self):
-        return f'<PostePayEvolution saldo: {self.saldo_attuale}>'
-
 class AbbonamentoPostePay(db.Model):
     """Modello per gli abbonamenti PostePay Evolution"""
     # Renamed table to use 'ppay_evolution_abbonamenti' for clarity

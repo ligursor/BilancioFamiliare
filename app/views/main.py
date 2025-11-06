@@ -86,14 +86,14 @@ def index():
                 for t in tutte_transazioni_mese:
                     if t.data <= oggi:
                         includi = False
-                        if t.ricorrente == 0:
+                        if not getattr(t, 'tx_ricorrente', False):
                             includi = True
-                        elif t.ricorrente == 1:
+                        elif getattr(t, 'tx_ricorrente', False):
                             ha_figlie_stesso_mese = any(
                                 f.transazione_madre_id == t.id and 
                                 f.data.month == t.data.month and 
                                 f.data.year == t.data.year
-                                for f in tutte_transazioni_mese if f.ricorrente == 0 and f.transazione_madre_id
+                                for f in tutte_transazioni_mese if (not getattr(f, 'tx_ricorrente', False)) and f.transazione_madre_id
                             )
                             if not ha_figlie_stesso_mese:
                                 includi = True
@@ -192,14 +192,14 @@ def index():
                 for t in tutte_transazioni_mese:
                     if t.data <= oggi:  # Solo transazioni già effettuate
                         includi = False
-                        if t.ricorrente == 0:  # Figlie e manuali: sempre incluse
+                        if not getattr(t, 'tx_ricorrente', False):  # Figlie e manuali: sempre incluse
                             includi = True
-                        elif t.ricorrente == 1:  # Madri: includi solo se non hanno figlie nello stesso mese
+                        elif getattr(t, 'tx_ricorrente', False):  # Madri: includi solo se non hanno figlie nello stesso mese
                             ha_figlie_stesso_mese = any(
                                 f.transazione_madre_id == t.id and 
                                 f.data.month == t.data.month and 
                                 f.data.year == t.data.year
-                                for f in tutte_transazioni_mese if f.ricorrente == 0 and f.transazione_madre_id
+                                for f in tutte_transazioni_mese if (not getattr(f, 'tx_ricorrente', False)) and f.transazione_madre_id
                             )
                             if not ha_figlie_stesso_mese:
                                 includi = True
@@ -252,14 +252,14 @@ def index():
             # Filtra per evitare duplicazioni madri/figlie
             transazioni_filtrate = []
             for t in tutte_transazioni_periodo:
-                if t.ricorrente == 0:  # Figlie e manuali: sempre incluse
+                if not getattr(t, 'tx_ricorrente', False):  # Figlie e manuali: sempre incluse
                     transazioni_filtrate.append(t)
-                elif t.ricorrente == 1:  # Madri: includi solo se non hanno figlie nello stesso mese
+                elif getattr(t, 'tx_ricorrente', False):  # Madri: includi solo se non hanno figlie nello stesso mese
                     ha_figlie_stesso_mese = any(
                         f.transazione_madre_id == t.id and 
                         f.data.month == t.data.month and 
                         f.data.year == t.data.year
-                        for f in tutte_transazioni_periodo if f.ricorrente == 0 and f.transazione_madre_id
+                        for f in tutte_transazioni_periodo if (not getattr(f, 'tx_ricorrente', False)) and f.transazione_madre_id
                     )
                     if not ha_figlie_stesso_mese:
                         transazioni_filtrate.append(t)

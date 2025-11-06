@@ -1,5 +1,5 @@
 """Servizio per la gestione delle transazioni (spostato in app.services.bilancio)"""
-from app.services import BaseService, DateUtilsService
+from app.services import BaseService, DateUtilsService, get_month_boundaries
 from app.models.Transazioni import Transazioni
 from app.models.Categorie import Categorie
 from app import db
@@ -11,8 +11,27 @@ from flask import current_app
 class TransazioneService(BaseService):
     """Servizio per la gestione delle transazioni"""
     
-    def get_transazioni_by_period(self, data_inizio, data_fine):
-        """Recupera le transazioni in un periodo specifico"""
+    def get_transazioni_by_period(self, data_inizio, data_fine, use_id_periodo=False):
+        """Recupera le transazioni in un periodo specifico.
+
+        If ``use_id_periodo`` is True and the provided date range maps to a single
+        financial month, the query will filter by `id_periodo == YYYYMM` to
+        leverage the index. Falls back to a date-range query otherwise.
+        """
+        if use_id_periodo:
+            try:
+                start_period = get_month_boundaries(data_inizio)[1]
+                end_period = get_month_boundaries(data_fine)[1]
+                if start_period.year == end_period.year and start_period.month == end_period.month:
+                    period_val = int(end_period.year) * 100 + int(end_period.month)
+                    return Transazioni.query.filter(
+                        Transazioni.id_periodo == period_val,
+                        Transazioni.categoria_id.isnot(None)
+                    ).order_by(Transazioni.data.desc()).all()
+            except Exception:
+                # fallback to date-range query on any failure
+                pass
+
         return Transazioni.query.filter(
             Transazioni.data >= data_inizio,
             Transazioni.data <= data_fine,
@@ -25,7 +44,7 @@ class TransazioneService(BaseService):
     
     def get_transazioni_ricorrenti(self):
         """Recupera le transazioni ricorrenti"""
-        return Transazioni.query.filter_by(ricorrente=True).all()
+        return Transazioni.query.filter_by(tx_ricorrente=True).all()
 
     def get_transazioni_with_pagination(self, page=1, per_page=20, tipo_filtro=None, ordine='data_desc'):
         """Recupera transazioni con paginazione e filtri"""
@@ -89,7 +108,7 @@ class TransazioneService(BaseService):
         }
     
     def create_transazione(self, data, descrizione, importo, categoria_id, tipo, 
-                          ricorrente=False, frequenza_giorni=0, data_effettiva=None):
+                          tx_ricorrente=False, frequenza_giorni=0, data_effettiva=None):
         """Crea una nuova transazioni"""
         try:
             # Se non specificata, determina data_effettiva automaticamente
@@ -98,6 +117,10 @@ class TransazioneService(BaseService):
             
             # The Transazioni model no longer stores frequenza_giorni; keep the
             # frequency in the service and only persist attributes that exist on the model.
+            # Compute id_periodo (YYYYMM) from the financial month of the transaction
+            period_end = get_month_boundaries(data_effettiva or data)[1]
+            id_periodo_val = int(period_end.year) * 100 + int(period_end.month)
+
             transazioni = Transazioni(
                 data=data,
                 data_effettiva=data_effettiva,
@@ -105,12 +128,13 @@ class TransazioneService(BaseService):
                 importo=importo,
                 categoria_id=categoria_id,
                 tipo=tipo,
-                ricorrente=ricorrente,
+                tx_ricorrente=tx_ricorrente,
+                id_periodo=id_periodo_val,
             )
             
             success, message = self.save(transazioni)
             
-            if success and ricorrente and frequenza_giorni > 0:
+            if success and tx_ricorrente and frequenza_giorni > 0:
                 # Crea istanze future per transazioni ricorrenti
                 self._create_recurring_instances(transazioni, frequenza_giorni)
             
@@ -136,8 +160,9 @@ class TransazioneService(BaseService):
                     importo=transazione_madre.importo,
                     categoria_id=transazione_madre.categoria_id,
                     tipo=transazione_madre.tipo,
-                    ricorrente=False,  # Le figlie non sono ricorrenti
-                    id_recurring_tx=transazione_madre.id
+                    tx_ricorrente=True,  # Le figlie generate derivano da una ricorrenza
+                    id_recurring_tx=transazione_madre.id,
+                    id_periodo=(get_month_boundaries(data_futura)[1].year * 100 + get_month_boundaries(data_futura)[1].month)
                 )
                 
                 db.session.add(transazione_figlia)
@@ -167,23 +192,33 @@ class TransazioneService(BaseService):
     def get_transazioni_dashboard(self, periodo_start, periodo_end, limit=10):
         """Recupera transazioni per la dashboard con filtri speciali"""
         # Ottieni tutte le transazioni del periodo
-        tutte_transazioni = Transazioni.query.filter(
-            Transazioni.data >= periodo_start,
-            Transazioni.data <= periodo_end,
-            Transazioni.categoria_id.isnot(None)  # Escludi PayPal
-        ).all()
+        # Prefer to use id_periodo when the provided period maps to a single financial month
+        tutte_transazioni = []
+        try:
+            period_end = get_month_boundaries(periodo_end)[1]
+            period_val = int(period_end.year) * 100 + int(period_end.month)
+            tutte_transazioni = Transazioni.query.filter(
+                Transazioni.id_periodo == period_val,
+                Transazioni.categoria_id.isnot(None)
+            ).all()
+        except Exception:
+            tutte_transazioni = Transazioni.query.filter(
+                Transazioni.data >= periodo_start,
+                Transazioni.data <= periodo_end,
+                Transazioni.categoria_id.isnot(None)  # Escludi PayPal
+            ).all()
         
         # Filtra per evitare duplicazioni madri/figlie
         transazioni_filtrate = []
         for t in tutte_transazioni:
-            if t.ricorrente == 0:  # Figlie e manuali: sempre incluse
+            if not getattr(t, 'tx_ricorrente', False):  # Figlie e manuali: sempre incluse
                 transazioni_filtrate.append(t)
-            elif t.ricorrente == 1:  # Madri: includi solo se non hanno figlie nello stesso mese
+            elif getattr(t, 'tx_ricorrente', False):  # Madri: includi solo se non hanno figlie nello stesso mese
                 ha_figlie_stesso_mese = any(
                     f.transazione_madre_id == t.id and 
                     f.data.month == t.data.month and 
                     f.data.year == t.data.year
-                    for f in tutte_transazioni if f.ricorrente == 0 and f.transazione_madre_id
+                    for f in tutte_transazioni if (not getattr(f, 'tx_ricorrente', False)) and f.transazione_madre_id
                 )
                 if not ha_figlie_stesso_mese:
                     transazioni_filtrate.append(t)

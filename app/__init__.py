@@ -80,7 +80,6 @@ def create_app(config_name='default'):
     from app.views.conto_personale import conti_bp
     from app.views.veicoli.veicoli import veicoli_bp
     from app.views.ppay_evolution import ppay_bp
-    from app.views.appunti import appunti_bp
     
     app.register_blueprint(main_bp)
     # transazioni blueprint removed: /transazioni route deprecated
@@ -92,7 +91,7 @@ def create_app(config_name='default'):
     app.register_blueprint(conti_bp, url_prefix='/conti')
     app.register_blueprint(veicoli_bp, url_prefix='/veicoli')
     app.register_blueprint(ppay_bp, url_prefix='/ppay_evolution')
-    app.register_blueprint(appunti_bp, url_prefix='/appunti')
+    # appunti blueprint removed
     # database import/export blueprint removed (archived in _backup/obsolete)
 
     # Run monthly rollover once per financial-month when the app is first accessed

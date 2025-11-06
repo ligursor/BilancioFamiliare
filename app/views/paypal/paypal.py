@@ -22,13 +22,11 @@ def aggiorna_importi_rimanenti_paypal():
         # consideriamole pagate e sincronizziamo lo stato per coerenza.
         for rata in list(rate_non_pagate):
             try:
-                if rata.data_pagamento is not None or getattr(rata, 'transazione_id', None):
+                # Consider a rate paid only when it has an explicit payment date
+                if rata.data_pagamento is not None:
                     rata.stato = 'pagata'
-                    if rata.data_pagamento is None:
-                        rata.data_pagamento = datetime.now().date()
-                    # Aggiorna importo rimanente del piano
+                    # data_pagamento already present
                     piano.importo_rimanente = (piano.importo_rimanente or 0.0) - (rata.importo or 0.0)
-                    # Rimuovila dalla lista delle non pagate per il calcolo
                     rate_non_pagate.remove(rata)
                 else:
                     # Se la rata è scaduta oggi (o prima) e non ha transazioni collegata,
@@ -36,7 +34,8 @@ def aggiorna_importi_rimanenti_paypal():
                     # se non troviamo una transazioni, consideriamo la rata come pagata automaticamente
                     try:
                         oggi = datetime.now().date()
-                        if rata.data_scadenza <= oggi and not getattr(rata, 'transazione_id', None):
+                        # Only consider unlinked/unpaid rates
+                        if rata.data_scadenza <= oggi and rata.data_pagamento is None:
                             from app.models.Transazioni import Transazioni
                             trans = Transazioni.query.filter(
                                 ((Transazioni.data == rata.data_scadenza) | (Transazioni.data_effettiva == rata.data_scadenza)),
@@ -51,7 +50,7 @@ def aggiorna_importi_rimanenti_paypal():
                                     continue
                             if match:
                                 # Se esiste una transazioni corrispondente, colleghiamola e marchiamo pagata
-                                rata.transazione_id = match.id
+                                # Mark the rate as paid using the transaction date but do NOT link IDs
                                 rata.stato = 'pagata'
                                 rata.data_pagamento = match.data_effettiva or match.data
                                 piano.importo_rimanente = (piano.importo_rimanente or 0.0) - (rata.importo or 0.0)

@@ -151,7 +151,7 @@
                 <div class="card-header">
                     <h5><i class="fas fa-clock me-2"></i>Prossimi Addebiti</h5>
                 </div>
-                <div class="card-body">
+                <div id="prossimi-addebiti-container" class="card-body">
                     {% if prossimi_addebiti %}
                         {% for addebito in prossimi_addebiti[:5] %}
                         <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded {% if not addebito.saldo_sufficiente %}bg-danger bg-gradient text-white fw-bold border-danger{% else %}bg-success bg-gradient text-white fw-bold border-success{% endif %}">
@@ -175,6 +175,8 @@
 <!-- Movimenti recenti -->
 <div class="row mt-4">
     <div class="col-12">
+        <!-- Container for inline forms (new movement/abbonamento) -->
+        <div id="inline-forms-container" class="mb-2"></div>
         <div id="inline-movimenti-container" class="mb-2"></div>
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -257,11 +259,22 @@
             <button type="button" class="btn btn-link p-0 ms-auto" aria-label="Chiudi"><i class="fas fa-times" style="font-size:1.25rem;color:#fff;"></i></button>
         </div>
         <div class="card-body">
-            <form class="form-nuovo-movimento" method="POST" action="{{ url_for('ppay.ricarica') }}">
+            <form class="form-nuovo-movimento" method="POST" action="{{ url_for('ppay.aggiungi_movimento') }}">
                 <div class="row g-2 align-items-center">
-                    <div class="col-auto" style="min-width:140px;"><input type="date" class="form-control form-control-sm" name="data" required></div>
+                    <div class="col-auto" style="min-width:120px;"><input type="date" class="form-control form-control-sm" name="data" required></div>
                     <div class="col"><input type="text" class="form-control form-control-sm" name="descrizione" placeholder="Descrizione" required></div>
                     <div class="col-auto" style="min-width:110px;"><input type="number" step="0.01" class="form-control form-control-sm text-end" name="importo" required></div>
+                    <div class="col-auto" style="min-width:120px;">
+                        <select class="form-control form-control-sm" name="tipo" required>
+                            <option value="entrata">Entrata (+)</option>
+                            <option value="uscita">Uscita (-)</option>
+                        </select>
+                    </div>
+                    <div class="col-auto" style="min-width:140px;">
+                        <select class="form-control form-control-sm" name="tipo_movimento" id="select-tipo-movimento">
+                            <!-- Options populated dynamically by JS based on tipo (entrata/uscita) -->
+                        </select>
+                    </div>
                     <div class="col-auto"><button type="submit" id="btn-salva-movimento" class="btn btn-success btn-sm">Aggiungi</button></div>
                 </div>
             </form>
@@ -392,53 +405,6 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
                     <button type="submit" class="btn btn-primary">Salva Modifiche</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Nuovo Movimento -->
-<div class="modal fade" id="modalNuovoMovimento" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Nuovo Movimento</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ url_for('ppay.aggiungi_movimento') }}">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="mov_data" class="form-label">Data</label>
-                        <input type="date" class="form-control" id="mov_data" name="data" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="mov_descrizione" class="form-label">Descrizione</label>
-                        <input type="text" class="form-control" id="mov_descrizione" name="descrizione" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="mov_tipo" class="form-label">Tipo</label>
-                        <select class="form-control" id="mov_tipo" name="tipo" required>
-                            <option value="entrata">Entrata (+)</option>
-                            <option value="uscita">Uscita (-)</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="mov_importo" class="form-label">Importo (€)</label>
-                        <input type="number" step="0.01" class="form-control" id="mov_importo" name="importo" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="mov_tipo_movimento" class="form-label">Categoria</label>
-                        <select class="form-control" id="mov_tipo_movimento" name="tipo_movimento">
-                            <option value="ricarica">Ricarica</option>
-                            <option value="pagamento">Pagamento</option>
-                            <option value="altro">Altro</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-                    <button type="submit" class="btn btn-success">Aggiungi</button>
                 </div>
             </form>
         </div>
@@ -649,6 +615,46 @@ document.addEventListener('DOMContentLoaded', function(){
                 const dateInput = insertedForm.querySelector('input[type="date"]');
                 const today = new Date().toISOString().split('T')[0];
                 if (dateInput && !dateInput.value) dateInput.value = today;
+                
+                // Initialize tipo_movimento dropdown dynamically
+                const tipoSelect = insertedForm.querySelector('[name="tipo"]');
+                const tipoMovSelect = insertedForm.querySelector('[name="tipo_movimento"]');
+                
+                function populateTipoMovimento(tipoValue, preserveValue) {
+                    if (!tipoMovSelect) return;
+                    const optionsEntrata = ['Ricarica', 'Pagamento', 'P2P', 'Bonifico'];
+                    const optionsUscita = ['Pagamento', 'P2P', 'Bonifico'];
+                    const opts = (tipoValue === 'uscita') ? optionsUscita : optionsEntrata;
+                    
+                    tipoMovSelect.innerHTML = '';
+                    opts.forEach(function(o){
+                        const opt = document.createElement('option');
+                        opt.value = o;
+                        opt.textContent = o;
+                        tipoMovSelect.appendChild(opt);
+                    });
+                    
+                    // If editing and preserveValue provided but not in list, add it (e.g., Abbonamento)
+                    if (preserveValue && opts.indexOf(preserveValue) === -1) {
+                        const extra = document.createElement('option');
+                        extra.value = preserveValue;
+                        extra.textContent = preserveValue;
+                        extra.selected = true;
+                        tipoMovSelect.insertBefore(extra, tipoMovSelect.firstChild);
+                    } else if (preserveValue) {
+                        tipoMovSelect.value = preserveValue;
+                    }
+                }
+                
+                // Initial population based on default tipo value
+                if (tipoSelect && tipoMovSelect) {
+                    populateTipoMovimento(tipoSelect.value || 'entrata', null);
+                    
+                    // Wire change event to repopulate when tipo changes
+                    tipoSelect.addEventListener('change', function(){
+                        populateTipoMovimento(tipoSelect.value, null);
+                    });
+                }
             }
             const focusEl = insertedForm.querySelector('input, select, textarea');
             if (focusEl) focusEl.focus();
@@ -706,8 +712,49 @@ document.addEventListener('DOMContentLoaded', function(){
                 var descr = form.querySelector('[name="descrizione"]'); if (descr) descr.value = btnMov.dataset.movimentoDescrizione || '';
                 var tipo = form.querySelector('[name="tipo"]'); if (tipo) tipo.value = btnMov.dataset.movimentoTipo || 'entrata';
                 var importo = form.querySelector('[name="importo"]'); if (importo) importo.value = btnMov.dataset.movimentoImporto || '';
-                var tipo_mov = form.querySelector('[name="tipo_movimento"]'); if (tipo_mov) tipo_mov.value = btnMov.dataset.movimentoTipoMovimento || '';
-                // set action to modifica movimento endpoint (we'll add this route)
+                
+                // Populate tipo_movimento dynamically based on tipo, preserving existing value (including Abbonamento)
+                var tipoMovSelect = form.querySelector('[name="tipo_movimento"]');
+                var movimentoTipoVal = btnMov.dataset.movimentoTipoMovimento || '';
+                
+                if (tipoMovSelect && tipo) {
+                    const optionsEntrata = ['Ricarica', 'Rimborso', 'P2P', 'Altro'];
+                    const optionsUscita = ['Pagamento', 'Versamento', 'P2P', 'Bonifico', 'Postagiro', 'Altro'];
+                    const opts = (tipo.value === 'uscita') ? optionsUscita : optionsEntrata;
+                    
+                    tipoMovSelect.innerHTML = '';
+                    opts.forEach(function(o){
+                        const opt = document.createElement('option');
+                        opt.value = o;
+                        opt.textContent = o;
+                        tipoMovSelect.appendChild(opt);
+                    });
+                    
+                    // If existing value not in list (e.g., Abbonamento), add it
+                    if (movimentoTipoVal && opts.indexOf(movimentoTipoVal) === -1) {
+                        const extra = document.createElement('option');
+                        extra.value = movimentoTipoVal;
+                        extra.textContent = movimentoTipoVal;
+                        extra.selected = true;
+                        tipoMovSelect.insertBefore(extra, tipoMovSelect.firstChild);
+                    } else if (movimentoTipoVal) {
+                        tipoMovSelect.value = movimentoTipoVal;
+                    }
+                    
+                    // Wire change event for tipo dropdown
+                    tipo.addEventListener('change', function(){
+                        const newOpts = (tipo.value === 'uscita') ? optionsUscita : optionsEntrata;
+                        tipoMovSelect.innerHTML = '';
+                        newOpts.forEach(function(o){
+                            const opt = document.createElement('option');
+                            opt.value = o;
+                            opt.textContent = o;
+                            tipoMovSelect.appendChild(opt);
+                        });
+                    });
+                }
+                
+                // set action to modifica movimento endpoint
                 form.action = '/ppay_evolution/modifica_movimento_postepay/' + (btnMov.dataset.movimentoId || '');
                 var submit = form.querySelector('#btn-salva-movimento'); if (submit) submit.innerHTML = 'Salva Modifiche';
                 // header badge for edit
@@ -731,10 +778,24 @@ document.addEventListener('DOMContentLoaded', function(){
     const isAjaxFragment = form.classList.contains('ajax-fragment');
     if (!isMov && !isAbb && !isDeleteMov && !isAjaxFragment) return;
 
+        // Debug logging: indicate which form was submitted
+        try {
+            console.log('Submit intercepted', {
+                action: form.getAttribute('action'),
+                classes: Array.from(form.classList),
+                isMov: isMov,
+                isAbb: isAbb,
+                isDeleteMov: isDeleteMov,
+                isAjaxFragment: isAjaxFragment
+            });
+        } catch(e) { /* ignore logging errors */ }
+
         // confirm deletion for delete forms (delegate instead of relying on inline onsubmit)
         if (isDeleteMov) {
             if (!confirm('Sei sicuro di eliminare questo movimento?')) {
                 return; // user cancelled
+                } else {
+                try { console.log('User confirmed delete for', form.getAttribute('action')); } catch(e){}
             }
         }
 
@@ -767,6 +828,10 @@ document.addEventListener('DOMContentLoaded', function(){
 
         fetch(action, {method: 'POST', body: fd})
         .then(async res => {
+            // Debug: log response info
+            try {
+                console.log('Fetch response', {status: res.status, redirected: res.redirected, url: res.url});
+            } catch (e) {}
             if (!res.ok) {
                 // try to get response text to show useful error
                 const txt = await res.text().catch(() => '<no-response-body>');
@@ -774,15 +839,16 @@ document.addEventListener('DOMContentLoaded', function(){
                 try { showToast('Errore server durante l\'operazione: ' + res.status + '\n' + txt, 'danger'); } catch(e) { console && console.error && console.error(e); }
                 throw new Error('server');
             }
-            // Use the final response URL (may include server redirect params such as skip_auto)
+            // Follow redirects only when fetch actually followed a redirect; otherwise
+            // treat the response as an HTML fragment and process it (partial update).
             try {
-                if (res.url && res.url !== window.location.href) {
-                    window.location.href = res.url;
-                    return;
+                if (res.redirected) {
+                    console.log('Fetch response was redirected to', res.url, '- ignorando la navigazione e processando l\'HTML per aggiornamento parziale');
+                    try { showToast('Attenzione: server ha risposto con redirect; procedo con aggiornamento parziale.', 'warning'); } catch(e){}
                 }
             } catch (e) { /* ignore */ }
-            // fallback to full page reload
-            window.location.reload();
+            // Return response for processing (partial update instead of full reload)
+            return res;
         })
         .then(r => r.text())
         .then(html => {
@@ -811,6 +877,13 @@ document.addEventListener('DOMContentLoaded', function(){
             const newTop = doc.getElementById('top-cards');
             const oldTop = document.getElementById('top-cards');
             if (newTop && oldTop) oldTop.replaceWith(newTop);
+
+            // replace prossimi addebiti container after movimento operations (saldo changed)
+            if (isMov || isDeleteMov) {
+                const newAddebiti = doc.getElementById('prossimi-addebiti-container');
+                const oldAddebiti = document.getElementById('prossimi-addebiti-container');
+                if (newAddebiti && oldAddebiti) oldAddebiti.replaceWith(newAddebiti);
+            }
 
             // re-run small initializers if needed (pagination)
             try {
@@ -868,19 +941,28 @@ document.addEventListener('DOMContentLoaded', function(){
 
             // Show/scroll the relevant section depending on which form was submitted
             if (isMov || isDeleteMov) {
-                const movCollapseEl = document.getElementById('movimentiCollapse');
-                if (movCollapseEl) {
-                    try {
-                        bootstrap.Collapse.getOrCreateInstance(movCollapseEl).show();
-                    } catch(e) {}
-                }
+                // Ensure movimenti collapse is shown after movement operations
+                setTimeout(function(){
+                    const movCollapseEl = document.getElementById('movimentiCollapse');
+                    if (movCollapseEl) {
+                                try {
+                                    // Force the collapse to be shown
+                                    const collapseInstance = bootstrap.Collapse.getOrCreateInstance(movCollapseEl);
+                                    console.log('Calling collapse.show()');
+                                    collapseInstance.show();
+                                    console.log('collapse.show() called successfully');
+                                } catch(e) {
+                                    console.warn('Could not show movimenti collapse', e);
+                                }
+                    }
+                }, 50);
 
                 // Scroll the movimenti table into view if present
                 const tableAfter = document.getElementById('table-movimenti-recenti');
                 if (tableAfter) {
                     setTimeout(function(){
                         try { tableAfter.scrollIntoView({behavior: 'smooth', block: 'center'}); tableAfter.focus(); } catch(e){}
-                    }, 150);
+                    }, 200);
                 }
             } else if (isAbb) {
                 // For abbonamento updates, focus the abbonamenti table and don't open movimenti
@@ -890,7 +972,7 @@ document.addEventListener('DOMContentLoaded', function(){
                 }
             }
 
-            // remove inserted form card
+            // remove inserted form card after submission
             const inserted = document.querySelector('.inline-inserted');
             if (inserted) {
                 inserted.remove();
@@ -901,8 +983,9 @@ document.addEventListener('DOMContentLoaded', function(){
         })
         .catch(err => {
             console.error('Errore invio nuovo elemento', err);
-            // fallback: try to reload to get consistent state
-            window.location.reload();
+            try { showToast('Errore durante l\'operazione. Controlla la console.', 'danger'); } catch(e){}
+            // NOTE: previously we forced a full reload here; that cleared console logs
+            // making debugging hard. Avoid reloading automatically so developer can inspect errors.
         })
         .finally(() => {
             // clear submitting flag after short delay to avoid accidental double clicks

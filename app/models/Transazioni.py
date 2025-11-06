@@ -16,11 +16,18 @@ class Transazioni(db.Model):
     # id_periodo: integer in format YYYYMM representing the financial month (end_date year/month)
     id_periodo = db.Column(db.Integer, nullable=True, index=True)
     tipo = db.Column(db.String(20), nullable=False)  # 'entrata' o 'uscita'
-    ricorrente = db.Column(db.Boolean, default=False)
+    # Campo legacy fisico in DB: 'ricorrente'. Ora rinominato a livello DB in
+    # `tx_ricorrente`. Esposto come attributo `tx_ricorrente` nel modello per
+    # usare nomi più espliciti nel codice.
+    tx_ricorrente = db.Column('tx_ricorrente', db.Boolean, default=False)
     # Nota: il campo `frequenza_giorni` e `transazione_madre_id` sono stati rimossi
     # in favore di un riferimento diretto alla ricorrenza (se presente) tramite
     # `id_recurring_tx` che punta alla tabella `transazioni_ricorrenti`.
     id_recurring_tx = db.Column(db.Integer, nullable=True)
+    # Flag che indica che la transazione è stata modificata manualmente dall'utente.
+    # Colonna fisica DB: `tx_modificata` (rename di `importo_modificato`).
+    # Esposta come `tx_modificata` nel modello.
+    tx_modificata = db.Column('tx_modificata', db.Boolean, default=False, nullable=False)
     
     def __repr__(self):
         return f'<Transazioni {self.descrizione}: {self.importo} ({self.tipo})>'
