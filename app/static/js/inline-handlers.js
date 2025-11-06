@@ -1,7 +1,14 @@
 // Delegated handlers to replace inline onclicks
 (function(){
+    // Async confirm helper: prefers global modal-based confirm, falls back to native confirm
     function confirmAction(message) {
-        return window.confirm ? window.confirm(message) : true;
+        try {
+            if (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') {
+                return window.showGlobalConfirm(message);
+            }
+        } catch (e) {}
+        // If modal helper not available, treat as not confirmed to avoid native browser confirm
+        return Promise.resolve(false);
     }
 
     function navigateMonth(direction) {
@@ -73,18 +80,23 @@
                     evt.preventDefault();
                     return;
                 case 'confirm-delete':
+                    evt.preventDefault(); evt.stopPropagation();
                     var msg = el.dataset.message || 'Sei sicuro?';
-                    if (!confirmAction(msg)) {
-                        evt.preventDefault();
-                        return;
-                    }
-                    // If anchor with data-href, navigate
-                    if (el.tagName === 'A' && el.dataset.href) {
-                        window.location.href = el.dataset.href;
-                        evt.preventDefault();
-                        return;
-                    }
-                    // Form will submit normally; no-op here
+                    confirmAction(msg).then(function(ok){
+                        if (!ok) return;
+                        // If anchor with data-href, navigate
+                        if (el.tagName === 'A' && el.dataset.href) {
+                            window.location.href = el.dataset.href;
+                            return;
+                        }
+                        // If inside a form, submit it programmatically (mark to skip confirm)
+                        var form = el.closest('form');
+                        if (form) {
+                            try { form.setAttribute('data-skip-confirm', '1'); } catch(e) {}
+                            try { if (!form.querySelector('input[name="confirm"]')) { var hidden=document.createElement('input'); hidden.type='hidden'; hidden.name='confirm'; hidden.value='1'; form.appendChild(hidden); } } catch(e) {}
+                            try { form.submit(); } catch(e) {}
+                        }
+                    }).catch(function(){ /* ignore */ });
                     return;
                 case 'modifica-appunto':
                     modificaAppunto(el.dataset.id);

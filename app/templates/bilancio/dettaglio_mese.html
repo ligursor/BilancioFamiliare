@@ -5,26 +5,7 @@
 {% block content %}
 <script>
     
-function modificaTransazione(id, descrizione, importo, data, categoriaId) {
-    document.getElementById('edit_descrizione').value = descrizione;
-    document.getElementById('edit_importo').value = parseFloat(importo) || 0;
-    document.getElementById('edit_data').value = data;
-    const editCategoriaSelect = document.getElementById('edit_categoria_id');
-    editCategoriaSelect.innerHTML = '';
-    categorie.forEach(categoria => {
-        const option = document.createElement('option');
-        option.value = categoria.id;
-        option.textContent = categoria.nome;
-        option.selected = categoria.id == categoriaId;
-        editCategoriaSelect.appendChild(option);
-    });
-    const form = document.getElementById('editTransactionForm');
-    // Prendi start_date e end_date direttamente dal template
-    const startDate = '{{ start_date }}';
-    const endDate = '{{ end_date }}';
-    form.action = `/dettaglio/${startDate}/${endDate}/modifica_transazione/${id}`;
-    new bootstrap.Modal(document.getElementById('editTransactionModal')).show();
-}
+/* fallback editor removed: inline-only editing is enforced. */
 function modificaTransazioneAttr(btn) {
     // Inline-only edit of importo (fall back to full modal if anything goes wrong)
     try {
@@ -35,14 +16,9 @@ function modificaTransazioneAttr(btn) {
 
         const row = btn.closest('tr');
         if (!row) {
-            // fallback to modal-based editor
-            return modificaTransazione(
-                btn.getAttribute('data-id'),
-                JSON.parse(btn.getAttribute('data-descrizione') || '""'),
-                btn.getAttribute('data-importo'),
-                JSON.parse(btn.getAttribute('data-data') || '""'),
-                btn.getAttribute('data-categoria')
-            );
+            // Inline editing not available: stop (no fallback)
+            try { showToast('Modifica inline non disponibile per questo elemento','warning'); } catch(e){}
+            return;
         }
 
         const tds = row.querySelectorAll('td');
@@ -85,7 +61,7 @@ function modificaTransazioneAttr(btn) {
                 try { if (json.summary) applySummary(json.summary); } catch(e) { console && console.error && console.error('applySummary failed', e); }
                 // Update the amount cell locally to reflect the new value
                 try { var sign = amountCell.classList.contains('text-success') ? '+' : '-'; amountCell.textContent = sign + '€ ' + Number(input.value || 0).toFixed(2); } catch(e){}
-                try { showToast('Modifica salvata', 'success'); } catch(e){}
+                // try { showToast('Modifica salvata', 'success'); } catch(e){}
             }).catch(function(err){ console.error('Errore salvataggio inline:', err); showToast('Errore nel salvataggio. Riprova.','danger'); amountCell.innerHTML = originalHtml; try { btn.style.display = ''; } catch(e) {} })
             .finally(function(){ saveBtn.disabled = false; cancelBtn.disabled = false; });
         });
@@ -94,15 +70,9 @@ function modificaTransazioneAttr(btn) {
         try { btn.style.display = 'none'; } catch(e) {}
         input.focus(); input.select();
     } catch (e) {
-        console && console.error && console.error('Errore inline modifica transazione, uso modal fallback', e);
-        // fallback to full modal
-        return modificaTransazione(
-            btn.getAttribute('data-id'),
-            JSON.parse(btn.getAttribute('data-descrizione') || '""'),
-            btn.getAttribute('data-importo'),
-            JSON.parse(btn.getAttribute('data-data') || '""'),
-            btn.getAttribute('data-categoria')
-        );
+        console && console.error && console.error('Errore inline modifica transazione', e);
+        try { showToast('Errore durante l\'editing inline','danger'); } catch(e){}
+        return;
     }
 }
 function modificaMonthlyBudget(btn) {
@@ -231,7 +201,15 @@ function modificaMonthlyBudget(btn) {
                     <div class="col-md-2">
                         <div class="card {% if saldo_attuale_mese >= 0 %}bg-info{% else %}bg-warning{% endif %} text-white">
                             <div class="card-body text-center">
-                                <h6><i class="fas me-1"></i>Saldo Attuale</h6>
+                                <h6>
+                                    <i class="fas me-1"></i>Saldo Attuale
+                                    <button type="button" class="btn btn-sm btn-outline-light ms-1" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#correggiSaldoModal"
+                                            title="Correggi saldo">
+                                        <i class="fas fa-wrench" aria-hidden="true"></i>
+                                    </button>
+                                </h6>
                                 <h4 id="saldo_attuale_val">€ {{ "%.2f"|format(saldo_attuale_mese) }}</h4>
                             </div>
                         </div>
@@ -304,13 +282,42 @@ function modificaMonthlyBudget(btn) {
                 <div id="inline-add-transaction" class="mb-3 w-100" style="display:none;">
                     <div class="card w-100">
                         <div class="card-body">
-                            <form id="inlineAddTransactionForm" class="row g-2 align-items-center flex-nowrap overflow-auto">
-                                <div class="col-auto col-md-2">
-                                    <label class="visually-hidden" for="inline_add_data">Data</label>
-                                    <input type="date" class="form-control form-control-sm no-spinner" id="inline_add_data" name="data" required min="{{ start_date }}" max="{{ end_date }}">
-                                </div>
-                            </div>
-                                    <button type="button" class="btn btn-secondary btn-sm" id="inline_add_cancel">Annulla</button>
+                            <form id="inlineAddTransactionForm" class="" autocomplete="off">
+                                <div class="d-flex flex-nowrap align-items-center" style="gap:.5rem; overflow:auto;">
+                                    <div style="flex:0 0 140px;">
+                                        <label class="visually-hidden" for="inline_add_data">Data</label>
+                                        <input type="date" class="form-control form-control-sm no-spinner" id="inline_add_data" name="data" required min="{{ start_date }}" max="{{ end_date }}" style="width:140px;">
+                                    </div>
+                                    <div style="flex:1 1 280px; min-width:160px;">
+                                        <label class="visually-hidden" for="inline_add_descrizione">Descrizione</label>
+                                        <input type="text" class="form-control form-control-sm" id="inline_add_descrizione" name="descrizione" placeholder="Descrizione..." required>
+                                    </div>
+                                    <div style="flex:0 0 200px;">
+                                        <label class="visually-hidden" for="inline_add_categoria">Categoria</label>
+                                        <select id="inline_add_categoria" name="categoria_id" class="form-select form-select-sm" style="width:200px;">
+                                            <option value="">-- Categoria --</option>
+                                            {% for c in categorie %}
+                                            <option value="{{ c.id }}">{{ c.nome }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div style="flex:0 0 100px;">
+                                        <label class="visually-hidden" for="inline_add_tipo">Tipo</label>
+                                        <select id="inline_add_tipo" name="tipo" class="form-select form-select-sm" style="width:100px;">
+                                            <option value="uscita">Uscita</option>
+                                            <option value="entrata">Entrata</option>
+                                        </select>
+                                    </div>
+                                    <div style="flex:0 0 120px;">
+                                        <label class="visually-hidden" for="inline_add_importo">Importo</label>
+                                        <input type="number" step="0.01" min="0" class="form-control form-control-sm no-spinner" id="inline_add_importo" name="importo" placeholder="0.00" required style="width:120px;">
+                                    </div>
+                                    <div style="flex:0 0 auto; display:flex; align-items:center; gap:.5rem;">
+                                        <button type="submit" class="btn btn-success btn-sm" style="height:unset;">
+                                            <i class="fas fa-plus me-1"></i>Aggiungi
+                                        </button>
+                                        <button type="button" class="btn btn-secondary btn-sm" id="inline_add_cancel">Annulla</button>
+                                    </div>
                                 </div>
                             </form>
                         </div>
@@ -341,7 +348,7 @@ function modificaMonthlyBudget(btn) {
                             </tr>
                         </thead>
                         <tbody>
-                            {% for transazione in transazioni %}
+                            {% for transazione in transazioni|sort(attribute='data') %}
                             {% set descrizione = transazione.descrizione if transazione.descrizione is not none else '' %}
                             <tr>
                                 <td class="text-start">{{ transazione.descrizione }}</td>
@@ -359,7 +366,7 @@ function modificaMonthlyBudget(btn) {
                                     {% endif %}
                                 </td>
                                 <td class="text-center {% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
-                                    {% if transazione.tipo == 'entrata' %}+{% else %}-{% endif %}€ {{ "%.2f"|format(transazione.importo) }}
+                                    € {{ "%.2f"|format(transazione.importo) }}
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm" role="group">
@@ -415,7 +422,7 @@ function modificaMonthlyBudget(btn) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for transazione in transazioni_in_attesa %}
+                                {% for transazione in transazioni_in_attesa|sort(attribute='data') %}
                                 <tr>
                                     <td class="text-start">{{ transazione.descrizione }}</td>
                                     <td class="text-center">{{ transazione.data.strftime('%d/%m/%Y') }}</td>
@@ -432,7 +439,7 @@ function modificaMonthlyBudget(btn) {
                                         {% endif %}
                                     </td>
                                     <td class="text-center {% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
-                                        {% if transazione.tipo == 'entrata' %}+{% else %}-{% endif %}€ {{ "%.2f"|format(transazione.importo) }}
+                                        € {{ "%.2f"|format(transazione.importo) }}
                                     </td>
                                     <td class="text-center">
                                         <div class="btn-group btn-group-sm" role="group">
@@ -514,14 +521,7 @@ function modificaMonthlyBudget(btn) {
                    step="0.01" min="0" required>
                     </div>
                     
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="add_ricorrente" name="tx_ricorrente">
-                            <label class="form-check-label" for="add_ricorrente">
-                                Transazione ricorrente
-                            </label>
-                        </div>
-                    </div>
+                    <!-- Recurrence is managed separately in the recurring-transactions page -->
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
@@ -531,51 +531,38 @@ function modificaMonthlyBudget(btn) {
         </div>
     </div>
 </div>
-<!-- Modal per modificare una transazione (usato sia per transazioni normali che in attesa) -->
-<div class="modal fade" id="editTransactionModal" tabindex="-1">
-    <div class="modal-dialog">
+<!-- (Edit modal removed: editing is handled inline; fallback uses a prompt-based flow) -->
+
+<!-- Modal per la correzione del saldo -->
+<div class="modal fade" id="correggiSaldoModal" tabindex="-1" aria-labelledby="correggiSaldoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Modifica Transazione</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="correggiSaldoModalLabel"><i class="fas fa-wrench me-2"></i>Correggi Saldo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
             </div>
-            <form method="POST" id="editTransactionForm">
-                <input type="hidden" name="redirect_to" value="dettaglio_periodo">
+            <form id="correggiSaldoForm">
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="edit_data" class="form-label">Data</label>
-                        <input type="date" class="form-control" id="edit_data" name="data" required>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Saldo Attuale Registrato:</strong> <span id="saldo_registrato_display">€ {{ "%.2f"|format(saldo_attuale_mese) }}</span>
                     </div>
                     <div class="mb-3">
-                        <label for="edit_descrizione" class="form-label">Descrizione</label>
-                        <input type="text" class="form-control" id="edit_descrizione" name="descrizione" required>
+                        <label for="saldo_reale_input" class="form-label">Inserisci il Saldo Reale (€)</label>
+                        <input type="number" step="0.01" class="form-control" id="saldo_reale_input" name="saldo_reale" required placeholder="0.00">
+                        <div class="form-text">
+                            Verrà creata una transazione di correzione per allineare il saldo registrato con quello reale.
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="edit_tipo" class="form-label">Tipo</label>
-                        <select class="form-control" id="edit_tipo" name="tipo" required>
-                            <option value="">Seleziona tipo...</option>
-                            <option value="entrata">Entrata</option>
-                            <option value="uscita">Uscita</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_categoria_id" class="form-label">Categoria</label>
-                        <select class="form-control" id="edit_categoria_id" name="categoria_id" required>
-                            <option value="">Seleziona categoria...</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="edit_importo" class="form-label">Importo (€)</label>
-                        <input type="number" class="form-control no-spinner" id="edit_importo" name="importo" step="0.01" min="0" required>
-                    </div>
-                    <div class="mb-3 form-check">
-                        <input class="form-check-input" type="checkbox" id="edit_ricorrente" name="tx_ricorrente">
-                        <label class="form-check-label" for="edit_ricorrente">Transazione ricorrente</label>
+                    <div id="differenza_preview" class="alert" style="display:none;">
+                        <strong>Differenza:</strong> <span id="differenza_text"></span>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-                    <button type="submit" class="btn btn-primary">Salva</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check me-1"></i>Crea Transazione di Correzione
+                    </button>
                 </div>
             </form>
         </div>
@@ -622,6 +609,168 @@ function modificaMonthlyBudget(btn) {
         categorie: {{ categorie|tojson }},
         availableMonths: {{ available_months|tojson }}
     };
+</script>
+<script>
+    // Provide toggleInlineAddTransaction expected by inline-handlers.js
+    window.toggleInlineAddTransaction = function(el) {
+        try {
+            var box = document.getElementById('inline-add-transaction');
+            if (!box) return false;
+            if (box.style.display === 'none' || box.style.display === '') {
+                box.style.display = 'block';
+                // ensure inline handlers are bound (initDettaglio binds them on DOMContentLoaded)
+                try { if (typeof initDettaglio === 'function') { initDettaglio(DETTAGLIO_CONFIG); } } catch(e){}
+                // set sensible defaults: tipo=uscita, categoria=Spese Mensili (if present), data=today clamped to period
+                try {
+                    // date input: prefer today's date if within period, otherwise use period start
+                    var d = document.getElementById('inline_add_data');
+                    var tipoSel = document.getElementById('inline_add_tipo');
+                    var catSel = document.getElementById('inline_add_categoria');
+                    var cfg = (typeof DETTAGLIO_CONFIG !== 'undefined') ? DETTAGLIO_CONFIG : { start_date: '{{ start_date }}', end_date: '{{ end_date }}', categorie: [] };
+                    if (d) {
+                        var today = new Date().toISOString().slice(0,10);
+                        var defaultDate = today;
+                        if (!cfg.start_date || !cfg.end_date) {
+                            defaultDate = today;
+                        } else if (today < cfg.start_date || today > cfg.end_date) {
+                            defaultDate = cfg.start_date;
+                        }
+                        d.value = defaultDate;
+                        try { d.focus(); } catch(e){}
+                    }
+                    if (tipoSel) { tipoSel.value = 'uscita'; }
+                    if (catSel && Array.isArray(cfg.categorie)) {
+                        var found = cfg.categorie.find(function(c){ return c && (c.nome === 'Spese Mensili' || c.name === 'Spese Mensili'); });
+                        if (found) { catSel.value = found.id; }
+                    }
+                } catch(e) { console && console.error && console.error('inline add defaults error', e); }
+            } else {
+                box.style.display = 'none';
+            }
+            return true;
+        } catch (e) { console && console.error && console.error('toggleInlineAddTransaction error', e); return false; }
+    };
+</script>
+<script>
+    // Gestione modal correzione saldo
+    document.addEventListener('DOMContentLoaded', function() {
+        const correggiSaldoModal = document.getElementById('correggiSaldoModal');
+        const correggiSaldoForm = document.getElementById('correggiSaldoForm');
+        const saldoRealeInput = document.getElementById('saldo_reale_input');
+        const differenzaPreview = document.getElementById('differenza_preview');
+        const differenzaText = document.getElementById('differenza_text');
+        const saldoRegistratoDisplay = document.getElementById('saldo_registrato_display');
+        const saldoAttualeVal = document.getElementById('saldo_attuale_val');
+        
+        if (!correggiSaldoModal || !correggiSaldoForm) return;
+
+        // Update saldo registrato display when modal opens
+        correggiSaldoModal.addEventListener('show.bs.modal', function() {
+            if (saldoAttualeVal && saldoRegistratoDisplay) {
+                saldoRegistratoDisplay.textContent = saldoAttualeVal.textContent;
+            }
+            if (saldoRealeInput) {
+                saldoRealeInput.value = '';
+            }
+            if (differenzaPreview) {
+                differenzaPreview.style.display = 'none';
+            }
+        });
+
+        // Show preview of difference as user types
+        if (saldoRealeInput) {
+            saldoRealeInput.addEventListener('input', function() {
+                const saldoReale = parseFloat(this.value) || 0;
+                const saldoAttuale = parseFloat(saldoAttualeVal.textContent.replace('€', '').replace(',', '.').trim()) || 0;
+                const differenza = saldoReale - saldoAttuale;
+                
+                if (Math.abs(differenza) >= 0.01) {
+                    differenzaPreview.style.display = 'block';
+                    if (differenza > 0) {
+                        differenzaPreview.className = 'alert alert-success';
+                        differenzaText.innerHTML = '<i class="fas fa-arrow-up me-1"></i>+€' + Math.abs(differenza).toFixed(2) + ' (Entrata)';
+                    } else {
+                        differenzaPreview.className = 'alert alert-danger';
+                        differenzaText.innerHTML = '<i class="fas fa-arrow-down me-1"></i>-€' + Math.abs(differenza).toFixed(2) + ' (Uscita)';
+                    }
+                } else {
+                    differenzaPreview.style.display = 'none';
+                }
+            });
+        }
+
+        // Handle form submission
+        correggiSaldoForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.disabled = true;
+            
+            const formData = new FormData(this);
+            const startDate = '{{ start_date }}';
+            const endDate = '{{ end_date }}';
+            
+            fetch(`/dettaglio/${startDate}/${endDate}/correggi_saldo`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok' || data.status === 'info') {
+                    // Update summary cards if provided
+                    if (data.summary) {
+                        try {
+                            if (typeof applySummary === 'function') {
+                                applySummary(data.summary);
+                            } else {
+                                // Manual update
+                                document.getElementById('saldo_iniziale_val').textContent = '€ ' + data.summary.saldo_iniziale_mese.toFixed(2);
+                                document.getElementById('entrate_val').textContent = '€ ' + data.summary.entrate.toFixed(2);
+                                document.getElementById('uscite_val').textContent = '€ ' + data.summary.uscite.toFixed(2);
+                                document.getElementById('bilancio_val').textContent = (data.summary.bilancio >= 0 ? '+' : '') + '€ ' + data.summary.bilancio.toFixed(2);
+                                document.getElementById('saldo_attuale_val').textContent = '€ ' + data.summary.saldo_attuale_mese.toFixed(2);
+                                if (document.getElementById('saldo_finale_val')) {
+                                    document.getElementById('saldo_finale_val').textContent = '€ ' + data.summary.saldo_finale_mese.toFixed(2);
+                                }
+                            }
+                        } catch(e) {
+                            console.error('Error updating summary:', e);
+                        }
+                    }
+                    
+                    // Show success message
+                    if (typeof showToast === 'function') {
+                        showToast(data.message, data.status === 'ok' ? 'success' : 'info');
+                    } else {
+                        alert(data.message);
+                    }
+                    
+                    // Close modal
+                    const modalInstance = bootstrap.Modal.getInstance(correggiSaldoModal);
+                    if (modalInstance) modalInstance.hide();
+                    
+                    // Reload page to show new transaction
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    throw new Error(data.message || 'Errore durante la correzione del saldo');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (typeof showToast === 'function') {
+                    showToast(error.message || 'Errore durante la correzione del saldo', 'danger');
+                } else {
+                    alert(error.message || 'Errore durante la correzione del saldo');
+                }
+            })
+            .finally(() => {
+                if (submitBtn) submitBtn.disabled = false;
+            });
+        });
+    });
 </script>
 <script src="{{ url_for('static', filename='js/dettaglio_mese.js') }}"></script>
 <script>document.addEventListener('DOMContentLoaded', function(){ try{ initDettaglio(DETTAGLIO_CONFIG); }catch(e){console && console.error && console.error('initDettaglio error', e);} });</script>

@@ -169,13 +169,16 @@ class PostePayEvolutionService(BaseService):
         ).first()
     
     def create_movimento(self, data, importo, tipo, descrizione=None, 
-                        abbonamento_id=None, categoria_id=None):
+                        abbonamento_id=None, categoria_id=None, tipo_movimento=None):
         """Crea un nuovo movimento PostePay.
+        importo: sempre positivo
+        tipo_movimento: 'entrata' o 'uscita'
         """
         movimento = MovimentoPostePay(
             data=data,
-            importo=importo,
+            importo=abs(importo),  # Assicura valore positivo
             tipo=tipo,
+            tipo_movimento=tipo_movimento or ('entrata' if importo >= 0 else 'uscita'),
             descrizione=descrizione,
             abbonamento_id=abbonamento_id,
             categoria_id=categoria_id
@@ -191,12 +194,14 @@ class PostePayEvolutionService(BaseService):
                 pass
             raise
 
-        # Aggiorna saldo nello strumento: importo è già con segno (+ entrata, - uscita)
+        # Aggiorna saldo nello strumento
+        # importo è sempre positivo, tipo_movimento determina il segno
         try:
             ss = StrumentiService()
             strum = ss.get_by_descrizione('Postepay Evolution')
             if strum:
-                new_bal = (strum.saldo_corrente or 0.0) + float(movimento.importo or 0)
+                signed_value = -abs(float(movimento.importo or 0)) if movimento.tipo_movimento == 'uscita' else abs(float(movimento.importo or 0))
+                new_bal = (strum.saldo_corrente or 0.0) + signed_value
                 ss.update_saldo_by_id(strum.id_conto, new_bal)
         except Exception:
             pass

@@ -28,8 +28,19 @@ def _recompute_summaries_from(start_year=None, start_month=None):
 			start_year = financial_end.year
 			start_month = financial_end.month
 
-		# determine last available month in DB
-		last = SaldiMensili.query.order_by(SaldiMensili.year.desc(), SaldiMensili.month.desc()).first()
+		# determine last available month in DB (excluding seed)
+		try:
+			cols = [r[1] for r in db.session.execute(text("PRAGMA table_info('saldi_mensili');")).fetchall()]
+		except Exception:
+			cols = []
+		
+		if 'is_seed' in cols:
+			last = SaldiMensili.query.filter(
+				(SaldiMensili.is_seed == False) | (SaldiMensili.is_seed == None)
+			).order_by(SaldiMensili.year.desc(), SaldiMensili.month.desc()).first()
+		else:
+			last = SaldiMensili.query.order_by(SaldiMensili.year.desc(), SaldiMensili.month.desc()).first()
+		
 		if last:
 			last_year = last.year
 			last_month = last.month
@@ -97,8 +108,31 @@ def mese(anno, mese):
 
 		# Recupera la lista dei mesi esistenti in monthly_summary per limitare la navigazione client-side
 		try:
-			summaries = SaldiMensili.query.order_by(SaldiMensili.year.asc(), SaldiMensili.month.asc()).all()
-			available_months = [{'year': s.year, 'month': s.month} for s in summaries]
+			# Prefer to exclude rows explicitly marked as seed. If the DB
+			# doesn't have the is_seed column yet, fall back to using the
+			# current financial month as the lower bound.
+			try:
+				cols = [r[1] for r in db.session.execute(text("PRAGMA table_info('saldi_mensili');")).fetchall()]
+			except Exception:
+				cols = []
+
+			if 'is_seed' in cols:
+				summaries = SaldiMensili.query.filter((SaldiMensili.is_seed == False) | (SaldiMensili.is_seed == None)).order_by(SaldiMensili.year.asc(), SaldiMensili.month.asc()).all()
+				available_months = [{'year': s.year, 'month': s.month} for s in summaries]
+			else:
+				summaries = SaldiMensili.query.order_by(SaldiMensili.year.asc(), SaldiMensili.month.asc()).all()
+				try:
+					from datetime import date as _date
+					_, current_financial_end = get_month_boundaries(_date.today())
+					min_year = current_financial_end.year
+					min_month = current_financial_end.month
+					available_months = [
+						{'year': s.year, 'month': s.month}
+						for s in summaries
+						if (s.year > min_year) or (s.year == min_year and s.month >= min_month)
+					]
+				except Exception:
+					available_months = [{'year': s.year, 'month': s.month} for s in summaries]
 		except Exception:
 			available_months = []
 
@@ -189,8 +223,28 @@ def dettaglio_periodo(start_date, end_date):
 
 		# Recupera available_months per limitare la navigazione client-side
 		try:
-			summaries = SaldiMensili.query.order_by(SaldiMensili.year.asc(), SaldiMensili.month.asc()).all()
-			available_months = [{'year': s.year, 'month': s.month} for s in summaries]
+			try:
+				cols = [r[1] for r in db.session.execute(text("PRAGMA table_info('saldi_mensili');")).fetchall()]
+			except Exception:
+				cols = []
+
+			if 'is_seed' in cols:
+				summaries = SaldiMensili.query.filter((SaldiMensili.is_seed == False) | (SaldiMensili.is_seed == None)).order_by(SaldiMensili.year.asc(), SaldiMensili.month.asc()).all()
+				available_months = [{'year': s.year, 'month': s.month} for s in summaries]
+			else:
+				summaries = SaldiMensili.query.order_by(SaldiMensili.year.asc(), SaldiMensili.month.asc()).all()
+				try:
+					from datetime import date as _date
+					_, current_financial_end = get_month_boundaries(_date.today())
+					min_year = current_financial_end.year
+					min_month = current_financial_end.month
+					available_months = [
+						{'year': s.year, 'month': s.month}
+						for s in summaries
+						if (s.year > min_year) or (s.year == min_year and s.month >= min_month)
+					]
+				except Exception:
+					available_months = [{'year': s.year, 'month': s.month} for s in summaries]
 		except Exception:
 			available_months = []
 
@@ -328,7 +382,8 @@ def aggiungi_transazione_periodo(start_date, end_date):
 		importo = float(request.form.get('importo') or 0.0)
 		categoria_id = int(request.form.get('categoria_id')) if request.form.get('categoria_id') else None
 
-		tx_ricorrente = False if is_ajax else (True if request.form.get('tx_ricorrente') else False)
+		# Recurrence is managed separately via transazioni_ricorrenti UI; do not accept tx_ricorrente from this form
+		tx_ricorrente = False
 
 		# Validate date bounds
 		from datetime import datetime as _dt
@@ -384,9 +439,11 @@ def aggiungi_transazione_periodo(start_date, end_date):
 		except Exception:
 			pass
 		flash('Transazioni aggiunta con successo', 'success')
-
 		# prepare AJAX summary if requested
 		if is_ajax and transazioni:
+			# Build a robust summary_out: attempt to recompute the detailed summary
+			# and fall back to a minimal summary if anything fails. This ensures
+			# the client receives budget_items and updated totals immediately.
 			try:
 				from datetime import datetime as _dt
 				start_dt = _dt.strptime(start_date, '%Y-%m-%d').date()
@@ -401,7 +458,10 @@ def aggiungi_transazione_periodo(start_date, end_date):
 					stats_serial = []
 					for s in stats:
 						try:
-							stats_serial.append({'categoria_nome': s.get('categoria_nome') if isinstance(s, dict) else getattr(s, 'categoria_nome', None), 'importo': float(s.get('importo') if isinstance(s, dict) else getattr(s, 'importo', 0) or 0)})
+							if isinstance(s, dict):
+								stats_serial.append({'categoria_nome': s.get('categoria_nome'), 'importo': float(s.get('importo') or 0)})
+							else:
+								stats_serial.append({'categoria_nome': getattr(s, 'categoria_nome', None), 'importo': float(getattr(s, 'importo', 0) or 0)})
 						except Exception:
 							stats_serial.append({'categoria_nome': str(s), 'importo': 0.0})
 				except Exception:
@@ -418,11 +478,28 @@ def aggiungi_transazione_periodo(start_date, end_date):
 					'stats_categorie': stats_serial
 				}
 			except Exception as e:
+				# If computing the full summary failed, try a minimal safe summary so the client
+				# still receives updated totals. Do not raise further.
 				try:
-					db.session.rollback()
+					from datetime import datetime as _dt
+					start_dt = _dt.strptime(start_date, '%Y-%m-%d').date()
+					end_dt = _dt.strptime(end_date, '%Y-%m-%d').date()
+					# best-effort minimal aggregation
+					service = DettaglioPeriodoService()
+					summary = service.dettaglio_periodo_interno(start_dt, end_dt)
+					summary_out = {
+						'entrate': float(summary.get('entrate') or 0.0),
+						'uscite': float(summary.get('uscite') or 0.0),
+						'bilancio': float(summary.get('bilancio') or 0.0),
+						'saldo_iniziale_mese': float(summary.get('saldo_iniziale_mese') or 0.0),
+						'saldo_attuale_mese': float(summary.get('saldo_attuale_mese') or 0.0),
+						'saldo_finale_mese': float(summary.get('saldo_finale_mese') or 0.0),
+						'saldo_previsto_fine_mese': float(summary.get('saldo_previsto_fine_mese') or 0.0),
+						'budget_items': summary.get('budget_items') or [],
+						'stats_categorie': []
+					}
 				except Exception:
-					pass
-				flash(f'Errore durante l\'aggiunta della transazioni: {str(e)}', 'error')
+					summary_out = {'entrate':0.0,'uscite':0.0,'bilancio':0.0,'saldo_iniziale_mese':0.0,'saldo_attuale_mese':0.0,'saldo_finale_mese':0.0,'saldo_previsto_fine_mese':0.0,'budget_items':[],'stats_categorie':[]}
 
 	except Exception as e:
 		try:
@@ -466,8 +543,7 @@ def modifica_transazione_periodo(start_date, end_date, id):
 			tx.categoria_id = int(request.form.get('categoria_id')) if request.form.get('categoria_id') else None
 		if 'tipo' in request.form:
 			tx.tipo = request.form.get('tipo') or tx.tipo
-		# Ricorrente checkbox -> mappiamo al flag tx_ricorrente
-		tx.tx_ricorrente = True if request.form.get('tx_ricorrente') else False
+		# Ricorrenza gestita separatamente: non modificare il flag tx_ricorrente qui
 
 		# Segna la transazione come modificata manualmente dall'utente.
 		# Questo impedisce che operazioni di soft-reset cancellino o ricreino
@@ -639,3 +715,141 @@ def modifica_monthly_budget(start_date, end_date):
 		except Exception:
 			pass
 		return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@dettaglio_periodo_bp.route('/<start_date>/<end_date>/correggi_saldo', methods=['POST'])
+def correggi_saldo(start_date, end_date):
+	"""
+	Crea una transazione di correzione per allineare il saldo attuale con quello reale.
+	Calcola la differenza tra il saldo reale fornito e il saldo attuale registrato,
+	poi crea una transazione in uscita con categoria 'Spese Mensili'.
+	"""
+	is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+	try:
+		# Parse dates
+		from datetime import datetime as _dt
+		try:
+			start_dt = _dt.strptime(start_date, '%Y-%m-%d').date()
+			end_dt = _dt.strptime(end_date, '%Y-%m-%d').date()
+		except Exception:
+			msg = 'Date non valide.'
+			if is_ajax:
+				return jsonify({'status': 'error', 'message': msg}), 400
+			flash(msg, 'error')
+			return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
+
+		# Get real balance from form
+		try:
+			saldo_reale = float(request.form.get('saldo_reale', 0))
+		except (ValueError, TypeError):
+			msg = 'Saldo reale non valido.'
+			if is_ajax:
+				return jsonify({'status': 'error', 'message': msg}), 400
+			flash(msg, 'error')
+			return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
+
+		# Calculate current balance from DB
+		service = DettaglioPeriodoService()
+		stats = service.dettaglio_periodo_interno(start_dt, end_dt)
+		saldo_attuale = stats.get('saldo_attuale_mese', 0)
+
+		# Calculate difference
+		differenza = saldo_reale - saldo_attuale
+
+		# If difference is zero or very small, no correction needed
+		if abs(differenza) < 0.01:
+			msg = 'Il saldo è già allineato, nessuna correzione necessaria.'
+			if is_ajax:
+				return jsonify({'status': 'info', 'message': msg})
+			flash(msg, 'info')
+			return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
+
+		# Create correction transaction
+		# If differenza is positive, we need to add money (entrata) with category "Extra"
+		# If differenza is negative, we need to remove money (uscita) with category "Correzione Saldo"
+		descrizione = 'Correzione saldo'
+		
+		if differenza > 0:
+			tipo = 'entrata'
+			importo = differenza
+			# Find "Extra" category for income
+			categoria = Categorie.query.filter_by(nome='Extra').first()
+			if not categoria:
+				# If not found, try to find any "entrata" category as fallback
+				categoria = Categorie.query.filter_by(tipo='entrata').first()
+			categoria_nome = 'Extra'
+		else:
+			tipo = 'uscita'
+			importo = abs(differenza)
+			# Find "Correzione Saldo" category for expenses
+			categoria = Categorie.query.filter_by(nome='Correzione Saldo').first()
+			if not categoria:
+				# If not found, try to find any "uscita" category as fallback
+				categoria = Categorie.query.filter_by(tipo='uscita').first()
+			categoria_nome = 'Correzione Saldo'
+		
+		if not categoria:
+			msg = f'Categoria "{categoria_nome}" non trovata. Impossibile creare la transazione di correzione.'
+			if is_ajax:
+				return jsonify({'status': 'error', 'message': msg}), 404
+			flash(msg, 'error')
+			return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
+
+		# Use today's date as transaction date
+		data_transazione = date.today()
+
+		transazione = Transazioni(
+			data=data_transazione,
+			data_effettiva=data_transazione,
+			descrizione=descrizione,
+			importo=importo,
+			categoria_id=categoria.id,
+			tipo=tipo,
+			tx_ricorrente=False
+		)
+
+		# Set id_periodo
+		try:
+			period_end = get_month_boundaries(transazione.data_effettiva or transazione.data)[1]
+			transazione.id_periodo = int(period_end.year) * 100 + int(period_end.month)
+		except Exception:
+			pass
+
+		db.session.add(transazione)
+		db.session.commit()
+
+		# Update summaries
+		try:
+			_recompute_summaries_from(data_transazione.year, data_transazione.month)
+		except Exception:
+			pass
+
+		msg = f'Transazione di correzione creata: {descrizione}'
+		if is_ajax:
+			# Recalculate stats and return updated summary
+			stats = service.dettaglio_periodo_interno(start_dt, end_dt)
+			return jsonify({
+				'status': 'ok',
+				'message': msg,
+				'summary': {
+					'saldo_iniziale_mese': stats.get('saldo_iniziale_mese', 0),
+					'entrate': stats.get('entrate', 0),
+					'uscite': stats.get('uscite', 0),
+					'bilancio': stats.get('bilancio', 0),
+					'saldo_attuale_mese': stats.get('saldo_attuale_mese', 0),
+					'saldo_finale_mese': stats.get('saldo_finale_mese', 0)
+				}
+			})
+		flash(msg, 'success')
+		return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
+
+	except Exception as e:
+		try:
+			db.session.rollback()
+		except Exception:
+			pass
+		msg = f'Errore durante la correzione del saldo: {str(e)}'
+		if is_ajax:
+			return jsonify({'status': 'error', 'message': msg}), 500
+		flash(msg, 'error')
+		return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))

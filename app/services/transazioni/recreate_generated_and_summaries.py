@@ -19,7 +19,16 @@ def recreate_generated_and_summaries(months=6, base_date=None, _initial_year=Non
     if months > 6:
         months = 6
 
-    start_date, _ = get_month_boundaries(base_date)
+    # The system expects the reset to always insert as first month the
+    # previous month relative to today. Compute the financial-month start
+    # for the previous calendar month and use it as the reset start.
+    try:
+        from dateutil.relativedelta import relativedelta as _rel
+        prev_base = date.today() - _rel(months=1)
+        start_date, _ = get_month_boundaries(prev_base)
+    except Exception:
+        # fallback to provided base_date if anything goes wrong
+        start_date, _ = get_month_boundaries(base_date)
 
     result = {
         'deleted_transazioni': None,
@@ -145,22 +154,50 @@ def recreate_generated_and_summaries(months=6, base_date=None, _initial_year=Non
     from app.services.transazioni.monthly_summary_service import MonthlySummaryService
     msvc = MonthlySummaryService()
 
-    # If an explicit initial_saldo was provided, seed the first period's
-    # `saldi_mensili.saldo_iniziale` so that regenerate_month_summary will
-    # use it as starting balance for the first month.
+    # PRE-SEED: If an explicit initial_saldo was provided, create/update the seed month
+    # (first period) BEFORE regenerating all months. This ensures the seed is stable
+    # and committed to DB before regenerate_month_summary is called, so no logic can
+    # overwrite it during the regenerate phase.
     if initial_saldo is not None and len(period_list) > 0:
         try:
             from app.models.SaldiMensili import SaldiMensili
             first_year, first_month, _, _ = period_list[0]
+            # Ensure the DB schema contains the is_seed column; create it if missing.
+            try:
+                cols = [r[1] for r in db.session.execute(text("PRAGMA table_info('saldi_mensili');")).fetchall()]
+            except Exception:
+                cols = []
+            if 'is_seed' not in cols:
+                try:
+                    db.session.execute(text("ALTER TABLE saldi_mensili ADD COLUMN is_seed INTEGER DEFAULT 0"))
+                    db.session.commit()
+                except Exception:
+                    try:
+                        db.session.rollback()
+                    except Exception:
+                        pass
+            # Create or update the seed row with all fields set explicitly
             existing = SaldiMensili.query.filter_by(year=first_year, month=first_month).first()
             if existing:
                 existing.saldo_iniziale = float(initial_saldo)
+                existing.entrate = 0.0
+                existing.uscite = 0.0
+                existing.saldo_finale = float(initial_saldo)
+                existing.is_seed = True
                 db.session.add(existing)
             else:
-                # create a minimal record with the provided saldo_iniziale; other fields
-                # will be updated by regenerate_month_summary
-                new_ms = SaldiMensili(year=first_year, month=first_month, saldo_iniziale=float(initial_saldo))
+                # create a new seed record with all fields zeroed except saldo_iniziale/finale
+                new_ms = SaldiMensili(
+                    year=first_year,
+                    month=first_month,
+                    saldo_iniziale=float(initial_saldo),
+                    entrate=0.0,
+                    uscite=0.0,
+                    saldo_finale=float(initial_saldo),
+                    is_seed=True
+                )
                 db.session.add(new_ms)
+            # Commit the seed BEFORE calling regenerate_month_summary for any month
             db.session.commit()
             result['initial_saldo_seeded'] = True
         except Exception:
@@ -170,12 +207,39 @@ def recreate_generated_and_summaries(months=6, base_date=None, _initial_year=Non
                 pass
             result['initial_saldo_seeded'] = False
 
+    # Now regenerate monthly summaries for ALL periods (including seed, but see note below)
+    # The seed month regenerate will be a no-op if monthly_summary_service respects is_seed,
+    # or will be corrected by the post-regenerate enforcement step.
     for (year, month, periodo_start, periodo_end) in period_list:
         ok, res = msvc.regenerate_month_summary(year, month)
         if ok:
             result['monthly_summary_regenerated'] += 1
 
-    # 4) Apply chaining: propagate saldo_finale -> saldo_iniziale across periods
+    # 4) POST-REGENERATE SEED SAFETY CHECK: verify that the seed month still has
+    # the correct values (in case regenerate_month_summary modified it).
+    # This is a defensive step — if we later add protection in monthly_summary_service
+    # to skip seed rows, this will become redundant but harmless.
+    if period_list and initial_saldo is not None:
+        try:
+            first_year, first_month, _, _ = period_list[0]
+            from app.models.SaldiMensili import SaldiMensili
+            seed_row = SaldiMensili.query.filter_by(year=first_year, month=first_month).first()
+            if seed_row:
+                # Re-enforce seed values if they were changed during regenerate
+                seed_row.entrate = 0.0
+                seed_row.uscite = 0.0
+                seed_row.saldo_finale = float(seed_row.saldo_iniziale or initial_saldo)
+                seed_row.is_seed = True
+                db.session.add(seed_row)
+                db.session.commit()
+                result['seed_post_check'] = True
+        except Exception:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+
+    # 5) Apply chaining: propagate saldo_finale -> saldo_iniziale across periods
     if period_list:
         try:
             periods_for_chain = [(y, m) for (y, m, _, _) in period_list]

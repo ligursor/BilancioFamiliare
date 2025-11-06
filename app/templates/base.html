@@ -80,6 +80,25 @@
         <div id="toast-container" style="position: relative; min-height: 200px;"></div>
     </div>
 
+    <!-- Global confirmation modal to avoid native browser confirm dialogs (Firefox suppress checkbox) -->
+    <div class="modal fade" id="globalConfirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Conferma</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="globalConfirmMessage">Sei sicuro?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="globalConfirmCancel">Annulla</button>
+                    <button type="button" class="btn btn-danger" id="globalConfirmOk">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <main class="container my-4">
         {% block content %}{% endblock %}
     </main>
@@ -146,10 +165,46 @@
         });
     </script>
     
-    <!-- Global confirm-delete handler: intercept forms/buttons marked for deletion and show a browser confirm -->
+    <!-- Global confirm-delete handler: intercept forms/buttons marked for deletion and show a Bootstrap modal (avoid native confirm) -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             var DEFAULT_MSG = "Sei sicuro di voler procedere con l'eliminazione? Questa operazione non può essere annullata.";
+
+            // Helper that shows the Bootstrap modal and returns a Promise<boolean>
+            function showConfirmModal(message) {
+                return new Promise(function(resolve) {
+                    try {
+                        var modalEl = document.getElementById('globalConfirmModal');
+                        var msgEl = document.getElementById('globalConfirmMessage');
+                        var okBtn = document.getElementById('globalConfirmOk');
+                        var cancelBtn = document.getElementById('globalConfirmCancel');
+                        if (!modalEl || !msgEl || !okBtn || !cancelBtn) {
+                            // Modal not present: treat as non-confirmed to avoid native browser confirm dialogs
+                            resolve(false);
+                            return;
+                        }
+                        msgEl.textContent = message || DEFAULT_MSG;
+                        var bsModal = new bootstrap.Modal(modalEl, { backdrop: 'static' });
+
+                        function cleanup() {
+                            okBtn.removeEventListener('click', onOk);
+                            cancelBtn.removeEventListener('click', onCancel);
+                            modalEl.removeEventListener('hidden.bs.modal', onHidden);
+                        }
+                        function onOk(e) { cleanup(); bsModal.hide(); resolve(true); }
+                        function onCancel(e) { cleanup(); bsModal.hide(); resolve(false); }
+                        function onHidden(e) { cleanup(); resolve(false); }
+
+                        okBtn.addEventListener('click', onOk);
+                        cancelBtn.addEventListener('click', onCancel);
+                        modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+                        bsModal.show();
+                    } catch (e) { resolve(false); }
+                });
+            }
+
+            // Expose a global helper so other scripts can use the same modal-based confirm
+            try { window.showGlobalConfirm = showConfirmModal; } catch(e) { /* ignore */ }
 
             // Click handler for elements with data-action="confirm-delete"
             document.body.addEventListener('click', function(evt) {
@@ -158,13 +213,26 @@
                     if (!btn) return;
                     if (btn.getAttribute('data-skip-confirm') !== null) return;
                     var msg = btn.getAttribute('data-message') || DEFAULT_MSG;
-                    if (!window.confirm(msg)) {
-                        evt.preventDefault(); evt.stopPropagation(); return false;
-                    }
+                    // Prevent default action and show modal
+                    evt.preventDefault(); evt.stopPropagation();
                     var form = btn.closest('form');
-                    if (form && !form.querySelector('input[name="confirm"]')) {
-                        var hidden = document.createElement('input'); hidden.type='hidden'; hidden.name='confirm'; hidden.value='1'; form.appendChild(hidden);
-                    }
+                    showConfirmModal(msg).then(function(confirmed) {
+                        if (!confirmed) return;
+                        try {
+                            if (form) {
+                                // ensure we don't re-trigger the confirm handler when submitting programmatically
+                                form.setAttribute('data-skip-confirm', '1');
+                                if (!form.querySelector('input[name="confirm"]')) {
+                                    var hidden = document.createElement('input'); hidden.type='hidden'; hidden.name='confirm'; hidden.value='1'; form.appendChild(hidden);
+                                }
+                                form.submit();
+                            } else {
+                                // If it's a plain link/button, try to trigger default behavior
+                                var href = btn.getAttribute('href');
+                                if (href) window.location.href = href;
+                            }
+                        } catch (e) { /* ignore */ }
+                    }).catch(function(){ /* ignore */ });
                 } catch (e) { /* silent */ }
             }, true);
 
@@ -186,8 +254,15 @@
                     if (!shouldConfirm) return;
 
                     var msg = form.getAttribute('data-message') || DEFAULT_MSG;
-                    if (!window.confirm(msg)) { evt.preventDefault(); evt.stopPropagation(); return false; }
-                    if (!form.querySelector('input[name="confirm"]')) { var hidden=document.createElement('input'); hidden.type='hidden'; hidden.name='confirm'; hidden.value='1'; form.appendChild(hidden); }
+                    evt.preventDefault(); evt.stopPropagation();
+                    showConfirmModal(msg).then(function(confirmed) {
+                        if (!confirmed) return;
+                        try {
+                            form.setAttribute('data-skip-confirm', '1');
+                            if (!form.querySelector('input[name="confirm"]')) { var hidden=document.createElement('input'); hidden.type='hidden'; hidden.name='confirm'; hidden.value='1'; form.appendChild(hidden); }
+                            form.submit();
+                        } catch (e) { /* ignore */ }
+                    }).catch(function(){ /* ignore */ });
                 } catch (e) { /* ignore */ }
             }, true);
         });

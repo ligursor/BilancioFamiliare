@@ -49,8 +49,22 @@ def index():
 
     try:
         from app.models.SaldiMensili import SaldiMensili
-    # Query fino a 6 mesi presenti in saldi_mensili (qualsiasi periodo)
-        q = db.session.query(SaldiMensili).order_by(SaldiMensili.year.asc(), SaldiMensili.month.asc()).limit(6).all()
+        from sqlalchemy import text
+        # Query fino a 6 mesi presenti in saldi_mensili, escludendo il seed month.
+        # Check if is_seed column exists before filtering.
+        try:
+            cols = [r[1] for r in db.session.execute(text("PRAGMA table_info('saldi_mensili');")).fetchall()]
+        except Exception:
+            cols = []
+        
+        if 'is_seed' in cols:
+            # Exclude seed rows (is_seed == True)
+            q = db.session.query(SaldiMensili).filter(
+                (SaldiMensili.is_seed == False) | (SaldiMensili.is_seed == None)
+            ).order_by(SaldiMensili.year.asc(), SaldiMensili.month.asc()).limit(6).all()
+        else:
+            # Fallback: no is_seed column, load all
+            q = db.session.query(SaldiMensili).order_by(SaldiMensili.year.asc(), SaldiMensili.month.asc()).limit(6).all()
         month_rows = q if q else None
     except Exception:
         month_rows = None
@@ -85,23 +99,10 @@ def index():
                 uscite_effettuate = 0
                 for t in tutte_transazioni_mese:
                     if t.data <= oggi:
-                        includi = False
-                        if not getattr(t, 'tx_ricorrente', False):
-                            includi = True
-                        elif getattr(t, 'tx_ricorrente', False):
-                            ha_figlie_stesso_mese = any(
-                                f.transazione_madre_id == t.id and 
-                                f.data.month == t.data.month and 
-                                f.data.year == t.data.year
-                                for f in tutte_transazioni_mese if (not getattr(f, 'tx_ricorrente', False)) and f.transazione_madre_id
-                            )
-                            if not ha_figlie_stesso_mese:
-                                includi = True
-                        if includi:
-                            if t.tipo == 'entrata':
-                                entrate_effettuate += t.importo
-                            else:
-                                uscite_effettuate += t.importo
+                        if t.tipo == 'entrata':
+                            entrate_effettuate += t.importo
+                        else:
+                            uscite_effettuate += t.importo
                 saldo_attuale_mese = saldo_iniziale_mese + entrate_effettuate - uscite_effettuate
 
             mesi.append({
@@ -190,25 +191,11 @@ def index():
                 entrate_effettuate = 0
                 uscite_effettuate = 0
                 for t in tutte_transazioni_mese:
-                    if t.data <= oggi:  # Solo transazioni già effettuate
-                        includi = False
-                        if not getattr(t, 'tx_ricorrente', False):  # Figlie e manuali: sempre incluse
-                            includi = True
-                        elif getattr(t, 'tx_ricorrente', False):  # Madri: includi solo se non hanno figlie nello stesso mese
-                            ha_figlie_stesso_mese = any(
-                                f.transazione_madre_id == t.id and 
-                                f.data.month == t.data.month and 
-                                f.data.year == t.data.year
-                                for f in tutte_transazioni_mese if (not getattr(f, 'tx_ricorrente', False)) and f.transazione_madre_id
-                            )
-                            if not ha_figlie_stesso_mese:
-                                includi = True
-                        
-                        if includi:
-                            if t.tipo == 'entrata':
-                                entrate_effettuate += t.importo
-                            else:
-                                uscite_effettuate += t.importo
+                    if t.data <= oggi:
+                        if t.tipo == 'entrata':
+                            entrate_effettuate += t.importo
+                        else:
+                            uscite_effettuate += t.importo
                 
                 saldo_attuale_mese = saldo_corrente + entrate_effettuate - uscite_effettuate
 
@@ -249,24 +236,8 @@ def index():
                 Transazioni.categoria_id.isnot(None)  # Escludi transazioni PayPal (senza categorie)
             ).all()
             
-            # Filtra per evitare duplicazioni madri/figlie
-            transazioni_filtrate = []
-            for t in tutte_transazioni_periodo:
-                if not getattr(t, 'tx_ricorrente', False):  # Figlie e manuali: sempre incluse
-                    transazioni_filtrate.append(t)
-                elif getattr(t, 'tx_ricorrente', False):  # Madri: includi solo se non hanno figlie nello stesso mese
-                    ha_figlie_stesso_mese = any(
-                        f.transazione_madre_id == t.id and 
-                        f.data.month == t.data.month and 
-                        f.data.year == t.data.year
-                        for f in tutte_transazioni_periodo if (not getattr(f, 'tx_ricorrente', False)) and f.transazione_madre_id
-                    )
-                    if not ha_figlie_stesso_mese:
-                        transazioni_filtrate.append(t)
-
-            # Ordina le transazioni filtrate
-            ultime_transazioni = sorted(transazioni_filtrate, 
-                                      key=lambda x: (x.data, x.id), reverse=True)[:10]
+            # Ordina le transazioni (nessuna logica madre/figlia applicata)
+            ultime_transazioni = sorted(tutte_transazioni_periodo, key=lambda x: (x.data, x.id), reverse=True)[:10]
         else:
             ultime_transazioni = []
     

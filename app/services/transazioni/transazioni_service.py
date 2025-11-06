@@ -208,20 +208,5 @@ class TransazioneService(BaseService):
                 Transazioni.categoria_id.isnot(None)  # Escludi PayPal
             ).all()
         
-        # Filtra per evitare duplicazioni madri/figlie
-        transazioni_filtrate = []
-        for t in tutte_transazioni:
-            if not getattr(t, 'tx_ricorrente', False):  # Figlie e manuali: sempre incluse
-                transazioni_filtrate.append(t)
-            elif getattr(t, 'tx_ricorrente', False):  # Madri: includi solo se non hanno figlie nello stesso mese
-                ha_figlie_stesso_mese = any(
-                    f.transazione_madre_id == t.id and 
-                    f.data.month == t.data.month and 
-                    f.data.year == t.data.year
-                    for f in tutte_transazioni if (not getattr(f, 'tx_ricorrente', False)) and f.transazione_madre_id
-                )
-                if not ha_figlie_stesso_mese:
-                    transazioni_filtrate.append(t)
-        
-        # Ordina e limita
-        return sorted(transazioni_filtrate, key=lambda x: (x.data, x.id), reverse=True)[:limit]
+        # Non applichiamo piu' logica madre/figlia: ritorniamo direttamente le transazioni recuperate
+        return sorted(tutte_transazioni, key=lambda x: (x.data, x.id), reverse=True)[:limit]

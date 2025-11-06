@@ -11,7 +11,7 @@
             <strong>Uscite Ricorrenti:</strong> {{ stats.num_uscite|default(0) }} transazioni
         </div>
         <div class="text-end">
-            <strong class="fs-5">-€{{ "%.2f"|format(stats.importo_uscite|default(0)) }}</strong>
+            <strong class="fs-5">€ {{ "%.2f"|format(stats.importo_uscite|default(0)) }}</strong>
             <div class="small">al mese</div>
         </div>
     </div>
@@ -195,7 +195,7 @@
                                 </span>
                             </td>
                             <td class="text-center {% if ricorrente.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
-                                <strong>{% if ricorrente.tipo == 'entrata' %}+{% else %}-{% endif %}{{ "%.2f"|format(ricorrente.importo) }}</strong>
+                                <strong>€ {{ "%.2f"|format(ricorrente.importo) }}</strong>
                             </td>
                                 <td class="text-center align-middle">
                                 <div class="btn-group btn-group-sm" role="group">
@@ -283,11 +283,14 @@
     }
 
     function confermaEliminazione(id, descrizione) {
-        if (confirm('Sei sicuro di voler eliminare la transazione ricorrente "' + descrizione + '"?\n\nQuesta operazione non può essere annullata.')) {
+        var msg = 'Sei sicuro di voler eliminare la transazione ricorrente "' + descrizione + '"?\n\nQuesta operazione non può essere annullata.';
+    var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ return Promise.resolve(false); };
+        confirmFn(msg).then(function(ok){
+            if (!ok) return;
             const form = document.getElementById('formElimina');
             form.action = '{{ url_for("ricorrenti.elimina", ricorrente_id=0) }}'.replace('0', id);
             form.submit();
-        }
+        }).catch(function(){ /* ignore */ });
     }
 
     function confermaEliminazioneFromBtn(btn) {

@@ -23,8 +23,8 @@
 						<i class="fas fa-arrow-left me-1"></i>Garage
 					</a>
 					<!-- Modifica button removed per richiesta -->
-					<form method="POST" action="{{ url_for('veicoli.rimuovi_veicolo', veicolo_id=veicolo.id) }}" style="display:inline-block;">
-						<button type="submit" class="btn btn-danger ms-2" onclick="return confirm('Confermi la rimozione del veicolo dal garage?');">
+					<form method="POST" action="{{ url_for('veicoli.rimuovi_veicolo', veicolo_id=veicolo.id) }}" style="display:inline-block;" data-action="confirm-delete" data-message="Confermi la rimozione del veicolo dal garage?">
+						<button type="submit" class="btn btn-danger ms-2">
 							<i class="fas fa-trash me-1"></i>Rimuovi
 						</button>
 					</form>

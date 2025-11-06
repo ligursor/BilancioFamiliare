@@ -64,7 +64,7 @@
             inlineForm.parentNode.replaceChild(clone, inlineForm);
             clone.addEventListener('submit', function(evt){
                 evt.preventDefault();
-                var fd = new FormData(clone); fd.set('tx_ricorrente','');
+                var fd = new FormData(clone);
                 var d = fd.get('data');
                 if (!d || d < cfg.start_date || d > cfg.end_date) { showToast('La data deve essere compresa nel periodo ' + cfg.start_date + ' - ' + cfg.end_date, 'warning'); return; }
                 var url = '/dettaglio/' + encodeURIComponent(cfg.start_date) + '/' + encodeURIComponent(cfg.end_date) + '/aggiungi_transazione';
@@ -173,9 +173,14 @@
                 return false;
             }
             if (form.getAttribute && form.getAttribute('data-action') === 'confirm-delete') {
-                e.preventDefault(); if (form.getAttribute('data-message')) { if (!confirm(form.getAttribute('data-message'))) return false; }
-                var action = form.getAttribute('action') || form.action;
-                fetch(action, { method: 'POST', credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(function(resp){ if (!resp.ok) throw new Error('Server error'); return resp.json(); }).then(function(json){ if (!json || json.status !== 'ok') throw new Error('Errore cancellazione'); if (json.summary) applySummary(json.summary); var row = form.closest('tr'); if (row) row.parentNode.removeChild(row); }).catch(function(err){ console.error('Errore cancellazione transazione', err); showToast('Errore durante la cancellazione. Riprova.','danger'); });
+                e.preventDefault(); e.stopPropagation();
+                var msg = form.getAttribute('data-message') || 'Sei sicuro di voler procedere?';
+                var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ return Promise.resolve(false); };
+                confirmFn(msg).then(function(ok){
+                    if (!ok) return;
+                    var action = form.getAttribute('action') || form.action;
+                    fetch(action, { method: 'POST', credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(function(resp){ if (!resp.ok) throw new Error('Server error'); return resp.json(); }).then(function(json){ if (!json || json.status !== 'ok') throw new Error('Errore cancellazione'); if (json.summary) applySummary(json.summary); var row = form.closest('tr'); if (row) row.parentNode.removeChild(row); }).catch(function(err){ console.error('Errore cancellazione transazione', err); showToast('Errore durante la cancellazione. Riprova.','danger'); });
+                }).catch(function(){ /* ignore */ });
             }
         });
     }

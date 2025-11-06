@@ -11,6 +11,9 @@ class SaldiMensili(db.Model):
     entrate = db.Column(db.Float, nullable=False, default=0.0)
     uscite = db.Column(db.Float, nullable=False, default=0.0)
     saldo_finale = db.Column(db.Float, nullable=False, default=0.0)
+    # Flag to mark a seeded bootstrap row created by a reset operation.
+    # Stored as INTEGER (0/1) on SQLite via Boolean mapping.
+    is_seed = db.Column(db.Boolean, nullable=False, default=False)
 
     __table_args__ = (
         db.UniqueConstraint('year', 'month', name='uix_year_month_summary'),

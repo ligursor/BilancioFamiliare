@@ -69,23 +69,9 @@ class DettaglioPeriodoService:
             # If sorting fails for any reason, ignore to avoid breaking the view
             pass
 
-        # Filtra manualmente per evitare duplicazioni madri/figlie nello stesso mese (solo per quelle effettuate)
-        transazioni_filtrate = []
-        for t in transazioni_effettuate:
-            if not getattr(t, 'tx_ricorrente', False):  # Figlie e manuali: sempre incluse
-                transazioni_filtrate.append(t)
-            elif getattr(t, 'tx_ricorrente', False):  # Madri: includi solo se non hanno figlie nello stesso mese
-                # Controlla se esistono figlie di questa madre nello stesso mese
-                ha_figlie_stesso_mese = any(
-                    f.transazione_madre_id == t.id and 
-                    f.data.month == t.data.month and 
-                    f.data.year == t.data.year
-                    for f in transazioni_effettuate if (not getattr(f, 'tx_ricorrente', False)) and f.transazione_madre_id
-                )
-                if not ha_figlie_stesso_mese:
-                    transazioni_filtrate.append(t)
-        
-        transazioni_effettuate = transazioni_filtrate
+        # Non applichiamo più logica madre/figlia: tutte le transazioni effettuate sono incluse
+        # (le transazioni ricorrenti vengono gestite da reset/rollover tramite la tabella delle ricorrenze)
+        transazioni_effettuate = transazioni_effettuate
 
         # Calcola totali effettuati (solo transazioni effettuate)
         entrate_effettuate = sum(t.importo for t in transazioni_effettuate if t.tipo == 'entrata')
@@ -165,29 +151,18 @@ class DettaglioPeriodoService:
                 else:
                     transazioni_mese_in_attesa.append(t)
 
-            # Filtra per evitare duplicazioni madri/figlie
+            # Nessuna logica madre/figlia: sommiamo tutte le transazioni nella lista
             def calcola_bilancio_mese(lista_transazioni):
                 entrate_mese = 0
                 uscite_mese = 0
                 for t in lista_transazioni:
-                    includi = False
-                    if not getattr(t, 'tx_ricorrente', False):  # Figlie e manuali: sempre incluse
-                        includi = True
-                    elif getattr(t, 'tx_ricorrente', False):  # Madri: includi solo se non hanno figlie nello stesso mese
-                        ha_figlie_stesso_mese = any(
-                            f.transazione_madre_id == t.id and 
-                            f.data.month == t.data.month and 
-                            f.data.year == t.data.year
-                            for f in lista_transazioni if (not getattr(f, 'tx_ricorrente', False)) and f.transazione_madre_id
-                        )
-                        if not ha_figlie_stesso_mese:
-                            includi = True
-                    
-                    if includi:
+                    try:
                         if t.tipo == 'entrata':
                             entrate_mese += t.importo
                         else:
                             uscite_mese += t.importo
+                    except Exception:
+                        continue
                 return entrate_mese - uscite_mese
             
             # Per mesi passati: usa solo transazioni effettuate

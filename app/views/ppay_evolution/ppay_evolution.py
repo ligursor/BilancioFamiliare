@@ -85,8 +85,9 @@ def evolution():
                             mov = MovimentoPostePay(
                                 data=addebito_this_month,
                                 descrizione=f"{abbonamento.nome} {addebito_this_month.strftime('%m/%Y')}",
-                                importo=-abs(abbonamento.importo),
+                                importo=abs(abbonamento.importo),
                                 tipo='Abbonamento',
+                                tipo_movimento='uscita',
                                 abbonamento_id=abbonamento.id
                             )
                             db.session.add(mov)
@@ -95,7 +96,9 @@ def evolution():
                             try:
                                 strum = ss.get_by_descrizione('Postepay Evolution')
                                 if strum:
-                                    new_bal = (strum.saldo_corrente or 0.0) + mov.importo
+                                    # Calculate signed value: importo is positive, tipo_movimento='uscita' means subtract
+                                    signed_value = -abs(mov.importo) if mov.tipo_movimento == 'uscita' else abs(mov.importo)
+                                    new_bal = (strum.saldo_corrente or 0.0) + signed_value
                                     ss.update_saldo_by_id(strum.id_conto, new_bal)
                             except Exception:
                                 pass
@@ -203,7 +206,8 @@ def ricarica():
             data=data_movimento,
             descrizione=descrizione,
             importo=signed_importo,
-            tipo='Ricarica'
+            tipo='Ricarica',
+            tipo_movimento='entrata'
         )
 
         db.session.add(movimento)
@@ -260,14 +264,15 @@ def spesa():
             flash('Saldo insufficiente per questa spesa', 'error')
             return redirect(url_for('ppay.evolution'))
 
-        # Normalize: uscita -> negative importo stored
-        signed_importo = -abs(importo)
+        # Normalize: uscita -> positive importo, tipo_movimento='uscita'
+        signed_importo = abs(importo)
 
         movimento = MovimentoPostePay(
             data=data_movimento,
             descrizione=descrizione,
             importo=signed_importo,
-            tipo='Pagamento'
+            tipo='Pagamento',
+            tipo_movimento='uscita'
         )
 
         db.session.add(movimento)
@@ -558,7 +563,8 @@ def elimina_movimento(movimento_id):
         movimento = MovimentoPostePay.query.get_or_404(movimento_id)
         from flask import current_app
         current_app.logger.info(f"elimina_movimento called for id={movimento_id} -> movimento={movimento}")
-        importo = movimento.importo
+        # Calculate signed value to subtract from balance
+        signed_value = -abs(movimento.importo) if movimento.tipo_movimento == 'uscita' else abs(movimento.importo)
 
         db.session.delete(movimento)
 
@@ -567,7 +573,8 @@ def elimina_movimento(movimento_id):
             ss = StrumentiService()
             strum = ss.get_by_descrizione('Postepay Evolution')
             if strum:
-                new_bal = (strum.saldo_corrente or 0.0) - importo
+                # Subtract the effect: if it was +100, now -100; if it was -100, now +100
+                new_bal = (strum.saldo_corrente or 0.0) - signed_value
                 ss.update_saldo_by_id(strum.id_conto, new_bal)
         except Exception:
             pass
@@ -688,8 +695,9 @@ def modifica_saldo():
             movimento = MovimentoPostePay(
                 data=date.today(),
                 descrizione=f"{motivo} (da {format_currency(saldo_precedente)} a {format_currency(nuovo_saldo)})",
-                importo=differenza,
-                tipo='correzione'
+                importo=abs(differenza),
+                tipo='correzione',
+                tipo_movimento='entrata' if differenza > 0 else 'uscita'
             )
             db.session.add(movimento)
 
@@ -916,29 +924,27 @@ def aggiungi_movimento():
     """Aggiunge un movimento PostePay manuale"""
     try:
         importo = float(request.form['importo'])
-        tipo = request.form['tipo']
-        
-        # Se è un'uscita, rendi l'importo negativo
-        if tipo == 'uscita':
-            importo = -abs(importo)
-        else:
-            importo = abs(importo)
+        tipo = request.form['tipo']  # entrata/uscita
+        tipo_movimento_form = request.form['tipo_movimento']  # ricarica/pagamento/altro
         
         movimento = MovimentoPostePay(
             data=datetime.strptime(request.form['data'], '%Y-%m-%d').date(),
             descrizione=request.form['descrizione'],
-            importo=importo,
-            tipo=request.form['tipo_movimento']
+            importo=abs(importo),  # Sempre positivo
+            tipo=tipo_movimento_form,  # ricarica/pagamento/altro
+            tipo_movimento=tipo  # entrata/uscita
         )
         
         db.session.add(movimento)
         
         # Aggiorna saldo nello strumento (sorgente di verità)
+        # Calculate signed importo for balance update
+        signed_importo = abs(importo) if tipo == 'entrata' else -abs(importo)
         try:
             ss = StrumentiService()
             strum = ss.get_by_descrizione('Postepay Evolution')
             if strum:
-                new_bal = (strum.saldo_corrente or 0.0) + importo
+                new_bal = (strum.saldo_corrente or 0.0) + signed_importo
                 ss.update_saldo_by_id(strum.id_conto, new_bal)
         except Exception:
             pass
@@ -1032,33 +1038,35 @@ def modifica_movimento_postepay(movimento_id):
     """Modifica un movimento PostePay esistente (aggiunge la possibilità di edit inline)."""
     try:
         movimento = MovimentoPostePay.query.get_or_404(movimento_id)
-        # store old importo to update saldo
-        old_importo = movimento.importo or 0.0
+        # store old values to calculate saldo delta
+        old_importo = abs(movimento.importo or 0.0)
+        old_tipo_movimento = movimento.tipo_movimento or 'uscita'
+        # Calculate old signed value (for balance)
+        old_signed = old_importo if old_tipo_movimento == 'entrata' else -old_importo
 
         # parse new values
         new_data = datetime.strptime(request.form['data'], '%Y-%m-%d').date()
         new_descrizione = request.form.get('descrizione', '').strip()
-        new_tipo = request.form.get('tipo_movimento', movimento.tipo)
-        # importo is provided as positive; respect 'tipo' (entrata/uscita)
-        raw_importo = float(request.form.get('importo', 0))
-        tipo_sign = request.form.get('tipo', 'entrata')
-        if tipo_sign == 'uscita':
-            new_importo = -abs(raw_importo)
-        else:
-            new_importo = abs(raw_importo)
+        new_tipo = request.form.get('tipo_movimento', movimento.tipo)  # ricarica/pagamento/altro
+        # importo is provided as positive
+        raw_importo = abs(float(request.form.get('importo', 0)))
+        tipo_sign = request.form.get('tipo', 'entrata')  # entrata/uscita
+        # Calculate new signed value (for balance)
+        new_signed = raw_importo if tipo_sign == 'entrata' else -raw_importo
 
         # apply changes
         movimento.data = new_data
         movimento.descrizione = new_descrizione
         movimento.tipo = new_tipo
-        movimento.importo = new_importo
+        movimento.importo = raw_importo  # Sempre positivo
+        movimento.tipo_movimento = tipo_sign  # entrata/uscita
 
         # update strumento saldo by the delta
         try:
             ss = StrumentiService()
             strum = ss.get_by_descrizione('Postepay Evolution')
             if strum:
-                delta = (new_importo or 0.0) - (old_importo or 0.0)
+                delta = new_signed - old_signed
                 new_bal = (strum.saldo_corrente or 0.0) + delta
                 ss.update_saldo_by_id(strum.id_conto, new_bal)
         except Exception:

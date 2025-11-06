@@ -405,17 +405,21 @@ document.addEventListener('DOMContentLoaded', function(){
         try {
             var form = e.target;
             if (form && form.classList && form.classList.contains('form-elimina-versamento')) {
-                var ok = window.confirm('Sei sicuro di voler eliminare questo versamento? Questa operazione non è reversibile.');
-                if (!ok) {
-                    e.preventDefault();
-                    return false;
-                }
-                // Optionally, append a hidden confirm field so server sees explicit confirmation
-                var hidden = document.createElement('input');
-                hidden.type = 'hidden';
-                hidden.name = 'confirm';
-                hidden.value = '1';
-                form.appendChild(hidden);
+                e.preventDefault(); e.stopPropagation();
+                var msg = 'Sei sicuro di voler eliminare questo versamento? Questa operazione non è reversibile.';
+                var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ return Promise.resolve(false); };
+                confirmFn(msg).then(function(ok){
+                    if (!ok) return;
+                    try {
+                        form.setAttribute('data-skip-confirm','1');
+                        var hidden = document.createElement('input');
+                        hidden.type = 'hidden';
+                        hidden.name = 'confirm';
+                        hidden.value = '1';
+                        form.appendChild(hidden);
+                        form.submit();
+                    } catch (err) { /* ignore */ }
+                }).catch(function(){ /* ignore */ });
             }
         } catch (err) {
             // if anything goes wrong, allow default behavior (server-side confirmation still protects)

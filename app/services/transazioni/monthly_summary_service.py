@@ -112,6 +112,17 @@ class MonthlySummaryService(BaseService):
 
 		if has_saldo_finale_col:
 			ms = SaldiMensili.query.filter_by(year=year, month=month).first()
+			# SEED PROTECTION: If this monthly summary row was explicitly seeded by a reset
+			# operation (is_seed=True), keep its values untouched. The seed month is a bootstrap
+			# record with entrate=0, uscite=0, saldo_finale=saldo_iniziale and should never be
+			# regenerated from transazioni. Return immediately without modifying the row.
+			try:
+				if ms and getattr(ms, 'is_seed', False) is True:
+					# Do NOT modify this row — it is a seed month.
+					return True, ms
+			except Exception:
+				# if attribute access fails, fall through and proceed normally
+				pass
 			if not ms:
 				ms = SaldiMensili(year=year, month=month)
 				db.session.add(ms)

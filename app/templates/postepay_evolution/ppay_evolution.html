@@ -103,9 +103,9 @@
                                             <br><small class="text-muted">{{ abbonamento.descrizione }}</small>
                                             {% endif %}
                                         </td>
-                                        <td>{{ (abbonamento.importo) | format_currency }}</td>
-                                        <td>{{ abbonamento.giorno_addebito }}</td>
-                                        <td>
+                                        <td class="text-center">{{ (abbonamento.importo) | format_currency }}</td>
+                                        <td class="text-center">{{ abbonamento.giorno_addebito }}</td>
+                                        <td class="text-center">
                                             {% if abbonamento.attivo %}
                                             {{ abbonamento.prossimo_addebito.strftime('%d/%m/%Y') }}
                                             {% else %}
@@ -123,7 +123,7 @@
                                                 >
                                                     <i class="fas fa-edit" aria-hidden="true"></i>
                                                 </button>
-                                                <form method="POST" action="{{ url_for('ppay.elimina_abbonamento', abbonamento_id=abbonamento.id) }}" style="display: inline;" onsubmit="return confirm('Sei sicuro di voler eliminare questo abbonamento?')">
+                                                <form method="POST" action="{{ url_for('ppay.elimina_abbonamento', abbonamento_id=abbonamento.id) }}" style="display: inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo abbonamento?">
                                                     <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina abbonamento" aria-label="Elimina abbonamento">
                                                         <i class="fas fa-trash" aria-hidden="true"></i>
                                                         <span class="visually-hidden">Elimina abbonamento</span>
@@ -200,6 +200,7 @@
                                 <tr>
                                     <th>Descrizione</th>
                                     <th>Data</th>
+                                    <th>Categoria</th>
                                     <th>Tipo</th>
                                     <th>Importo</th>
                                     <th>Azioni</th>
@@ -216,7 +217,14 @@
                                         {{ movimento.tipo|capitalize }}
                                     </span>
                                 </td>
-                                <td class="text-center {% if movimento.importo > 0 %}text-success{% else %}text-danger{% endif %} align-middle">
+                                <td class="text-center align-middle">
+                                    {% if movimento.tipo_movimento == 'entrata' %}
+                                        <span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>
+                                    {% else %}
+                                        <span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center {% if movimento.tipo_movimento == 'entrata' %}text-success{% else %}text-danger{% endif %} align-middle">
                                     {{ (movimento.importo) | format_currency }}
                                 </td>
                                 <td class="text-center align-middle">
@@ -224,8 +232,8 @@
                                             data-movimento-id="{{ movimento.id }}"
                                             data-movimento-descrizione="{{ movimento.descrizione|e }}"
                                             data-movimento-data="{{ movimento.data.strftime('%Y-%m-%d') }}"
-                                            data-movimento-tipo="{{ 'entrata' if movimento.importo>0 else 'uscita' }}"
-                                            data-movimento-importo="{{ '%.2f'|format(movimento.importo|abs) }}"
+                                            data-movimento-tipo="{{ movimento.tipo_movimento }}"
+                                            data-movimento-importo="{{ '%.2f'|format(movimento.importo) }}"
                                             data-movimento-tipo_movimento="{{ movimento.tipo }}"
                                     ><i class="fas fa-edit"></i></button>
                                     <form method="POST" action="{{ url_for('ppay.elimina_movimento', movimento_id=movimento.id) }}" class="form-delete-movimento" style="display:inline;">
@@ -792,11 +800,17 @@ document.addEventListener('DOMContentLoaded', function(){
 
         // confirm deletion for delete forms (delegate instead of relying on inline onsubmit)
         if (isDeleteMov) {
-            if (!confirm('Sei sicuro di eliminare questo movimento?')) {
-                return; // user cancelled
-                } else {
+            e.preventDefault(); e.stopPropagation();
+            var msg = 'Sei sicuro di eliminare questo movimento?';
+            var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ return Promise.resolve(false); };
+            var proceed = false;
+            confirmFn(msg).then(function(ok){
+                if (!ok) return;
                 try { console.log('User confirmed delete for', form.getAttribute('action')); } catch(e){}
-            }
+                // continue with submit below by removing prevention flag
+                try { form.dataset.submitting = '1'; form.submit(); } catch(e){}
+            }).catch(function(){ /* ignore */ });
+            return;
         }
 
         // prevent double submission

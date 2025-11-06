@@ -56,8 +56,9 @@ class MovimentoPostePay(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     data = db.Column(db.Date, nullable=False)
     descrizione = db.Column(db.String(200), nullable=False)
-    importo = db.Column(db.Float, nullable=False)  # Positivo per entrate, negativo per uscite
-    tipo = db.Column(db.String(50), nullable=False)  # 'ricarica', 'abbonamento', 'altro'
+    importo = db.Column(db.Float, nullable=False)  # Sempre positivo
+    tipo = db.Column(db.String(50), nullable=False)  # 'ricarica', 'abbonamento', 'pagamento', 'altro'
+    tipo_movimento = db.Column(db.String(20), nullable=False)  # 'entrata' o 'uscita'
     # FK updated to match renamed abbonamenti table
     abbonamento_id = db.Column(db.Integer, db.ForeignKey('ppay_evolution_abbonamenti.id'), nullable=True)
     abbonamento = db.relationship('AbbonamentoPostePay', backref=db.backref('movimenti', lazy=True))
