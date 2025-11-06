@@ -781,12 +781,12 @@ def correggi_saldo(start_date, end_date):
 		else:
 			tipo = 'uscita'
 			importo = abs(differenza)
-			# Find "Correzione Saldo" category for expenses
-			categoria = Categorie.query.filter_by(nome='Correzione Saldo').first()
+			# Find "Spese Mensili" category for expenses
+			categoria = Categorie.query.filter_by(nome='Spese Mensili').first()
 			if not categoria:
 				# If not found, try to find any "uscita" category as fallback
 				categoria = Categorie.query.filter_by(tipo='uscita').first()
-			categoria_nome = 'Correzione Saldo'
+			categoria_nome = 'Spese Mensili'
 		
 		if not categoria:
 			msg = f'Categoria "{categoria_nome}" non trovata. Impossibile creare la transazione di correzione.'
@@ -817,6 +817,30 @@ def correggi_saldo(start_date, end_date):
 
 		db.session.add(transazione)
 		db.session.commit()
+
+		# If this is an expense correction, decrement the monthly budget for the category
+		# and update persisted monthly summary so Saldo Attuale reflects the change immediately.
+		if tipo == 'uscita':
+			try:
+				# Do NOT change BudgetMensili.importo: the monthly budget total must remain unchanged.
+				# The correction transaction itself (categoria 'Spese Mensili') will be
+				# counted among spese_effettuate, so the budget residual will decrease automatically.
+
+				# Update persisted monthly summary (SaldiMensili) so UI top boxes use updated values
+				try:
+					ms = SaldiMensili.query.filter_by(year=data_transazione.year, month=data_transazione.month).first()
+					if ms:
+						ms.uscite = float(ms.uscite or 0.0) + float(importo or 0.0)
+						ms.saldo_finale = float(ms.saldo_iniziale or 0.0) + float(ms.entrate or 0.0) - float(ms.uscite or 0.0)
+						db.session.commit()
+				except Exception:
+					try:
+						db.session.rollback()
+					except Exception:
+						pass
+			except Exception:
+				# Non-critical: continue
+				pass
 
 		# Update summaries
 		try:

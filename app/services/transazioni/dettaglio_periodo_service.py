@@ -85,6 +85,24 @@ class DettaglioPeriodoService:
         # Calcola totali previsti (effettuate + in attesa)
         entrate_totali_previste = entrate_effettuate + entrate_in_attesa
         uscite_totali_previste = uscite_effettuate + uscite_in_attesa
+
+        # Sottrai dalle uscite previste il totale delle transazioni di tipo 'uscita'
+        # con categoria 'Correzione Saldo' — queste rappresentano adeguamenti che
+        # non devono essere contate nelle uscite previste ordinarie.
+        try:
+            correzioni_effettuate = sum(
+                t.importo for t in transazioni_effettuate
+                if t.tipo == 'uscita' and getattr(getattr(t, 'categoria', None), 'nome', None) == 'Correzione Saldo'
+            )
+            correzioni_in_attesa = sum(
+                t.importo for t in transazioni_in_attesa
+                if t.tipo == 'uscita' and getattr(getattr(t, 'categoria', None), 'nome', None) == 'Correzione Saldo'
+            )
+            correzioni_totali = float(correzioni_effettuate or 0.0) + float(correzioni_in_attesa or 0.0)
+            uscite_totali_previste = max(0.0, float(uscite_totali_previste or 0.0) - correzioni_totali)
+        except Exception:
+            # Se qualcosa va storto, non blocchiamo la vista: manteniamo il valore originale
+            pass
         bilancio_totale_previsto = entrate_totali_previste - uscite_totali_previste
 
         # Calcola il saldo iniziale per questo mese specifico
