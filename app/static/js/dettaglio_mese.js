@@ -45,6 +45,20 @@
             if (summary.saldo_iniziale_mese !== undefined && document.getElementById('saldo_iniziale_val')) document.getElementById('saldo_iniziale_val').textContent = formatEuro(summary.saldo_iniziale_mese);
             if (summary.saldo_attuale_mese !== undefined && document.getElementById('saldo_attuale_val')) document.getElementById('saldo_attuale_val').textContent = formatEuro(summary.saldo_attuale_mese);
             if (summary.saldo_finale_mese !== undefined && document.getElementById('saldo_finale_val')) document.getElementById('saldo_finale_val').textContent = formatEuro(summary.saldo_finale_mese);
+            // If template shows combined "saldo finale + residui" element, update it as well
+            try{
+                var el = document.getElementById('saldo_finale_plus_residui_val');
+                if (el) {
+                    if (summary && typeof summary.saldo_finale_plus_residui !== 'undefined') {
+                        el.textContent = ' / ' + formatEuro(Number(summary.saldo_finale_plus_residui || 0));
+                    } else if (summary && summary.budget_items) {
+                        var sumResidui = (summary.budget_items || []).reduce(function(acc, b){ return acc + (Number((b && (b.residuo || b.residuo === 0)) ? b.residuo : (b && b.residuo) || 0) || 0); }, 0) || 0;
+                        var base = Number(summary.saldo_finale_mese || 0);
+                        var total = base + sumResidui;
+                        el.textContent = ' / ' + formatEuro(total);
+                    }
+                }
+            }catch(e){ console && console.error && console.error('update saldo_finale_plus_residui error', e); }
             if (summary.budget_items) updateBudgetItems(summary.budget_items);
             // cache latest stats so modal/chart can render on demand
             try {

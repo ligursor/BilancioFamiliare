@@ -171,6 +171,7 @@ def mese(anno, mese):
 			     categorie=categorie_dict,
 			     anno=anno,
 			     mese=mese,
+			     mese_corrente=(anno == datetime.now().year and mese == datetime.now().month),
 			     mese_prec=mese_prec,
 			     anno_prec=anno_prec,
 			     mese_succ=mese_succ,
@@ -262,7 +263,7 @@ def dettaglio_periodo(start_date, end_date):
 
 		return render_template('bilancio/dettaglio_mese.html', **result,
 					   stats_categorie=stats_categorie,
-					   anno=anno, mese=mese,
+				   anno=anno, mese=mese, mese_corrente=(anno == datetime.now().year and mese == datetime.now().month),
 					   mese_prec=mese_prec, anno_prec=anno_prec,
 					   mese_succ=mese_succ, anno_succ=anno_succ,
 					   available_months=available_months)
@@ -343,6 +344,15 @@ def elimina_transazione_periodo(start_date, end_date, id):
 					'budget_items': summary.get('budget_items') or [],
 					'stats_categorie': stats_serial
 				}
+
+				# compute saldo_finale + sum of residui (defensive)
+				try:
+					b_items = summary.get('budget_items') or []
+					sum_residui = sum([float(b.get('residuo') or 0) if isinstance(b, dict) else float(getattr(b, 'residuo', 0) or 0) for b in b_items])
+					base_finale = float(ms_row.saldo_finale if ms_row.saldo_finale is not None else (ms_row.saldo_iniziale + ((ms_row.entrate or 0.0) - (ms_row.uscite or 0.0))))
+					out['saldo_finale_plus_residui'] = float(base_finale + sum_residui)
+				except Exception:
+					out['saldo_finale_plus_residui'] = float(out.get('saldo_finale_mese') or 0.0)
 			else:
 				out = {
 					'entrate': float(summary.get('entrate') or 0.0),
@@ -355,6 +365,15 @@ def elimina_transazione_periodo(start_date, end_date, id):
 					'budget_items': summary.get('budget_items') or [],
 					'stats_categorie': stats_serial
 				}
+
+				# compute saldo_finale + residui defensively
+				try:
+					b_items = summary.get('budget_items') or []
+					sum_residui = sum([float(b.get('residuo') or 0) if isinstance(b, dict) else float(getattr(b, 'residuo', 0) or 0) for b in b_items])
+					base_finale = float(summary.get('saldo_finale_mese') or 0.0)
+					out['saldo_finale_plus_residui'] = float(base_finale + sum_residui)
+				except Exception:
+					out['saldo_finale_plus_residui'] = float(out.get('saldo_finale_mese') or 0.0)
 			return jsonify({'status': 'ok', 'summary': out})
 		except Exception:
 			return jsonify({'status': 'error'}), 500
@@ -477,6 +496,15 @@ def aggiungi_transazione_periodo(start_date, end_date):
 					'budget_items': summary.get('budget_items') or [],
 					'stats_categorie': stats_serial
 				}
+
+				# compute saldo_finale + residui for client convenience
+				try:
+					b_items = summary.get('budget_items') or []
+					sum_residui = sum([float(b.get('residuo') or 0) if isinstance(b, dict) else float(getattr(b, 'residuo', 0) or 0) for b in b_items])
+					base_finale = float(summary.get('saldo_finale_mese') or 0.0)
+					summary_out['saldo_finale_plus_residui'] = float(base_finale + sum_residui)
+				except Exception:
+					summary_out['saldo_finale_plus_residui'] = float(summary_out.get('saldo_finale_mese') or 0.0)
 			except Exception as e:
 				# If computing the full summary failed, try a minimal safe summary so the client
 				# still receives updated totals. Do not raise further.
@@ -498,6 +526,14 @@ def aggiungi_transazione_periodo(start_date, end_date):
 						'budget_items': summary.get('budget_items') or [],
 						'stats_categorie': []
 					}
+
+					try:
+						b_items = summary.get('budget_items') or []
+						sum_residui = sum([float(b.get('residuo') or 0) if isinstance(b, dict) else float(getattr(b, 'residuo', 0) or 0) for b in b_items])
+						base_finale = float(summary.get('saldo_finale_mese') or 0.0)
+						summary_out['saldo_finale_plus_residui'] = float(base_finale + sum_residui)
+					except Exception:
+						summary_out['saldo_finale_plus_residui'] = float(summary_out.get('saldo_finale_mese') or 0.0)
 				except Exception:
 					summary_out = {'entrate':0.0,'uscite':0.0,'bilancio':0.0,'saldo_iniziale_mese':0.0,'saldo_attuale_mese':0.0,'saldo_finale_mese':0.0,'saldo_previsto_fine_mese':0.0,'budget_items':[],'stats_categorie':[]}
 
@@ -852,16 +888,26 @@ def correggi_saldo(start_date, end_date):
 		if is_ajax:
 			# Recalculate stats and return updated summary
 			stats = service.dettaglio_periodo_interno(start_dt, end_dt)
+			# compute saldo_finale_plus_residui defensively
+			try:
+				b_items = stats.get('budget_items') or []
+				sum_residui = sum([float(b.get('residuo') or 0) if isinstance(b, dict) else float(getattr(b, 'residuo', 0) or 0) for b in b_items])
+				base_finale = float(stats.get('saldo_finale_mese') or 0.0)
+				saldo_plus = float(base_finale + sum_residui)
+			except Exception:
+				saldo_plus = float(stats.get('saldo_finale_mese') or 0.0)
 			return jsonify({
 				'status': 'ok',
 				'message': msg,
 				'summary': {
-					'saldo_iniziale_mese': stats.get('saldo_iniziale_mese', 0),
-					'entrate': stats.get('entrate', 0),
-					'uscite': stats.get('uscite', 0),
-					'bilancio': stats.get('bilancio', 0),
-					'saldo_attuale_mese': stats.get('saldo_attuale_mese', 0),
-					'saldo_finale_mese': stats.get('saldo_finale_mese', 0)
+					'saldo_iniziale_mese': float(stats.get('saldo_iniziale_mese') or 0),
+					'entrate': float(stats.get('entrate') or 0),
+					'uscite': float(stats.get('uscite') or 0),
+					'bilancio': float(stats.get('bilancio') or 0),
+					'saldo_attuale_mese': float(stats.get('saldo_attuale_mese') or 0),
+					'saldo_finale_mese': float(stats.get('saldo_finale_mese') or 0),
+					'saldo_finale_plus_residui': saldo_plus,
+					'budget_items': stats.get('budget_items') or []
 				}
 			})
 		flash(msg, 'success')

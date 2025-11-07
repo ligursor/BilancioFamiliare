@@ -10,7 +10,13 @@ function modificaTransazioneAttr(btn) {
     // Inline-only edit of importo (fall back to full modal if anything goes wrong)
     try {
         const id = btn.getAttribute('data-id');
-        const rawImporto = btn.getAttribute('data-importo') || '0';
+        // Normalize stored importo (someflows may leave a formatted string like "-€ 6.00")
+        var rawImporto = btn.getAttribute('data-importo') || '0';
+        try {
+            // keep only digits, minus, dot and comma; convert comma to dot
+            rawImporto = String(rawImporto).replace(/[^0-9\-\.,]/g, '').replace(',', '.');
+            if (rawImporto === '' || rawImporto === null) rawImporto = '0';
+        } catch (e) { rawImporto = '0'; }
         const startDate = '{{ start_date }}';
         const endDate = '{{ end_date }}';
 
@@ -37,7 +43,7 @@ function modificaTransazioneAttr(btn) {
     const input = document.createElement('input');
     input.type = 'number'; input.name = 'importo'; input.step = '0.01'; input.min = '0';
     input.className = 'form-control form-control-sm no-spinner'; input.style.width = '120px';
-        input.value = parseFloat(rawImporto) || 0;
+        input.value = (isNaN(parseFloat(rawImporto)) ? 0 : parseFloat(rawImporto));
 
         const saveBtn = document.createElement('button');
         saveBtn.type = 'submit'; saveBtn.className = 'btn btn-sm btn-outline-success ms-2';
@@ -60,7 +66,11 @@ function modificaTransazioneAttr(btn) {
                 // Update summary cards and budget rows if provided
                 try { if (json.summary) applySummary(json.summary); } catch(e) { console && console.error && console.error('applySummary failed', e); }
                 // Update the amount cell locally to reflect the new value
-                try { var sign = amountCell.classList.contains('text-success') ? '+' : '-'; amountCell.textContent = sign + '€ ' + Number(input.value || 0).toFixed(2); } catch(e){}
+                try {
+                    amountCell.textContent = '€ ' + Number(input.value || 0).toFixed(2);
+                    // keep the edit button's data-importo in sync so future inline edits pick the updated value
+                    try { btn.setAttribute('data-importo', Number(input.value || 0)); } catch(e) {}
+                } catch(e){}
                 // try { showToast('Modifica salvata', 'success'); } catch(e){}
             }).catch(function(err){ console.error('Errore salvataggio inline:', err); showToast('Errore nel salvataggio. Riprova.','danger'); amountCell.innerHTML = originalHtml; try { btn.style.display = ''; } catch(e) {} })
             .finally(function(){ saveBtn.disabled = false; cancelBtn.disabled = false; });
@@ -188,6 +198,7 @@ function modificaMonthlyBudget(btn) {
                             </div>
                         </div>
                     </div>
+                    {% if not mese_corrente %}
                     <div class="col-md-2">
                         <div class="card {% if bilancio >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
                             <div class="card-body text-center">
@@ -196,6 +207,7 @@ function modificaMonthlyBudget(btn) {
                             </div>
                         </div>
                     </div>
+                    {% endif %}
                     <!-- Budget breakdown verrà mostrato in una tabella più sotto -->
                     {% if not mese_futuro %}
                     <div class="col-md-2">
@@ -214,6 +226,20 @@ function modificaMonthlyBudget(btn) {
                             </div>
                         </div>
                     </div>
+                    {% if mese_corrente %}
+                    {# For current month: hide Bilancio Previsto and expand Saldo Finale to use freed space #}
+                    <div class="col-md-4">
+                        <div class="card {% if saldo_finale_mese >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
+                            <div class="card-body text-center">
+                                <h6>Saldo Finale</h6>
+                                <h4>
+                                    <span id="saldo_finale_val">€ {{ "%.2f"|format(saldo_finale_mese) }}</span>
+                                    <span id="saldo_finale_plus_residui_val"> / € {{ "%.2f"|format((saldo_finale_mese or 0) + (budget_items|sum(attribute='residuo') or 0)) }}</span>
+                                </h4>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
                     <div class="col-md-2">
                         <div class="card {% if saldo_finale_mese >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
                             <div class="card-body text-center">
@@ -222,6 +248,7 @@ function modificaMonthlyBudget(btn) {
                             </div>
                         </div>
                     </div>
+                    {% endif %}
                     {% else %}
                     <!-- Per mesi futuri, mostra un box con la previsione -->
                     <div class="col-md-4">
