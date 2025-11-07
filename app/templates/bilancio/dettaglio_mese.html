@@ -227,15 +227,20 @@ function modificaMonthlyBudget(btn) {
                         </div>
                     </div>
                     {% if mese_corrente %}
-                    {# For current month: hide Bilancio Previsto and expand Saldo Finale to use freed space #}
-                    <div class="col-md-4">
+                    {# For current month: show two boxes side-by-side: Saldo Finale and Saldo Finale + Budget #}
+                    <div class="col-md-2">
                         <div class="card {% if saldo_finale_mese >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
                             <div class="card-body text-center">
                                 <h6>Saldo Finale</h6>
-                                <h4>
-                                    <span id="saldo_finale_val">€ {{ "%.2f"|format(saldo_finale_mese) }}</span>
-                                    <span id="saldo_finale_plus_residui_val"> / € {{ "%.2f"|format((saldo_finale_mese or 0) + (budget_items|sum(attribute='residuo') or 0)) }}</span>
-                                </h4>
+                                <h4 id="saldo_finale_val">€ {{ "%.2f"|format(saldo_finale_mese) }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card {% if ((saldo_finale_mese or 0) + (budget_items|sum(attribute='residuo') or 0)) >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
+                            <div class="card-body text-center">
+                                <h6>Con Budget Residuo</h6>
+                                <h4 id="saldo_finale_plus_residui_val">€ {{ "%.2f"|format((saldo_finale_mese or 0) + (budget_items|sum(attribute='residuo') or 0)) }}</h4>
                             </div>
                         </div>
                     </div>
@@ -281,17 +286,19 @@ function modificaMonthlyBudget(btn) {
                                     {% for b in budget_items %}
                                     <tr>
                                         <td class="text-start">{{ b.categoria_nome }}</td>
-                                        <td class="text-center">
-                                            <span class="iniziale-val" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.iniziale) }}</span>
+                                        <td class="text-center align-middle">
+                                            <span class="iniziale-val align-middle" data-categoria-id="{{ b.categoria_id }}">
+                                                € {{ "%.2f"|format(b.iniziale) }}
+                                            </span>
                                             <div class="btn-group btn-group-sm ms-2" role="group" aria-label="Budget actions">
-                                                <button type="button" class="btn btn-outline-primary btn-sm btn-edit-budget" data-action="modifica-monthly-budget" data-categoria="{{ b.categoria_id }}" data-iniziale="{{ '%.2f'|format(b.iniziale) }}" title="Modifica importo mensile" aria-label="Modifica budget">
-                                                    <i class="fas fa-edit"></i>
+                                                <button type="button" class="btn btn-outline-primary btn-sm btn-edit-budget align-middle" data-action="modifica-monthly-budget" data-categoria="{{ b.categoria_id }}" data-iniziale="{{ '%.2f'|format(b.iniziale) }}" title="Modifica importo mensile" aria-label="Modifica budget">
+                                                    <i class="fas fa-edit" aria-hidden="true"></i>
                                                 </button>
                                             </div>
                                         </td>
-                                        <td class="text-center text-danger"><span class="spese-effettuate-val" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.spese_effettuate) }}</span></td>
-                                        <td class="text-center text-warning"><span class="spese-pianificate-val" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.spese_pianificate) }}</span></td>
-                                        <td class="text-center {% if b.residuo < 0 %}text-danger{% else %}text-success{% endif %}"><span class="residuo-val" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.residuo) }}</span></td>
+                                        <td class="text-center text-danger align-middle"><span class="spese-effettuate-val align-middle" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.spese_effettuate) }}</span></td>
+                                        <td class="text-center text-warning align-middle"><span class="spese-pianificate-val align-middle" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.spese_pianificate) }}</span></td>
+                                        <td class="text-center align-middle {% if b.residuo < 0 %}text-danger{% else %}text-success{% endif %}"><span class="residuo-val align-middle" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.residuo) }}</span></td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>

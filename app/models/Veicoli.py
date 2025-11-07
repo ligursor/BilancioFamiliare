@@ -96,8 +96,8 @@ class AutoBolli(db.Model):
     # Renamed table to follow new naming convention
     __tablename__ = 'auto_bolli'
 
-    # Use autoincrement=False to avoid creating an AUTOINCREMENT sqlite sequence
-    id = db.Column(db.Integer, primary_key=True, autoincrement=False)
+    # Allow the database to autoincrement primary key
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     veicolo_id = db.Column(db.Integer, db.ForeignKey('veicoli.id'), nullable=False)
     veicolo = db.relationship('Veicoli', backref=db.backref('bolli', lazy=True, cascade='all, delete-orphan'))
     anno_riferimento = db.Column(db.Integer, nullable=False)
@@ -113,8 +113,8 @@ class AutoManutenzioni(db.Model):
     # Renamed table to follow new naming convention
     __tablename__ = 'auto_manutenzioni'
 
-    # Use autoincrement=False to avoid creating an AUTOINCREMENT sqlite sequence
-    id = db.Column(db.Integer, primary_key=True, autoincrement=False)
+    # Allow the database to autoincrement primary key
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     veicolo_id = db.Column(db.Integer, db.ForeignKey('veicoli.id'), nullable=False)
     veicolo = db.relationship('Veicoli', backref=db.backref('manutenzioni', lazy=True, cascade='all, delete-orphan'))
     data_intervento = db.Column(db.Date, nullable=False)

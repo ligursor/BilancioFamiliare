@@ -393,12 +393,21 @@ def aggiungi_assicurazione():
 def aggiungi_manutenzione():
     """Aggiunge un intervento di manutenzione"""
     try:
+        # Log form keys for easier debugging
+        try:
+            current_app.logger.debug('aggiungi_manutenzione form keys: %s', list(request.form.keys()))
+        except Exception:
+            pass
+
         veicolo_id = int(request.form['veicolo_id'])
+        # Accept either 'descrizione' or 'dettaglio' from the form (template uses 'dettaglio')
+        descr = request.form.get('descrizione', request.form.get('dettaglio', '')).strip()
+
         manutenzione = AutoManutenzioni(
             veicolo_id=veicolo_id,
             data_intervento=datetime.strptime(request.form['data_intervento'], '%Y-%m-%d').date(),
             tipo_intervento=request.form['tipo_intervento'].strip(),
-            descrizione=request.form.get('descrizione', '').strip(),
+            descrizione=descr,
             costo=float(request.form['costo']),
             km_intervento=int(request.form['km_intervento']) if request.form.get('km_intervento') else None,
             officina=request.form.get('officina', '').strip()
@@ -425,6 +434,64 @@ def rimuovi_veicolo(veicolo_id):
     except Exception as e:
         flash(f'Errore nella rimozione del veicolo: {str(e)}', 'error')
         db.session.rollback()
+    return redirect(url_for('veicoli.garage'))
+
+
+@veicoli_bp.route('/elimina_bollo/<int:bollo_id>', methods=['POST'])
+def elimina_bollo(bollo_id):
+    """Elimina un bollo"""
+    try:
+        bollo = AutoBolli.query.get_or_404(bollo_id)
+        veicolo_id = bollo.veicolo_id
+        db.session.delete(bollo)
+        db.session.commit()
+        flash('Bollo eliminato con successo!', 'success')
+    except Exception as e:
+        current_app.logger.exception('Errore nell\'eliminazione bollo id=%s: %s', bollo_id, e)
+        flash(f'Errore durante l\'eliminazione del bollo: {str(e)}', 'error')
+        db.session.rollback()
+
+    # If the form requested redirect to dettaglio, go back there
+    if request.form.get('redirect_to_veicolo'):
+        return redirect(url_for('veicoli.dettaglio', veicolo_id=veicolo_id))
+    return redirect(url_for('veicoli.garage'))
+
+
+@veicoli_bp.route('/elimina_manutenzione/<int:manutenzione_id>', methods=['POST'])
+def elimina_manutenzione(manutenzione_id):
+    """Elimina una manutenzione"""
+    try:
+        m = AutoManutenzioni.query.get_or_404(manutenzione_id)
+        veicolo_id = m.veicolo_id
+        db.session.delete(m)
+        db.session.commit()
+        flash('Manutenzione eliminata con successo!', 'success')
+    except Exception as e:
+        current_app.logger.exception('Errore nell\'eliminazione manutenzione id=%s: %s', manutenzione_id, e)
+        flash(f'Errore durante l\'eliminazione della manutenzione: {str(e)}', 'error')
+        db.session.rollback()
+
+    if request.form.get('redirect_to_veicolo'):
+        return redirect(url_for('veicoli.dettaglio', veicolo_id=veicolo_id))
+    return redirect(url_for('veicoli.garage'))
+
+
+@veicoli_bp.route('/elimina_assicurazione/<int:assicurazione_id>', methods=['POST'])
+def elimina_assicurazione(assicurazione_id):
+    """Elimina una assicurazione"""
+    try:
+        a = Assicurazioni.query.get_or_404(assicurazione_id)
+        veicolo_id = a.veicolo_id
+        db.session.delete(a)
+        db.session.commit()
+        flash('Assicurazione eliminata con successo!', 'success')
+    except Exception as e:
+        current_app.logger.exception('Errore nell\'eliminazione assicurazione id=%s: %s', assicurazione_id, e)
+        flash(f'Errore durante l\'eliminazione dell\'assicurazione: {str(e)}', 'error')
+        db.session.rollback()
+
+    if request.form.get('redirect_to_veicolo'):
+        return redirect(url_for('veicoli.dettaglio', veicolo_id=veicolo_id))
     return redirect(url_for('veicoli.garage'))
 
 

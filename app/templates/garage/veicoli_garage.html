@@ -212,6 +212,7 @@
                                         <th class="text-center">Data</th>
                                         <th class="text-center">Anno</th>
                                         <th class="text-center">Importo</th>
+                                        <th class="text-center">Azioni</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -221,6 +222,14 @@
                                         <td class="text-center">{{ bollo.data_pagamento.strftime('%d/%m/%Y') }}</td>
                                         <td class="text-center">{{ bollo.anno_riferimento }}</td>
                                         <td class="text-center">{{ (bollo.importo) | format_currency }}</td>
+                                        <td class="text-center">
+                                            <form method="POST" action="{{ url_for('veicoli.elimina_bollo', bollo_id=bollo.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo bollo?">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina bollo" aria-label="Elimina bollo">
+                                                    <i class="fas fa-trash" aria-hidden="true"></i>
+                                                    <span class="visually-hidden">Elimina bollo</span>
+                                                </button>
+                                            </form>
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -255,6 +264,7 @@
                                         <th class="text-center">Data</th>
                                         <th class="text-center">Compagnia</th>
                                         <th class="text-center">Importo</th>
+                                        <th class="text-center">Azioni</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -264,6 +274,14 @@
                                         <td class="text-center">{{ assicurazione.data_pagamento.strftime('%d/%m/%Y') }}</td>
                                         <td class="text-start">{{ assicurazione.compagnia }}</td>
                                         <td class="text-center">{{ assicurazione.importo | format_currency }}</td>
+                                        <td class="text-center">
+                                            <form method="POST" action="{{ url_for('veicoli.elimina_assicurazione', assicurazione_id=assicurazione.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa assicurazione?">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina assicurazione" aria-label="Elimina assicurazione">
+                                                    <i class="fas fa-trash" aria-hidden="true"></i>
+                                                    <span class="visually-hidden">Elimina assicurazione</span>
+                                                </button>
+                                            </form>
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -298,6 +316,7 @@
                                         <th class="text-center">Data</th>
                                         <th class="text-center">Dettaglio</th>
                                         <th class="text-center">Importo</th>
+                                        <th class="text-center">Azioni</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -307,6 +326,14 @@
                                         <td class="text-center">{{ manutenzione.data_intervento.strftime('%d/%m/%Y') }}</td>
                                         <td class="text-start">{{ manutenzione.tipo_intervento }}<br><small class="text-muted">{{ manutenzione.officina }} - KM {{ "{:,}".format(manutenzione.km_intervento).replace(',', '.') }}</small></td>
                                         <td class="text-center">{{ (manutenzione.costo) | format_currency }}</td>
+                                        <td class="text-center">
+                                            <form method="POST" action="{{ url_for('veicoli.elimina_manutenzione', manutenzione_id=manutenzione.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa manutenzione?">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina manutenzione" aria-label="Elimina manutenzione">
+                                                    <i class="fas fa-trash" aria-hidden="true"></i>
+                                                    <span class="visually-hidden">Elimina manutenzione</span>
+                                                </button>
+                                            </form>
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
