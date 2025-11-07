@@ -154,6 +154,26 @@ a.text-decoration-none:active {
 /* Center all table header labels by default */
 .table thead th { text-align: center; vertical-align: middle; }
 
+/* Ensure tables inside cards align visually with the card header
+   This fixes small horizontal shifts where a table could appear
+   slightly indented compared to the header (see Garage -> Manutenzioni).
+   These are conservative rules that keep default Bootstrap spacing
+   but make sure the table edge aligns with the card body padding. */
+.card > .card-body > .table-responsive {
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+.card > .card-body > .table-responsive .table {
+    margin-bottom: 0; /* avoid extra gap below table */
+    width: 100%;
+    table-layout: auto;
+}
+/* normalize horizontal padding for table cells so columns line up */
+.table thead th, .table tbody td {
+    padding-left: .75rem !important;
+    padding-right: .75rem !important;
+}
+
 /* Hide native number input spin buttons for elements that should not show them
    Use the class .no-spinner on the input to target budget numeric inputs only. */
 .no-spinner::-webkit-outer-spin-button,

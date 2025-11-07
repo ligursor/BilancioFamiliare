@@ -207,12 +207,8 @@ aria-label="Modifica piano"                                                     
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="fas fa-check me-2"></i>Piani completati</h5>
-        <button id="toggle-completati" class="btn btn-sm d-flex" type="button" data-bs-toggle="collapse" data-bs-target="#completatiCollapse" aria-expanded="false" aria-controls="completatiCollapse" aria-label="Mostra o nascondi piani completati" style="background: transparent; color: #ffffff; border: none; box-shadow: none; width:32px; height:32px; padding:0; align-items:center; justify-content:center;">
-            <span id="toggle-icon"><i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i></span>
-        </button>
     </div>
-    <div id="completatiCollapse" class="collapse">
-        <div class="card-body">
+    <div class="card-body">
         {% set piani_completati = piani|selectattr('stato', 'equalto', 'completato')|list if piani else [] %}
         {% if piani_completati %}
         <div class="table-responsive">
@@ -271,7 +267,7 @@ document.addEventListener('DOMContentLoaded', function(){
 document.addEventListener('DOMContentLoaded', function(){
     var table = document.getElementById('table-piani-completati');
     if (!table) return;
-    var pageSize = parseInt(table.dataset.pageSize, 10) || 5;
+    var pageSize = parseInt(table.dataset.pageSize, 10) || 3;
     var tbody = table.querySelector('tbody');
     var rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
     var totalRows = rows.length;
@@ -314,28 +310,6 @@ document.addEventListener('DOMContentLoaded', function(){
 
     // initialize to first page
     renderPage(1);
-});
-</script>
-<script>
-// Toggle icon for the completed section collapse
-document.addEventListener('DOMContentLoaded', function(){
-    var collapseEl = document.getElementById('completatiCollapse');
-    var toggleIcon = document.getElementById('toggle-icon');
-    var toggleBtn = document.getElementById('toggle-completati');
-    if (!collapseEl || !toggleIcon || !toggleBtn) return;
-
-    collapseEl.addEventListener('show.bs.collapse', function(){
-        toggleIcon.innerHTML = '<i class="fas fa-eye" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';                                                    // Scroll and focus the table so it's centered on screen
-        var table = document.getElementById('table-piani-completati');
-        if (table) {
-            setTimeout(function(){
-                table.scrollIntoView({behavior: 'smooth', block: 'center'});
-                try { table.focus(); } catch(e){}
-            }, 200);
-        }
-    });
-    collapseEl.addEventListener('hide.bs.collapse', function(){
-        toggleIcon.innerHTML = '<i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';                                          });
 });
 </script>
 <script>
@@ -463,21 +437,6 @@ importo.setAttribute('readonly', 'readonly'); importo.setAttribute('aria-readonl
             } else {
                 resp.text().then(function(txt){ try { showToast('Errore nel salvataggio: ' + txt, 'danger'); } catch(e){} if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; } });                                                                                         }
         }).catch(function(err){ try { showToast('Errore di rete: ' + err, 'danger'); } catch(e){} if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = origHtml; } });                                                                                                         });
-});
-</script>
-<script>
-// Ensure the toggle button always toggles the collapse (fallback for data-* issues)
-document.addEventListener('DOMContentLoaded', function(){
-    try {
-        var btn = document.getElementById('toggle-completati');
-        var collapseEl = document.getElementById('completatiCollapse');
-        if (!btn || !collapseEl || !window.bootstrap) return;
-        btn.addEventListener('click', function(e){
-            // Use Bootstrap's collapse API
-            var inst = bootstrap.Collapse.getOrCreateInstance(collapseEl);
-            inst.toggle();
-        });
-    } catch (e) { /* fail silently */ }
 });
 </script>
 {% endblock %}

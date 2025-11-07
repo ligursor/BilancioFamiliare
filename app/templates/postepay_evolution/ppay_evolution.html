@@ -185,13 +185,9 @@
                     <button id="btn-nuovo-movimento" class="btn btn-success btn-sm me-2" type="button" aria-controls="tmpl-nuovo-movimento">
                         <i class="fas fa-plus me-1"></i>Nuovo Movimento
                     </button>
-                    <button id="toggle-movimenti" class="btn btn-sm d-flex" type="button" data-bs-toggle="collapse" data-bs-target="#movimentiCollapse" aria-expanded="true" aria-controls="movimentiCollapse" aria-label="Mostra o nascondi movimenti" style="background: transparent; color: inherit; border: none; box-shadow: none; width:32px; height:32px; padding:0; align-items:center; justify-content:center;">
-                        <span id="toggle-icon-movimenti"><i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i></span>
-                    </button>
                 </div>
             </div>
-            <div id="movimentiCollapse" class="collapse">
-                <div class="card-body">
+            <div class="card-body">
                     {% if movimenti %}
                     <div id="movimenti-table-container">
                     <div class="table-responsive">
@@ -451,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
 window.initMovimentiPagination = function(preferredPage) {
     var table = document.getElementById('table-movimenti-recenti');
     if (!table) return;
-    var pageSize = parseInt(table.dataset.pageSize, 10) || 5;
+    var pageSize = parseInt(table.dataset.pageSize, 10) || 3;
     var tbody = table.querySelector('tbody');
     var rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
     var totalRows = rows.length;
@@ -555,27 +551,7 @@ window.initAbbonamentiPagination = function(preferredPage) {
 document.addEventListener('DOMContentLoaded', function(){ window.initAbbonamentiPagination(); });
 </script>
 <script>
-// Toggle icon for the movimenti section collapse
-document.addEventListener('DOMContentLoaded', function(){
-    var collapseEl = document.getElementById('movimentiCollapse');
-    var toggleIcon = document.getElementById('toggle-icon-movimenti');
-    var toggleBtn = document.getElementById('toggle-movimenti');
-    if (!collapseEl || !toggleIcon || !toggleBtn) return;
-
-    collapseEl.addEventListener('show.bs.collapse', function(){
-        toggleIcon.innerHTML = '<i class="fas fa-eye" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';
-        var table = document.getElementById('table-movimenti-recenti');
-        if (table) {
-            setTimeout(function(){
-                table.scrollIntoView({behavior: 'smooth', block: 'center'});
-                try { table.focus(); } catch(e){}
-            }, 200);
-        }
-    });
-    collapseEl.addEventListener('hide.bs.collapse', function(){
-        toggleIcon.innerHTML = '<i class="fas fa-eye-slash" style="width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; line-height:1; color:inherit;"></i>';
-    });
-});
+// (removed collapse icon handling for movimenti: section is always visible)
 </script>
 <script>
 // Inline Nuovo Movimento handling: insert template, submit via fetch, and partial replace
@@ -955,21 +931,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
             // Show/scroll the relevant section depending on which form was submitted
             if (isMov || isDeleteMov) {
-                // Ensure movimenti collapse is shown after movement operations
-                setTimeout(function(){
-                    const movCollapseEl = document.getElementById('movimentiCollapse');
-                    if (movCollapseEl) {
-                                try {
-                                    // Force the collapse to be shown
-                                    const collapseInstance = bootstrap.Collapse.getOrCreateInstance(movCollapseEl);
-                                    console.log('Calling collapse.show()');
-                                    collapseInstance.show();
-                                    console.log('collapse.show() called successfully');
-                                } catch(e) {
-                                    console.warn('Could not show movimenti collapse', e);
-                                }
-                    }
-                }, 50);
+                // movimenti section is always visible now; just scroll to the table below if needed
 
                 // Scroll the movimenti table into view if present
                 const tableAfter = document.getElementById('table-movimenti-recenti');
