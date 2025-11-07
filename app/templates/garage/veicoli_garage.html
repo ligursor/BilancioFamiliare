@@ -161,14 +161,14 @@
                                             <i class="fas fa-eye"></i> Dettagli
                                         </a>
                                         {%- if veicolo.tipo in ['auto','moto'] -%}
-                                        <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalNuovoBollo" data-action="set-veicolo-id" data-id="{{ veicolo.id }}">
+                                        <button type="button" class="btn btn-sm btn-success" data-action="open-inline-bollo" data-id="{{ veicolo.id }}" data-name="{{ veicolo.nome_completo }}">
                                             <i class="fas fa-receipt"></i> Bollo
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#modalNuovaAssicurazione" data-action="set-veicolo-id" data-id="{{ veicolo.id }}">
+                                        <button type="button" class="btn btn-sm btn-info" data-action="open-inline-assicurazione" data-id="{{ veicolo.id }}" data-name="{{ veicolo.nome_completo }}">
                                             <i class="fas fa-shield-alt"></i> Assicuraz.
                                         </button>
                                         {%- endif -%}
-                                        <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalNuovaManutenzione" data-action="set-veicolo-id" data-id="{{ veicolo.id }}">
+                                        <button type="button" class="btn btn-sm btn-warning" data-action="open-inline-manutenzione" data-id="{{ veicolo.id }}" data-name="{{ veicolo.nome_completo }}">
                                             <i class="fas fa-wrench"></i> Manut.
                                         </button>
                                     </div>
@@ -433,153 +433,277 @@
     </div>
 </template>
 
-<!-- Modal Nuovo Bollo -->
-<div class="modal fade" id="modalNuovoBollo" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Nuovo Bollo Auto</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ url_for('veicoli.aggiungi_bollo') }}">
-                <input type="hidden" id="bollo_veicolo_id" name="veicolo_id">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="anno_riferimento" class="form-label">Anno di Riferimento *</label>
-                        <input type="number" class="form-control" id="anno_riferimento" name="anno_riferimento" min="2000" max="2030" value="{{ datetime.now().year }}" required>
+<!-- Inline templates per aggiunte rapide (sostituiscono i modali): bollo / manutenzione / assicurazione -->
+<template id="tpl-nuovo-bollo">
+    <div class="card mb-2 inline-add-box">
+        <div class="card-header d-flex align-items-center py-2">
+            <h5 class="mb-0 fs-6"><i class="fas fa-receipt me-2"></i>Nuovo Bollo per <span class="ms-2"><strong class="inline-target-name"></strong></span></h5>
+            <button type="button" class="btn btn-link p-0 ms-auto inline-cancel" aria-label="Chiudi">
+                <i class="fas fa-times" style="font-size:1.1rem;color:#000;"></i>
+            </button>
+        </div>
+        <div class="card-body py-2">
+            <form class="form-inline-bollo" method="POST" action="{{ url_for('veicoli.aggiungi_bollo') }}">
+                <input type="hidden" name="veicolo_id" value="">
+                <div class="row g-2">
+                    <div class="col-12 col-md-4">
+                        <label class="visually-hidden">Anno</label>
+                        <input type="number" class="form-control form-control-sm" name="anno_riferimento" min="2000" max="2100" value="{{ datetime.now().year }}" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="data_pagamento" class="form-label">Data Pagamento *</label>
-                        <input type="date" class="form-control" id="data_pagamento" name="data_pagamento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+                    <div class="col-12 col-md-4">
+                        <label class="visually-hidden">Data</label>
+                        <input type="date" class="form-control form-control-sm" name="data_pagamento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="importo" class="form-label">Importo (€) *</label>
-                        <input type="number" class="form-control" id="importo" name="importo" step="0.01" min="0" required>
+                    <div class="col-12 col-md-4">
+                        <label class="visually-hidden">Importo</label>
+                        <input type="number" class="form-control form-control-sm" name="importo" step="0.01" min="0" required>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="btn btn-success">Aggiungi Bollo</button>
+                    <div class="col-12 d-flex justify-content-end mt-2">
+                        <button type="submit" class="btn btn-success btn-sm">Aggiungi Bollo</button>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
-</div>
+</template>
 
-<!-- Modal Nuova Manutenzione -->
-<div class="modal fade" id="modalNuovaManutenzione" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-wrench me-2"></i>Nuova Manutenzione</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ url_for('veicoli.aggiungi_manutenzione') }}">
-                <input type="hidden" id="manutenzione_veicolo_id" name="veicolo_id">
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="data_intervento" class="form-label">Data Intervento *</label>
-                                <input type="date" class="form-control" id="data_intervento" name="data_intervento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="km_intervento" class="form-label">KM Intervento *</label>
-                                <input type="number" class="form-control" id="km_intervento" name="km_intervento" min="0" required>
-                            </div>
-                        </div>
+<template id="tpl-nuova-manutenzione">
+    <div class="card mb-2 inline-add-box">
+        <div class="card-header d-flex align-items-center py-2">
+            <h5 class="mb-0 fs-6"><i class="fas fa-wrench me-2"></i>Nuova Manutenzione per <span class="ms-2"><strong class="inline-target-name"></strong></span></h5>
+            <button type="button" class="btn btn-link p-0 ms-auto inline-cancel" aria-label="Chiudi">
+                <i class="fas fa-times" style="font-size:1.1rem;color:#000;"></i>
+            </button>
+        </div>
+        <div class="card-body py-2">
+            <form class="form-inline-manutenzione" method="POST" action="{{ url_for('veicoli.aggiungi_manutenzione') }}">
+                <input type="hidden" name="veicolo_id" value="">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <input type="date" class="form-control form-control-sm" name="data_intervento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="officina" class="form-label">Officina *</label>
-                                <input type="text" class="form-control" id="officina" name="officina" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="tipo_intervento" class="form-label">Tipo Intervento *</label>
-                                <input type="text" class="form-control" id="tipo_intervento" name="tipo_intervento" required>
-                            </div>
-                        </div>
+                    <div class="col-md-6">
+                        <input type="number" class="form-control form-control-sm" name="km_intervento" min="0" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="costo" class="form-label">Costo (€) *</label>
-                        <input type="number" class="form-control" id="costo" name="costo" step="0.01" min="0" required>
+                    <div class="col-md-6">
+                        <input type="text" class="form-control form-control-sm" name="officina" placeholder="Officina" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="dettaglio" class="form-label">Dettaglio Intervento</label>
-                        <textarea class="form-control" id="dettaglio" name="dettaglio" rows="3"></textarea>
+                    <div class="col-md-6">
+                        <input type="text" class="form-control form-control-sm" name="tipo_intervento" placeholder="Tipo intervento" required>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="prossimo_controllo_km" class="form-label">Prossimo Controllo KM</label>
-                                <input type="number" class="form-control" id="prossimo_controllo_km" name="prossimo_controllo_km" min="0">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="prossimo_controllo_data" class="form-label">Prossimo Controllo Data</label>
-                                <input type="date" class="form-control" id="prossimo_controllo_data" name="prossimo_controllo_data">
-                            </div>
-                        </div>
+                    <div class="col-12">
+                        <input type="number" class="form-control form-control-sm" name="costo" step="0.01" min="0" placeholder="Costo (€)" required>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="btn btn-success">Aggiungi Manutenzione</button>
+                    <div class="col-12">
+                        <textarea class="form-control form-control-sm" name="dettaglio" rows="2" placeholder="Dettaglio (opzionale)"></textarea>
+                    </div>
+                    <div class="col-12 d-flex justify-content-end mt-2">
+                        <button type="submit" class="btn btn-success btn-sm">Aggiungi Manutenzione</button>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
-</div>
+</template>
 
-<!-- Modal Nuova Assicurazione -->
-<div class="modal fade" id="modalNuovaAssicurazione" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-shield-alt me-2"></i>Nuova Assicurazione</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ url_for('veicoli.aggiungi_assicurazione') }}">
-                <input type="hidden" id="assicurazione_veicolo_id" name="veicolo_id">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="anno_riferimento_ass" class="form-label">Anno di Riferimento *</label>
-                        <input type="number" class="form-control" id="anno_riferimento_ass" name="anno_riferimento" min="2000" max="2100" value="{{ datetime.now().year }}" required>
+<template id="tpl-nuova-assicurazione">
+    <div class="card mb-2 inline-add-box">
+        <div class="card-header d-flex align-items-center py-2">
+            <h5 class="mb-0 fs-6"><i class="fas fa-shield-alt me-2"></i>Nuova Assicurazione per <span class="ms-2"><strong class="inline-target-name"></strong></span></h5>
+            <button type="button" class="btn btn-link p-0 ms-auto inline-cancel" aria-label="Chiudi">
+                <i class="fas fa-times" style="font-size:1.1rem;color:#000;"></i>
+            </button>
+        </div>
+        <div class="card-body py-2">
+            <form class="form-inline-assicurazione" method="POST" action="{{ url_for('veicoli.aggiungi_assicurazione') }}">
+                <input type="hidden" name="veicolo_id" value="">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <input type="number" class="form-control form-control-sm" name="anno_riferimento" min="2000" max="2100" value="{{ datetime.now().year }}" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="data_pagamento_ass" class="form-label">Data Pagamento *</label>
-                        <input type="date" class="form-control" id="data_pagamento_ass" name="data_pagamento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+                    <div class="col-md-4">
+                        <input type="date" class="form-control form-control-sm" name="data_pagamento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="importo_ass" class="form-label">Importo (€) *</label>
-                        <input type="number" class="form-control" id="importo_ass" name="importo" step="0.01" min="0" required>
+                    <div class="col-md-4">
+                        <input type="number" class="form-control form-control-sm" name="importo" step="0.01" min="0" placeholder="Importo (€)" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="compagnia" class="form-label">Compagnia</label>
-                        <input type="text" class="form-control" id="compagnia" name="compagnia">
+                    <div class="col-12 d-flex justify-content-end mt-2">
+                        <button type="submit" class="btn btn-success btn-sm">Aggiungi Assicurazione</button>
                     </div>
-                    <!-- Numero polizza rimosso: campo non più gestito -->
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="btn btn-success">Aggiungi Assicurazione</button>
                 </div>
             </form>
         </div>
     </div>
-</div>
+</template>
+
+<script>
+// Gestore inline per i pulsanti "open-inline-*" che clona i template e li inserisce vicino alla card del veicolo
+document.addEventListener('click', function(evt){
+    try {
+        var el = evt.target;
+        while(el && el !== document.documentElement) {
+            if (el.dataset && el.dataset.action) break;
+            el = el.parentElement;
+        }
+        if (!el || el === document.documentElement) return;
+        var action = el.dataset.action;
+        if (!action || !action.startsWith('open-inline-')) return;
+        evt.preventDefault();
+
+        var tplId = null;
+        if (action === 'open-inline-bollo') tplId = 'tpl-nuovo-bollo';
+        if (action === 'open-inline-manutenzione') tplId = 'tpl-nuova-manutenzione';
+        if (action === 'open-inline-assicurazione') tplId = 'tpl-nuova-assicurazione';
+        if (!tplId) return;
+
+        var veicoloId = el.dataset.id;
+        var card = el.closest('.card');
+        if (!card) return;
+
+        // If a global inline box for veicoli already exists (we open it under #veicoli-list),
+        // either update it (same form type) or replace its content with the requested template.
+        var existingGlobal = document.getElementById('veicoli-inline-box');
+        var actionType = (action === 'open-inline-bollo') ? 'bollo' : (action === 'open-inline-manutenzione' ? 'manutenzione' : (action === 'open-inline-assicurazione' ? 'assicurazione' : ''));
+        if (existingGlobal) {
+            try {
+                // If existing box matches requested type, just update veicolo_id and name
+                    if (existingGlobal.dataset && existingGlobal.dataset.type === actionType) {
+                    var hid = existingGlobal.querySelector('input[name="veicolo_id"]');
+                    if (hid) hid.value = veicoloId;
+                    var nameEl = existingGlobal.querySelector('.inline-target-name');
+                    var veicoloName = el.dataset.name || (card ? (card.querySelector('.card-title') && card.querySelector('.card-title').firstChild ? card.querySelector('.card-title').firstChild.textContent.trim() : '') : '');
+                    if (nameEl) nameEl.textContent = veicoloName;
+                    var first = existingGlobal.querySelector('input, textarea, select');
+                    if (first) first.focus();
+                    return;
+                }
+                // Otherwise replace the existing box with the requested template
+                var tplReplace = document.getElementById(tplId);
+                if (tplReplace) {
+                    var newClone = tplReplace.content.cloneNode(true);
+                    var newNode = newClone.firstElementChild;
+                    newNode.id = 'veicoli-inline-box';
+                    newNode.dataset.type = actionType;
+                    var hid = newNode.querySelector('input[name="veicolo_id"]'); if (hid) hid.value = veicoloId;
+                    var veicoloName = el.dataset.name || (card ? (card.querySelector('.card-title') ? card.querySelector('.card-title').textContent.trim() : '') : '');
+                    var nameEl = newNode.querySelector('.inline-target-name'); if (nameEl) nameEl.textContent = veicoloName;
+                    // replace in DOM
+                    existingGlobal.parentNode.replaceChild(newNode, existingGlobal);
+                    // wire cancel and submit on the new node (reuse same wiring below by assigning node=newNode)
+                    var node = newNode;
+                    // wire cancel
+                    var cancel = node.querySelector('.inline-cancel');
+                    if (cancel) cancel.addEventListener('click', function(){ node.remove(); });
+                    // wire submit handler
+                    var formReplace = node.querySelector('form');
+                    if (formReplace) {
+                        formReplace.addEventListener('submit', function(e){
+                            e.preventDefault();
+                            if (formReplace.dataset.submitting === '1') return;
+                            formReplace.dataset.submitting = '1';
+                            var action = formReplace.getAttribute('action') || window.location.href;
+                            var fd = new FormData(formReplace);
+                            fetch(action, { method: 'POST', body: fd, headers: { 'X-Requested-With':'XMLHttpRequest' } })
+                            .then(function(resp){ if (!resp.ok) throw new Error('Errore: ' + resp.status); return fetch(window.location.href); })
+                            .then(function(resp){ if (!resp.ok) throw new Error('Errore refresh: ' + resp.status); return resp.text(); })
+                            .then(function(html){
+                                var parser = new DOMParser(); var doc = parser.parseFromString(html,'text/html');
+                                var newTop = doc.getElementById('top-cards'); var oldTop = document.getElementById('top-cards'); if (newTop && oldTop) oldTop.innerHTML = newTop.innerHTML;
+                                var newBolli = doc.getElementById('bolliCollapse'); var oldBolli = document.getElementById('bolliCollapse'); if (newBolli && oldBolli) oldBolli.replaceWith(newBolli.cloneNode(true));
+                                var newAss = doc.getElementById('assicurazioniCollapse'); var oldAss = document.getElementById('assicurazioniCollapse'); if (newAss && oldAss) oldAss.replaceWith(newAss.cloneNode(true));
+                                var newMan = doc.getElementById('manutenzioniCollapse'); var oldMan = document.getElementById('manutenzioniCollapse'); if (newMan && oldMan) oldMan.replaceWith(newMan.cloneNode(true));
+                                try { node.remove(); } catch(e){}
+                                try { initClientPagination('table-bolli', 'pagination-bolli'); } catch(e){}
+                                try { initClientPagination('table-assicurazioni', 'pagination-assicurazioni'); } catch(e){}
+                                try { initClientPagination('table-manutenzioni', 'pagination-manutenzioni'); } catch(e){}
+                                formReplace.dataset.submitting = '0';
+                            }).catch(function(err){ formReplace.dataset.submitting = '0'; try { showToast && showToast('Errore: ' + err.message, 'danger'); } catch(e) {} });
+                        });
+                    }
+                    // focus first input
+                    var first = node.querySelector('input, textarea, select'); if (first) first.focus();
+                    return;
+                }
+            } catch(e) {}
+        }
+
+        var tpl = document.getElementById(tplId);
+        if (!tpl) return;
+        var clone = tpl.content.cloneNode(true);
+        var node = clone.firstElementChild;
+        // set veicolo_id hidden input and display target name in header
+        var hidden = node.querySelector('input[name="veicolo_id"]');
+        if (hidden) hidden.value = veicoloId;
+        try {
+            var cardTitle = card ? card.querySelector('.card-title') : null;
+            var veicoloName = el.dataset.name || (cardTitle && cardTitle.firstChild ? cardTitle.firstChild.textContent.trim() : '');
+            var nameEl = node.querySelector('.inline-target-name');
+            if (nameEl) nameEl.textContent = veicoloName;
+        } catch(e) {}
+
+    // insert the inline box outside the cards, immediately after the veicoli-list container
+    node.dataset.type = actionType;
+    node.id = 'veicoli-inline-box';
+        var veicoliList = document.getElementById('veicoli-list');
+        if (veicoliList && veicoliList.parentNode) {
+            veicoliList.parentNode.insertBefore(node, veicoliList.nextSibling);
+        } else {
+            // fallback: insert after the specific card
+            var cardBody = card.querySelector('.card-body');
+            if (cardBody) {
+                cardBody.insertBefore(node, cardBody.firstElementChild || null);
+            } else {
+                card.parentNode.insertBefore(node, card.nextSibling);
+            }
+        }
+
+        // wire cancel
+        var cancel = node.querySelector('.inline-cancel');
+        if (cancel) cancel.addEventListener('click', function(){ node.remove(); });
+
+        // wire submit via AJAX (same approach used for nuovo veicolo)
+        var form = node.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', function(e){
+                e.preventDefault();
+                if (form.dataset.submitting === '1') return;
+                form.dataset.submitting = '1';
+                var action = form.getAttribute('action') || window.location.href;
+                var fd = new FormData(form);
+                fetch(action, { method: 'POST', body: fd, headers: { 'X-Requested-With':'XMLHttpRequest' } })
+                .then(function(resp){ if (!resp.ok) throw new Error('Errore: ' + resp.status); return fetch(window.location.href); })
+                .then(function(resp){ if (!resp.ok) throw new Error('Errore refresh: ' + resp.status); return resp.text(); })
+                .then(function(html){
+                    var parser = new DOMParser(); var doc = parser.parseFromString(html,'text/html');
+                    // refresh top-cards and tables
+                    var newTop = doc.getElementById('top-cards'); var oldTop = document.getElementById('top-cards'); if (newTop && oldTop) oldTop.innerHTML = newTop.innerHTML;
+                    var newBolli = doc.getElementById('bolliCollapse'); var oldBolli = document.getElementById('bolliCollapse'); if (newBolli && oldBolli) oldBolli.replaceWith(newBolli.cloneNode(true));
+                    var newAss = doc.getElementById('assicurazioniCollapse'); var oldAss = document.getElementById('assicurazioniCollapse'); if (newAss && oldAss) oldAss.replaceWith(newAss.cloneNode(true));
+                    var newMan = doc.getElementById('manutenzioniCollapse'); var oldMan = document.getElementById('manutenzioniCollapse'); if (newMan && oldMan) oldMan.replaceWith(newMan.cloneNode(true));
+                    // remove inline node
+                    try { node.remove(); } catch(e){}
+                    // reinit pagination
+                    try { initClientPagination('table-bolli', 'pagination-bolli'); } catch(e){}
+                    try { initClientPagination('table-assicurazioni', 'pagination-assicurazioni'); } catch(e){}
+                    try { initClientPagination('table-manutenzioni', 'pagination-manutenzioni'); } catch(e){}
+                    form.dataset.submitting = '0';
+                }).catch(function(err){ form.dataset.submitting = '0'; try { showToast && showToast('Errore: ' + err.message, 'danger'); } catch(e){} });
+            });
+        }
+    } catch(e) { /* swallow */ }
+}, false);
+</script>
 
 <script>
 function setVeicoloId(veicoloId) {
+    // set any known modal inputs (backwards compat) and all inline forms' hidden veicolo_id inputs
     var be = document.getElementById('bollo_veicolo_id'); if (be) be.value = veicoloId;
     var me = document.getElementById('manutenzione_veicolo_id'); if (me) me.value = veicoloId;
     var ae = document.getElementById('assicurazione_veicolo_id'); if (ae) ae.value = veicoloId;
+    try {
+        var all = document.querySelectorAll('input[name="veicolo_id"]');
+        all.forEach(function(i){ i.value = veicoloId; });
+    } catch(e){}
 }
 
 // Auto-calcolo rata mensile se inseriti costo e numero rate

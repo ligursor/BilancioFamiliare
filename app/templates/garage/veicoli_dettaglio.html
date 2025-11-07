@@ -277,111 +277,77 @@
 
 <!-- Modifica modal removed -->
 
-<!-- Modal Nuovo Bollo -->
-<div class="modal fade" id="modalNuovoBollo" tabindex="-1">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Nuovo Bollo Auto</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-			</div>
-			<form method="POST" action="{{ url_for('veicoli.aggiungi_bollo') }}">
+<!-- Inline templates per aggiungere Bollo/Manutenzione direttamente nella pagina dettaglio -->
+<template id="tpl-nuovo-bollo-dettaglio">
+	<div class="card mb-2 inline-add-box">
+	    <div class="card-header d-flex align-items-center py-2">
+		    <h5 class="mb-0 fs-6"><i class="fas fa-receipt me-2"></i>Nuovo Bollo per <span class="ms-2"><strong class="inline-target-name">{{ veicolo.nome_completo }}</strong></span></h5>
+			<button type="button" class="btn btn-link p-0 ms-auto inline-cancel" aria-label="Chiudi">
+				<i class="fas fa-times" style="font-size:1.1rem;color:#000;"></i>
+			</button>
+		</div>
+		<div class="card-body py-2">
+			<form class="form-inline-bollo" method="POST" action="{{ url_for('veicoli.aggiungi_bollo') }}">
 				<input type="hidden" name="veicolo_id" value="{{ veicolo.id }}">
 				<input type="hidden" name="redirect_to_veicolo" value="1">
-				<div class="modal-body">
-					<div class="mb-3">
-						<label for="anno_riferimento" class="form-label">Anno di Riferimento *</label>
-						<input type="number" class="form-control" id="anno_riferimento" name="anno_riferimento" min="2000" max="2030" value="{{ datetime.now().year }}" required>
+				<div class="row g-2">
+					<div class="col-12 col-md-4">
+						<input type="number" class="form-control form-control-sm" name="anno_riferimento" min="2000" max="2100" value="{{ datetime.now().year }}" required>
 					</div>
-					<div class="mb-3">
-						<label for="data_pagamento" class="form-label">Data Pagamento *</label>
-						<input type="date" class="form-control" id="data_pagamento" name="data_pagamento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+					<div class="col-12 col-md-4">
+						<input type="date" class="form-control form-control-sm" name="data_pagamento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
 					</div>
-					<div class="mb-3">
-						<label for="importo" class="form-label">Importo (€) *</label>
-						<input type="number" class="form-control" id="importo" name="importo" step="0.01" min="0" required>
+					<div class="col-12 col-md-4">
+						<input type="number" class="form-control form-control-sm" name="importo" step="0.01" min="0" required>
 					</div>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-					<button type="submit" class="btn btn-success">Aggiungi Bollo</button>
+					<div class="col-12 d-flex justify-content-end mt-2">
+						<button type="submit" class="btn btn-success btn-sm">Aggiungi Bollo</button>
+					</div>
 				</div>
 			</form>
 		</div>
 	</div>
-</div>
+</template>
 
-<!-- Modal Nuova Manutenzione -->
-<div class="modal fade" id="modalNuovaManutenzione" tabindex="-1">
-	<div class="modal-dialog modal-lg">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title"><i class="fas fa-wrench me-2"></i>Nuova Manutenzione</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-			</div>
-			<form method="POST" action="{{ url_for('veicoli.aggiungi_manutenzione') }}">
+<template id="tpl-nuova-manutenzione-dettaglio">
+	<div class="card mb-2 inline-add-box">
+	    <div class="card-header d-flex align-items-center py-2">
+		    <h5 class="mb-0 fs-6"><i class="fas fa-wrench me-2"></i>Nuova Manutenzione per <span class="ms-2"><strong class="inline-target-name">{{ veicolo.nome_completo }}</strong></span></h5>
+			<button type="button" class="btn btn-link p-0 ms-auto inline-cancel" aria-label="Chiudi">
+				<i class="fas fa-times" style="font-size:1.1rem;color:#000;"></i>
+			</button>
+		</div>
+		<div class="card-body py-2">
+			<form class="form-inline-manutenzione" method="POST" action="{{ url_for('veicoli.aggiungi_manutenzione') }}">
 				<input type="hidden" name="veicolo_id" value="{{ veicolo.id }}">
 				<input type="hidden" name="redirect_to_veicolo" value="1">
-				<div class="modal-body">
-					<div class="row">
-						<div class="col-md-6">
-							<div class="mb-3">
-								<label for="data_intervento" class="form-label">Data Intervento *</label>
-								<input type="date" class="form-control" id="data_intervento" name="data_intervento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
-							</div>
-						</div>
-						<div class="col-md-6">
-							<div class="mb-3">
-								<label for="km_intervento" class="form-label">KM Intervento *</label>
-								<input type="number" class="form-control" id="km_intervento" name="km_intervento" min="0" required>
-							</div>
-						</div>
+				<div class="row g-2">
+					<div class="col-md-6">
+						<input type="date" class="form-control form-control-sm" name="data_intervento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
 					</div>
-					<div class="row">
-						<div class="col-md-6">
-							<div class="mb-3">
-								<label for="officina" class="form-label">Officina *</label>
-								<input type="text" class="form-control" id="officina" name="officina" required>
-							</div>
-						</div>
-						<div class="col-md-6">
-							<div class="mb-3">
-								<label for="tipo_intervento" class="form-label">Tipo Intervento *</label>
-								<input type="text" class="form-control" id="tipo_intervento" name="tipo_intervento" required>
-							</div>
-						</div>
+					<div class="col-md-6">
+						<input type="number" class="form-control form-control-sm" name="km_intervento" min="0" required>
 					</div>
-					<div class="mb-3">
-						<label for="costo" class="form-label">Costo (€) *</label>
-						<input type="number" class="form-control" id="costo" name="costo" step="0.01" min="0" required>
+					<div class="col-md-6">
+						<input type="text" class="form-control form-control-sm" name="officina" placeholder="Officina" required>
 					</div>
-					<div class="mb-3">
-						<label for="dettaglio" class="form-label">Dettaglio Intervento</label>
-						<textarea class="form-control" id="dettaglio" name="dettaglio" rows="3"></textarea>
+					<div class="col-md-6">
+						<input type="text" class="form-control form-control-sm" name="tipo_intervento" placeholder="Tipo intervento" required>
 					</div>
-					<div class="row">
-						<div class="col-md-6">
-							<div class="mb-3">
-								<label for="prossimo_controllo_km" class="form-label">Prossimo Controllo KM</label>
-								<input type="number" class="form-control" id="prossimo_controllo_km" name="prossimo_controllo_km" min="0">
-							</div>
-						</div>
-						<div class="col-md-6">
-							<div class="mb-3">
-								<label for="prossimo_controllo_data" class="form-label">Prossimo Controllo Data</label>
-								<input type="date" class="form-control" id="prossimo_controllo_data" name="prossimo_controllo_data">
-							</div>
-						</div>
+					<div class="col-12">
+						<input type="number" class="form-control form-control-sm" name="costo" step="0.01" min="0" placeholder="Costo (€)" required>
 					</div>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-					<button type="submit" class="btn btn-success">Aggiungi Manutenzione</button>
+					<div class="col-12">
+						<textarea class="form-control form-control-sm" name="dettaglio" rows="2" placeholder="Dettaglio (opzionale)"></textarea>
+					</div>
+					<div class="col-12 d-flex justify-content-end mt-2">
+						<button type="submit" class="btn btn-success btn-sm">Aggiungi Manutenzione</button>
+					</div>
 				</div>
 			</form>
 		</div>
 	</div>
-</div>
+</template>
 
 <!-- Modal Elimina Veicolo -->
 <div class="modal fade" id="modalEliminaVeicolo" tabindex="-1">
@@ -409,3 +375,54 @@
 </div>
 
 {% endblock %}
+
+<script>
+// Support inline insertion on dettaglio veicolo page if buttons use data-action="open-inline-*"
+document.addEventListener('click', function(evt){
+	try {
+		var el = evt.target;
+		while(el && el !== document.documentElement) {
+			if (el.dataset && el.dataset.action) break;
+			el = el.parentElement;
+		}
+		if (!el || el === document.documentElement) return;
+		var action = el.dataset.action;
+		if (!action || !action.startsWith('open-inline-')) return;
+		evt.preventDefault();
+		var tplId = null;
+		if (action === 'open-inline-bollo') tplId = 'tpl-nuovo-bollo-dettaglio';
+		if (action === 'open-inline-manutenzione') tplId = 'tpl-nuova-manutenzione-dettaglio';
+		if (!tplId) return;
+		var tpl = document.getElementById(tplId);
+		if (!tpl) return;
+		// avoid duplicates: if already present, focus
+		var existing = document.querySelector('.inline-add-box');
+		if (existing) { var first = existing.querySelector('input,textarea,select'); if (first) first.focus(); return; }
+		var clone = tpl.content.cloneNode(true);
+		// insert after the main header card
+		var header = document.querySelector('.container-fluid');
+		if (header) header.insertAdjacentElement('afterbegin', clone.firstElementChild);
+		// wire cancel and submit similar to garage
+		var node = document.querySelector('.inline-add-box');
+		if (!node) return;
+		var cancel = node.querySelector('.inline-cancel'); if (cancel) cancel.addEventListener('click', function(){ node.remove(); });
+		var form = node.querySelector('form');
+		if (form) {
+			form.addEventListener('submit', function(e){
+				e.preventDefault();
+				if (form.dataset.submitting === '1') return;
+				form.dataset.submitting = '1';
+				var fd = new FormData(form);
+				fetch(form.getAttribute('action')||window.location.href, { method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'} })
+				.then(function(resp){ if (!resp.ok) throw new Error('Errore: ' + resp.status); return fetch(window.location.href); })
+				.then(function(r){ if (!r.ok) throw new Error('Errore refresh: ' + r.status); return r.text(); })
+				.then(function(html){ var parser=new DOMParser(); var doc=parser.parseFromString(html,'text/html');
+					var newContent = doc.querySelector('.container-fluid'); var old = document.querySelector('.container-fluid'); if (newContent && old) old.replaceWith(newContent);
+					try { node.remove(); } catch(e){}
+					form.dataset.submitting = '0';
+				}).catch(function(err){ form.dataset.submitting = '0'; try{ showToast && showToast('Errore: ' + err.message, 'danger'); }catch(e){} });
+			});
+		}
+	} catch(e) {}
+}, false);
+</script>

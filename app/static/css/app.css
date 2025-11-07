@@ -219,6 +219,24 @@ a.text-decoration-none:active {
     --bs-table-accent-bg: var(--bs-table-striped-bg);
     background-color: var(--bs-table-striped-bg, rgba(0,0,0,0.05));
 }
+
+/* Disable visual highlight when clicking buttons inside vehicle cards
+   Keep keyboard focus-visible for accessibility (use :focus:not(:focus-visible) to suppress
+   mouse-driven outlines while preserving keyboard navigation cues). */
+.card .btn:focus:not(:focus-visible),
+.card .btn:active,
+.card .btn.active {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Also remove focus ring for the small icon toggle buttons used in the garage header */
+#toggle-bolli:focus:not(:focus-visible),
+#toggle-assicurazioni:focus:not(:focus-visible),
+#toggle-manutenzioni:focus:not(:focus-visible) {
+    outline: none !important;
+    box-shadow: none !important;
+}
 #table-ricorrenti tbody tr.row-even {
     --bs-table-accent-bg: transparent;
     background-color: transparent;
