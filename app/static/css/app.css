@@ -237,6 +237,24 @@ a.text-decoration-none:active {
     outline: none !important;
     box-shadow: none !important;
 }
+
+/* Inline label sizing for garage inline forms (manutenzione, bollo, assicurazione) */
+.inline-add-box .inline-label {
+    flex: 0 0 6.25rem; /* ~100px */
+    max-width: 6.25rem;
+    text-align: center;
+    margin-right: 0.5rem;
+}
+
+/* Keep labels centered on small screens as requested */
+@media (max-width: 767.98px) {
+    .inline-add-box .inline-label {
+        flex: 0 0 5.5rem; /* slightly narrower on mobile */
+        max-width: 5.5rem;
+        text-align: center;
+        margin-right: 0.5rem;
+    }
+}
 #table-ricorrenti tbody tr.row-even {
     --bs-table-accent-bg: transparent;
     background-color: transparent;

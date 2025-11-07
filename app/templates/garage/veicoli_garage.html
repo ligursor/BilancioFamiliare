@@ -435,30 +435,36 @@
 
 <!-- Inline templates per aggiunte rapide (sostituiscono i modali): bollo / manutenzione / assicurazione -->
 <template id="tpl-nuovo-bollo">
-    <div class="card mb-2 inline-add-box">
-        <div class="card-header d-flex align-items-center py-2">
+    <div class="card my-3 inline-add-box">
+        <div class="card-header d-flex align-items-center py-1">
             <h5 class="mb-0 fs-6"><i class="fas fa-receipt me-2"></i>Nuovo Bollo per <span class="ms-2"><strong class="inline-target-name"></strong></span></h5>
             <button type="button" class="btn btn-link p-0 ms-auto inline-cancel" aria-label="Chiudi">
                 <i class="fas fa-times" style="font-size:1.1rem;color:#000;"></i>
             </button>
         </div>
-        <div class="card-body py-2">
+        <div class="card-body py-1">
             <form class="form-inline-bollo" method="POST" action="{{ url_for('veicoli.aggiungi_bollo') }}">
                 <input type="hidden" name="veicolo_id" value="">
-                <div class="row g-2">
-                    <div class="col-12 col-md-4">
-                        <label class="visually-hidden">Anno</label>
-                        <input type="number" class="form-control form-control-sm" name="anno_riferimento" min="2000" max="2100" value="{{ datetime.now().year }}" required>
+                <div class="row g-2 align-items-center mb-3 mt-1">
+                    <div class="col-6 col-md-3">
+                        <div class="d-flex align-items-center">
+                            <label class="form-label small mb-0 me-2">Anno:</label>
+                            <input type="number" class="form-control form-control-sm flex-fill" name="anno_riferimento" min="2000" max="2100" value="{{ datetime.now().year }}" required>
+                        </div>
                     </div>
-                    <div class="col-12 col-md-4">
-                        <label class="visually-hidden">Data</label>
-                        <input type="date" class="form-control form-control-sm" name="data_pagamento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+                    <div class="col-6 col-md-3">
+                        <div class="d-flex align-items-center">
+                            <label class="form-label small mb-0 me-2">Data:</label>
+                            <input type="date" class="form-control form-control-sm flex-fill" name="data_pagamento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+                        </div>
                     </div>
-                    <div class="col-12 col-md-4">
-                        <label class="visually-hidden">Importo</label>
-                        <input type="number" class="form-control form-control-sm" name="importo" step="0.01" min="0" required>
+                    <div class="col-6 col-md-3">
+                        <div class="d-flex align-items-center">
+                            <label class="form-label small mb-0 me-2">Importo:</label>
+                            <input type="number" class="form-control form-control-sm text-end flex-fill" name="importo" step="0.01" min="0" placeholder="Importo (€)" required>
+                        </div>
                     </div>
-                    <div class="col-12 d-flex justify-content-end mt-2">
+                    <div class="col-6 col-md-3 d-flex align-items-center justify-content-end">
                         <button type="submit" class="btn btn-success btn-sm">Aggiungi Bollo</button>
                     </div>
                 </div>
@@ -479,26 +485,53 @@
             <form class="form-inline-manutenzione" method="POST" action="{{ url_for('veicoli.aggiungi_manutenzione') }}">
                 <input type="hidden" name="veicolo_id" value="">
                 <div class="row g-2">
-                    <div class="col-md-6">
-                        <input type="date" class="form-control form-control-sm" name="data_intervento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+                    <!-- Prima riga: Data | KM | Officina | Tipo | Costo (responsive: 2 per riga su xs, 5 cols md+) -->
+                    <div class="col-6 col-md-2">
+                        <div class="d-flex align-items-center">
+                            <label class="form-label small mb-0 me-2">Data:</label>
+                            <input type="date" class="form-control form-control-sm flex-fill" name="data_intervento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+                        </div>
                     </div>
-                    <div class="col-md-6">
-                        <input type="number" class="form-control form-control-sm" name="km_intervento" min="0" required>
+                    <div class="col-6 col-md-2">
+                        <div class="d-flex align-items-center">
+                            <label class="form-label small mb-0 me-2">KM:</label>
+                            <input type="number" class="form-control form-control-sm flex-fill" name="km_intervento" min="0" required>
+                        </div>
                     </div>
-                    <div class="col-md-6">
-                        <input type="text" class="form-control form-control-sm" name="officina" placeholder="Officina" required>
+                    <div class="col-6 col-md-2">
+                        <div class="d-flex align-items-center">
+                            <label class="form-label small mb-0 me-2">Officina:</label>
+                            <input type="text" class="form-control form-control-sm flex-fill" name="officina" placeholder="Officina" required>
+                        </div>
                     </div>
-                    <div class="col-md-6">
-                        <input type="text" class="form-control form-control-sm" name="tipo_intervento" placeholder="Tipo intervento" required>
+                    <div class="col-6 col-md-4">
+                        <div class="d-flex align-items-center">
+                            <label class="form-label small mb-0 me-2">Tipo:</label>
+                            <input type="text" class="form-control form-control-sm flex-fill" name="tipo_intervento" placeholder="Tipo intervento" required>
+                        </div>
                     </div>
+                    <div class="col-6 col-md-2">
+                        <div class="d-flex align-items-center">
+                            <label class="form-label small mb-0 me-2">Costo:</label>
+                            <input type="number" class="form-control form-control-sm text-end flex-fill" name="costo" step="0.01" min="0" placeholder="Costo (€)" required>
+                        </div>
+                    </div>
+
+                    <!-- Dettaglio + pulsante affiancati (responsive) -->
                     <div class="col-12">
-                        <input type="number" class="form-control form-control-sm" name="costo" step="0.01" min="0" placeholder="Costo (€)" required>
-                    </div>
-                    <div class="col-12">
-                        <textarea class="form-control form-control-sm" name="dettaglio" rows="2" placeholder="Dettaglio (opzionale)"></textarea>
-                    </div>
-                    <div class="col-12 d-flex justify-content-end mt-2">
-                        <button type="submit" class="btn btn-success btn-sm">Aggiungi Manutenzione</button>
+                        <div class="row g-2 align-items-start">
+                            <div class="col-12 col-md-9">
+                                <div class="d-flex align-items-start">
+                                    <label class="form-label small mb-0 me-2">Dettaglio:</label>
+                                    <textarea class="form-control form-control-sm flex-fill" name="dettaglio" rows="2" placeholder="Dettaglio (opzionale)"></textarea>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-3 d-flex">
+                                <div class="w-100 d-flex justify-content-end align-items-start">
+                                    <button type="submit" class="btn btn-success btn-sm">Aggiungi Manutenzione</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </form>
@@ -507,27 +540,36 @@
 </template>
 
 <template id="tpl-nuova-assicurazione">
-    <div class="card mb-2 inline-add-box">
-        <div class="card-header d-flex align-items-center py-2">
+    <div class="card my-3 inline-add-box">
+        <div class="card-header d-flex align-items-center py-1">
             <h5 class="mb-0 fs-6"><i class="fas fa-shield-alt me-2"></i>Nuova Assicurazione per <span class="ms-2"><strong class="inline-target-name"></strong></span></h5>
             <button type="button" class="btn btn-link p-0 ms-auto inline-cancel" aria-label="Chiudi">
                 <i class="fas fa-times" style="font-size:1.1rem;color:#000;"></i>
             </button>
         </div>
-        <div class="card-body py-2">
+        <div class="card-body py-1 mb-3 mt-3">
             <form class="form-inline-assicurazione" method="POST" action="{{ url_for('veicoli.aggiungi_assicurazione') }}">
                 <input type="hidden" name="veicolo_id" value="">
-                <div class="row g-2">
-                    <div class="col-md-4">
-                        <input type="number" class="form-control form-control-sm" name="anno_riferimento" min="2000" max="2100" value="{{ datetime.now().year }}" required>
+                <div class="row g-2 align-items-center">
+                    <div class="col-6 col-md-3">
+                        <div class="d-flex align-items-center">
+                            <label class="form-label small mb-0 me-2">Anno:</label>
+                            <input type="number" class="form-control form-control-sm flex-fill" name="anno_riferimento" min="2000" max="2100" value="{{ datetime.now().year }}" required>
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <input type="date" class="form-control form-control-sm" name="data_pagamento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+                    <div class="col-6 col-md-3">
+                        <div class="d-flex align-items-center">
+                            <label class="form-label small mb-0 me-2">Data:</label>
+                            <input type="date" class="form-control form-control-sm flex-fill" name="data_pagamento" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <input type="number" class="form-control form-control-sm" name="importo" step="0.01" min="0" placeholder="Importo (€)" required>
+                    <div class="col-6 col-md-3">
+                        <div class="d-flex align-items-center">
+                            <label class="form-label small mb-0 me-2">Importo:</label>
+                            <input type="number" class="form-control form-control-sm text-end flex-fill" name="importo" step="0.01" min="0" placeholder="Importo (€)" required>
+                        </div>
                     </div>
-                    <div class="col-12 d-flex justify-content-end mt-2">
+                    <div class="col-6 col-md-3 d-flex align-items-center justify-content-end">
                         <button type="submit" class="btn btn-success btn-sm">Aggiungi Assicurazione</button>
                     </div>
                 </div>
