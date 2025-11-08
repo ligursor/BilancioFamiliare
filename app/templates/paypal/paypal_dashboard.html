@@ -49,7 +49,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h5 class="card-title">Importo Rimanente</h5>
-                        <h3>€{{ "%.2f"|format(importo_rimanente_totale) }}</h3>
+                        <h3>€ {{ "%.2f"|format(importo_rimanente_totale) }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-euro-sign fa-2x"></i>
@@ -152,9 +152,9 @@
                             <br><small class="text-muted">{{ piano.note[:50] }}{% if piano.note|length > 50 %}...{% endif %}
 </small>                                                                                                                                                {% endif %}
                         </td>
-                        <td class="text-center">€{{ "%.2f"|format(piano.importo_totale) }}</td>
-                        <td class="text-center">€{{ "%.2f"|format(piano.importo_rata) }}</td>
-                        <td class="text-center">€{{ "%.2f"|format(piano.importo_rimanente or 0.0) }}</td>
+                        <td class="text-center">€ {{ "%.2f"|format(piano.importo_totale) }}</td>
+                        <td class="text-center">€ {{ "%.2f"|format(piano.importo_rata) }}</td>
+                        <td class="text-center">€ {{ "%.2f"|format(piano.importo_rimanente or 0.0) }}</td>
                         <td class="text-center">
                             {% set pagate = (piano.rate|selectattr('stato', 'equalto', 'pagata')|list) if piano.rate else [] %}
                             {% set tot = (piano.rate|length) if piano.rate else 0 %}
@@ -228,8 +228,8 @@ aria-label="Modifica piano"                                                     
                         <td class="text-start">
                             <strong>{{ piano.descrizione }}</strong>
                         </td>
-                        <td class="text-center">€{{ "%.2f"|format(piano.importo_totale) }}</td>
-                        <td class="text-center">€{{ "%.2f"|format(piano.importo_rata) }}</td>
+                        <td class="text-center">€ {{ "%.2f"|format(piano.importo_totale) }}</td>
+                        <td class="text-center">€ {{ "%.2f"|format(piano.importo_rata) }}</td>
                         <td class="text-center">{{ piano.data_prima_rata.strftime('%d/%m/%Y') }}</td>
                         
                         <td class="text-center">
