@@ -23,7 +23,7 @@ class DettaglioPeriodoService:
 
         return self.dettaglio_periodo_interno(start_date, end_date)
     
-    def dettaglio_periodo_interno(self, start_date, end_date):
+    def dettaglio_periodo_interno(self, start_date, end_date, create_monthly_budget=True):
         """Funzione interna per gestire il dettaglio del periodo - copia fedele da app.py"""
         
         # Prefer to fetch transactions by `id_periodo` (YYYYMM) when possible to
@@ -265,26 +265,32 @@ class DettaglioPeriodoService:
                     if not mb:
                         # Usa il default dal Budget
                         iniziale_month = float(b.importo or 0.0)
-                        mb = BudgetMensili(categoria_id=cat_id, year=end_date.year, month=end_date.month, importo=iniziale_month)
-                        db.session.add(mb)
-                        db.session.commit()
-                        # Audit: creazione automatica mensile
-                        try:
-                            # MonthlyBudgetAudit model rimosso: loggiamo l'evento invece di persistere il record
-                            import logging
-                            logger = logging.getLogger('bilancio.monthly_budget_audit')
-                            logger.info(
-                                "monthly_budget_audit: created by system - monthly_budget_id=%s categoria_id=%s year=%s month=%s new_importo=%s",
-                                mb.id, cat_id, start_date.year, start_date.month, iniziale_month
-                            )
-                            # Manteniamo il commit della creazione del BudgetMensili (mb) sopra
-                        except Exception:
-                            # In caso di problemi con il logging, non vogliamo lasciare la sessione sporca
+                        if create_monthly_budget:
+                            mb = BudgetMensili(categoria_id=cat_id, year=end_date.year, month=end_date.month, importo=iniziale_month)
+                            db.session.add(mb)
+                            db.session.commit()
+                            # Audit: creazione automatica mensile
                             try:
-                                db.session.rollback()
+                                # MonthlyBudgetAudit model rimosso: loggiamo l'evento invece di persistere il record
+                                import logging
+                                logger = logging.getLogger('bilancio.monthly_budget_audit')
+                                logger.info(
+                                    "monthly_budget_audit: created by system - monthly_budget_id=%s categoria_id=%s year=%s month=%s new_importo=%s",
+                                    mb.id, cat_id, start_date.year, start_date.month, iniziale_month
+                                )
                             except Exception:
-                                pass
-                    iniziale = float(mb.importo or 0.0)
+                                try:
+                                    db.session.rollback()
+                                except Exception:
+                                    pass
+                        else:
+                            # Do not persist budget for past/seed months; use default in-memory
+                            mb = None
+                    if mb:
+                        iniziale = float(mb.importo or 0.0)
+                    else:
+                        # fallback al valore base del Budget se non esiste la riga mensile
+                        iniziale = float(b.importo or 0.0)
                 except Exception:
                     # In caso di problemi con BudgetMensili, ricadi sul default
                     iniziale = float(b.importo or 0.0)
