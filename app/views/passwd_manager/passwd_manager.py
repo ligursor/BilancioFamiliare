@@ -1,0 +1,113 @@
+from flask import Blueprint, render_template, request, jsonify, send_from_directory, current_app, session, redirect, url_for
+from app.services.passwd_manager.passwd_manager_service import (
+    initialize_encryption, is_initialized, has_security_config,
+    get_all_credentials, search_credentials, get_categories, add_credential,
+    update_credential, delete_credential, get_credential_by_id_decrypted,
+    export_to_xlsx
+)
+from werkzeug.utils import secure_filename
+import os
+
+bp = Blueprint('passwd', __name__, template_folder='templates')
+
+
+@bp.route('/')
+def index():
+    # If the passwd manager hasn't been initialized, forward to setup/login as appropriate
+    if not has_security_config():
+        return redirect(url_for('passwd.setup_database'))
+    if not is_initialized():
+        return redirect(url_for('passwd.login'))
+
+    # Build categories mapping expected by the template
+    data = get_all_credentials()
+    categories = {}
+    for item in data:
+        cat = item.get('CATEGORIA') or 'SENZA_CATEGORIA'
+        categories.setdefault(cat, []).append(item)
+
+    return render_template('passwd_manager/index.html', categories=categories)
+
+
+@bp.route('/setup', methods=['GET'])
+def setup_database():
+    """Render a page that instructs the operator how to perform database setup.
+    Historically the original password-manager shipped a standalone setup script
+    (setup_db.py). The UI still links to the endpoint named 'passwd.setup_database',
+    so provide a minimal route that shows the existing `setup_required.html`.
+    """
+    return render_template('passwd_manager/setup_required.html')
+
+
+@bp.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        password = request.form.get('password')
+        if initialize_encryption(password):
+            session['authenticated'] = True
+            session['user_password'] = password
+            return redirect(url_for('main.index'))
+        return render_template('login.html', error='Invalid password')
+    return render_template('login.html')
+
+
+@bp.route('/logout')
+def logout():
+    session.pop('authenticated', None)
+    session.pop('user_password', None)
+    return redirect(url_for('passwd.login'))
+
+
+@bp.route('/api/search')
+def api_search():
+    q = request.args.get('q')
+    cat = request.args.get('categoria')
+    results = search_credentials(q, cat)
+    return jsonify(results)
+
+
+@bp.route('/api/credentials', methods=['GET', 'POST'])
+def api_credentials():
+    if request.method == 'GET':
+        return jsonify(get_all_credentials())
+    data = request.get_json() or {}
+    cid = add_credential(data.get('CATEGORIA'), data.get('SERVIZIO'), data.get('UTENZA'), data.get('PASSWORD'), data.get('ALTRO'))
+    return jsonify({'id': cid})
+
+
+@bp.route('/api/credentials/<int:cid>', methods=['PUT', 'DELETE'])
+def api_credential_item(cid):
+    if request.method == 'DELETE':
+        ok = delete_credential(cid)
+        return jsonify({'ok': ok})
+    data = request.get_json() or {}
+    ok = update_credential(cid, data.get('CATEGORIA'), data.get('SERVIZIO'), data.get('UTENZA'), data.get('PASSWORD'), data.get('ALTRO'))
+    return jsonify({'ok': ok})
+
+
+@bp.route('/api/categories')
+def api_categories():
+    return jsonify(get_categories())
+
+
+@bp.route('/api/categories-with-counts')
+def api_categories_with_counts():
+    cats = get_categories()
+    # build mapping
+    mapping = {c: len(search_credentials(None, c)) for c in cats}
+    return jsonify(mapping)
+
+
+@bp.route('/api/credentials/<int:cid>/decrypted')
+def api_credential_decrypted(cid):
+    c = get_credential_by_id_decrypted(cid)
+    return jsonify(c or {})
+
+
+@bp.route('/api/export/xlsx')
+def api_export_xlsx():
+    path = export_to_xlsx()
+    if not path:
+        return jsonify({'ok': False}), 500
+    directory, filename = os.path.split(path)
+    return send_from_directory(directory, filename, as_attachment=True)

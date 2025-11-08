@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Manager - Setup Richiesto</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #343a40;
+        }
+        .setup-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+        }
+        .setup-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .setup-header i {
+            font-size: 3rem;
+            color: #ffc107;
+            margin-bottom: 1rem;
+        }
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            margin: 1rem 0;
+        }
+        .step {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .step:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .step-number {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="setup-container">
+        <div class="setup-header">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h2>Setup Database Richiesto</h2>
+            <p class="text-muted">Il database non è ancora configurato</p>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="step">
+            <h5><span class="step-number">1</span>Prepara il file JSON</h5>
+            <p>Assicurati di avere il file <code>outputfile.json</code> con i dati delle password nel formato corretto.</p>
+        </div>
+        
+        <div class="step">
+            <h5><span class="step-number">2</span>Esegui lo script di setup</h5>
+            <p>Apri un terminale nella directory dell'applicazione ed esegui:</p>
+            <div class="code-block">
+                python setup_db.py
+            </div>
+        </div>
+        
+        <div class="step">
+            <h5><span class="step-number">3</span>Configura la password</h5>
+            <p>Lo script ti chiederà di:</p>
+            <ul>
+                <li>Specificare il percorso del file JSON (default: outputfile.json)</li>
+                <li>Inserire una password per cifrare il database (minimo 6 caratteri)</li>
+                <li>Confermare la password</li>
+            </ul>
+        </div>
+        
+        <div class="step">
+            <h5><span class="step-number">4</span>Riavvia l'applicazione</h5>
+            <p>Dopo aver configurato il database, ricarica questa pagina e potrai accedere con la password impostata.</p>
+        </div>
+        
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>Importante:</strong> Ricorda la password che imposti durante il setup! 
+            Sarà necessaria per accedere ai tuoi dati criptati.
+        </div>
+        
+        <div class="text-center mt-4">
+            <button class="btn btn-primary" onclick="location.reload()">
+                <i class="fas fa-refresh"></i> Ricarica pagina
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

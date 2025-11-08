@@ -80,6 +80,11 @@ def create_app(config_name='default'):
     from app.views.conto_personale import conti_bp
     from app.views.veicoli.veicoli import veicoli_bp
     from app.views.ppay_evolution import ppay_bp
+    # Password manager blueprint (integrated)
+    try:
+        from app.views.passwd_manager.passwd_manager import bp as passwd_bp
+    except Exception:
+        passwd_bp = None
     
     app.register_blueprint(main_bp)
     # transazioni blueprint removed: /transazioni route deprecated
@@ -91,6 +96,40 @@ def create_app(config_name='default'):
     app.register_blueprint(conti_bp, url_prefix='/conti')
     app.register_blueprint(veicoli_bp, url_prefix='/veicoli')
     app.register_blueprint(ppay_bp, url_prefix='/ppay_evolution')
+    if passwd_bp:
+        # mount the passwd manager under /passwd
+        app.register_blueprint(passwd_bp, url_prefix='/passwd')
+
+    # Protezione globale: richiede che l'utente sia autenticato tramite il
+    # password-manager per accedere alle pagine dell'app principale.
+    # Esclude le rotte statice e il blueprint del passwd manager.
+    from flask import request, redirect, url_for, session, render_template
+
+    # Alias comodo: serve direttamente il template di login su /login
+    @app.route('/login')
+    def login_alias():
+        # Render the shared login template directly (POST continues to be
+        # handled by the passwd manager blueprint at /passwd/login)
+        return render_template('login.html')
+
+    @app.before_request
+    def require_passwd_auth():
+        try:
+            path = request.path or ''
+            # Allow access to passwd manager itself and static assets
+            if path.startswith('/passwd') or path.startswith('/static') or path.startswith('/favicon.ico'):
+                return
+            # If session indicates authenticated, allow
+            if session.get('authenticated') and session.get('user_password'):
+                return
+            # Allow health endpoints or probes if present
+            if path.startswith('/_health') or path.startswith('/health'):
+                return
+            # Otherwise redirect to passwd login
+            return redirect(url_for('passwd.login'))
+        except Exception:
+            # In case of any error, allow request to proceed to avoid blocking
+            return
     # appunti blueprint removed
     # database import/export blueprint removed (archived in _backup/obsolete)
 
