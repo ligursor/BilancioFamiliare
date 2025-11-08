@@ -91,3 +91,60 @@ class BudgetMensiliService(BaseService):
         """Calcola il budget totale per un mese"""
         budgets = self.get_budget_mese(year, month)
         return sum(float(b.importo or 0) for b in budgets)
+    
+    def update_residuo_mensile(self, categoria_id, year, month, spese_effettuate, spese_pianificate):
+        """Aggiorna il residuo_mensile per una categoria in un mese specifico
+        
+        Args:
+            categoria_id: ID della categoria
+            year: Anno
+            month: Mese
+            spese_effettuate: Totale spese già effettuate
+            spese_pianificate: Totale spese pianificate (future)
+            
+        Returns:
+            Il residuo calcolato (importo - spese_effettuate - spese_pianificate)
+        """
+        budget = self.get_budget_by_categoria_mese(categoria_id, year, month)
+        if not budget:
+            return 0.0
+        
+        residuo = float(budget.importo or 0) - float(spese_effettuate or 0) - float(spese_pianificate or 0)
+        budget.residuo_mensile = residuo
+        db.session.commit()
+        return residuo
+    
+    def calculate_and_save_all_residui(self, year, month, budget_items):
+        """Calcola e salva i residui mensili per tutti i budget del mese
+        
+        Args:
+            year: Anno
+            month: Mese
+            budget_items: Lista di dict con struttura {'categoria_id', 'iniziale', 'spese_effettuate', 'spese_pianificate', 'residuo'}
+            
+        Returns:
+            Totale dei residui calcolati
+        """
+        total_residui = 0.0
+        
+        for item in budget_items:
+            categoria_id = item.get('categoria_id')
+            if not categoria_id:
+                continue
+            
+            spese_effettuate = float(item.get('spese_effettuate', 0) or 0)
+            spese_pianificate = float(item.get('spese_pianificate', 0) or 0)
+            
+            residuo = self.update_residuo_mensile(categoria_id, year, month, spese_effettuate, spese_pianificate)
+            total_residui += residuo
+        
+        return total_residui
+    
+    def get_total_residui_mese(self, year, month):
+        """Calcola il totale dei residui mensili per un mese
+        
+        Returns:
+            Somma di tutti i residui_mensili del mese specificato
+        """
+        budgets = self.get_budget_mese(year, month)
+        return sum(float(b.residuo_mensile or 0) for b in budgets)

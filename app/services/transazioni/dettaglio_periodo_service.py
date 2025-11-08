@@ -301,6 +301,18 @@ class DettaglioPeriodoService:
                     'spese_pianificate': float(spese_pianificate or 0.0),
                     'residuo': float(residuo)
                 })
+                
+                # Aggiorna il residuo_mensile nel database per mantenere lo stato persistente
+                try:
+                    if mb:
+                        mb.residuo_mensile = float(residuo)
+                        db.session.add(mb)
+                        db.session.commit()
+                except Exception:
+                    try:
+                        db.session.rollback()
+                    except Exception:
+                        pass
         except Exception:
             budget_items = []
 

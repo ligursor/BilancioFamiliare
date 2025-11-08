@@ -94,6 +94,18 @@ def create_app(config_name='default'):
     # appunti blueprint removed
     # database import/export blueprint removed (archived in _backup/obsolete)
 
+    # Ensure budget_mensili table has residuo_mensile column (migration)
+    @app.before_request
+    def ensure_budget_mensili_migration():
+        """Run once to add residuo_mensile column to budget_mensili if missing"""
+        try:
+            from app.services.budget.migrate_add_residuo_mensile import add_residuo_mensile_column
+            # This will only add the column if it doesn't exist
+            add_residuo_mensile_column()
+        except Exception:
+            # Silent fail - column might already exist or table not ready yet
+            pass
+
     # Run monthly rollover once per financial-month when the app is first accessed
     @app.before_request
     def maybe_run_monthly_rollover():
