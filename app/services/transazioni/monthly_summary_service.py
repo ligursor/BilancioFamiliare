@@ -19,6 +19,19 @@ class MonthlySummaryService(BaseService):
 
 		start_date, end_date = get_month_boundaries(data_mese)
 
+		# If this month was explicitly seeded by a reset operation, do not
+		# invoke the DettaglioPeriodoService which may create monthly budgets.
+		# Check for an existing saldi_mensili row marked as seed and return it.
+		try:
+			from app.models.SaldiMensili import SaldiMensili
+			seed_row = SaldiMensili.query.filter_by(year=end_date.year, month=end_date.month).first()
+			if seed_row and getattr(seed_row, 'is_seed', False) is True:
+				# Return the existing seed row without calling dettaglio (avoids creating BudgetMensili)
+				return True, seed_row
+		except Exception:
+			# If anything fails during the seed detection, fall back to normal flow
+			pass
+
 		# Try ORM query; if the Transazioni table name in the DB differs (legacy table),
 		# fall back to a raw SQL query searching for a table named like 'transazioni%'.
 		# Prefer to reuse DettaglioPeriodoService which already computes the

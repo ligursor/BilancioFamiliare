@@ -265,7 +265,15 @@ class DettaglioPeriodoService:
                     if not mb:
                         # Usa il default dal Budget
                         iniziale_month = float(b.importo or 0.0)
-                        if create_monthly_budget:
+                        # If the month has been explicitly seeded by a reset, do NOT persist monthly budgets
+                        try:
+                            from app.models.SaldiMensili import SaldiMensili
+                            seed_row = SaldiMensili.query.filter_by(year=end_date.year, month=end_date.month).first()
+                            is_seed_month = bool(seed_row and getattr(seed_row, 'is_seed', False) is True)
+                        except Exception:
+                            is_seed_month = False
+
+                        if create_monthly_budget and not is_seed_month:
                             mb = BudgetMensili(categoria_id=cat_id, year=end_date.year, month=end_date.month, importo=iniziale_month)
                             db.session.add(mb)
                             db.session.commit()

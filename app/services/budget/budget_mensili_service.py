@@ -6,6 +6,7 @@ from app.models.Categorie import Categorie
 from app import db
 from datetime import datetime, date
 from sqlalchemy import and_
+from app.models.SaldiMensili import SaldiMensili
 
 
 class BudgetMensiliService(BaseService):
@@ -53,6 +54,14 @@ class BudgetMensiliService(BaseService):
     
     def populate_month_from_base_budget(self, year, month):
         """Popola i budget mensili da quelli base"""
+        # Do not populate budgets for a month that was explicitly seeded by a reset
+        try:
+            seed = SaldiMensili.query.filter_by(year=year, month=month).first()
+            if seed and getattr(seed, 'is_seed', False) is True:
+                return 0
+        except Exception:
+            # If anything goes wrong while checking seed, fall back to normal behavior
+            pass
         # Recupera tutti i budget base
         budgets_base = Budget.query.all()
         

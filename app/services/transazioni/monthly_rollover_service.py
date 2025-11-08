@@ -43,7 +43,8 @@ def do_monthly_rollover(force=False, months=1, base_date=None):
         dettaglio_service = DettaglioPeriodoService()
         
         # Calcola i dettagli del mese precedente per avere i residui corretti
-        prev_month_details = dettaglio_service.dettaglio_periodo_interno(prev_month_start, prev_month_end)
+        # Request period details without creating/persisting monthly budgets for the seed month
+        prev_month_details = dettaglio_service.dettaglio_periodo_interno(prev_month_start, prev_month_end, create_monthly_budget=False)
         budget_items = prev_month_details.get('budget_items', [])
         
         # Aggiorna i residui_mensili nel database per il mese precedente
