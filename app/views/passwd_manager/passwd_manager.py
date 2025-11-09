@@ -13,9 +13,11 @@ bp = Blueprint('passwd', __name__, template_folder='templates')
 
 @bp.route('/')
 def index():
-    # If the passwd manager hasn't been initialized, forward to setup/login as appropriate
+    # If the passwd manager hasn't been configured, inform the operator.
+    # The previous automatic reconfiguration/setup flow has been removed.
     if not has_security_config():
-        return redirect(url_for('passwd.setup_database'))
+        return ("Password Manager non configurato. Contatta l'amministratore per la configurazione.", 503)
+    # If the encryption system is not yet initialized, redirect to the login page
     if not is_initialized():
         return redirect(url_for('passwd.login'))
 
@@ -29,14 +31,9 @@ def index():
     return render_template('passwd_manager/index.html', categories=categories)
 
 
-@bp.route('/setup', methods=['GET'])
-def setup_database():
-    """Render a page that instructs the operator how to perform database setup.
-    Historically the original password-manager shipped a standalone setup script
-    (setup_db.py). The UI still links to the endpoint named 'passwd.setup_database',
-    so provide a minimal route that shows the existing `setup_required.html`.
-    """
-    return render_template('passwd_manager/setup_required.html')
+# NOTE: setup route and reconfiguration UI were removed intentionally.
+# If you need to re-enable interactive setup, restore a safe setup flow
+# that requires authenticated administrative access outside of the public UI.
 
 
 @bp.route('/login', methods=['GET', 'POST'])

@@ -8,12 +8,41 @@
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet" crossorigin="anonymous">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='money.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <style>
+        /* Emphasize navbar items so Sezioni / Gestione / Logout are more visible */
+        .navbar .nav-link {
+            color: rgba(255,255,255,0.95) !important;
+            font-weight: 600;
+            padding: .35rem .6rem;
+            transition: background-color .12s ease, color .12s ease;
+        }
+        .navbar .nav-link .fas, .navbar .nav-link .fab {
+            opacity: 0.98;
+            font-size: 1.05em;
+        }
+        .navbar .nav-link:hover, .navbar .nav-link:focus {
+            color: #ffffff !important;
+            background: rgba(255,255,255,0.06);
+            border-radius: .25rem;
+            text-decoration: none;
+        }
+        .navbar .logout-btn {
+            background: rgba(255,255,255,0.08);
+            padding: .25rem .5rem;
+            border-radius: .25rem;
+            margin-left: .5rem;
+            color: #fff !important;
+        }
+        .navbar .logout-btn:hover { background: rgba(255,255,255,0.16); color: #fff !important; }
+        /* Slightly wider dropdowns for better readability */
+        .navbar .dropdown-menu { min-width: 12rem; }
+    </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary" style="position:relative; z-index:1100;">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('main.index') }}">
-                <i class="fas fa-wallet me-2"></i>Bilancio Familiare
+                <i class="fas fa-wallet me-2"></i>Casa Ligurso
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -22,7 +51,7 @@
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarAltro" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-ellipsis-h me-1"></i>Altro
+                            <i class="fas fa-ellipsis-h me-1"></i>Sezioni
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarAltro">
                             <li><h6 class="dropdown-header">Conti Personali</h6></li>
@@ -41,16 +70,16 @@
                             <li><a class="dropdown-item" href="{{ url_for('ppay.evolution') }}">
                                 <i class="fas fa-credit-card me-2"></i>PPay Evolution
                             </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('passwd.index') }}">
-                                <i class="fas fa-key me-2"></i>PasswdManager
-                            </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">Gestione Auto</h6></li>
                             <li><a class="dropdown-item" href="{{ url_for('veicoli.garage') }}">
                                 <i class="fas fa-car me-2"></i>Garage
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <!-- Promemoria removed -->
+                            <li><h6 class="dropdown-header">Password</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('passwd.index') }}">
+                                <i class="fas fa-key me-2"></i>Password Manager
+                            </a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
@@ -73,6 +102,14 @@
                             <!-- Saldo Iniziale link removed from Gestione menu per UX decision -->
                         </ul>
                     </li>
+                    {# Logout button available app-wide when authenticated #}
+                    {% if session.get('authenticated') %}
+                    <li class="nav-item">
+                        <a class="nav-link logout-btn" href="{{ url_for('passwd.logout') }}" title="Logout">
+                            <i class="fas fa-sign-out-alt me-1"></i>Logout
+                        </a>
+                    </li>
+                    {% endif %}                    
                 </ul>
             </div>
         </div>

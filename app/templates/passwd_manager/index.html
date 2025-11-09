@@ -6,49 +6,7 @@
     <!-- PWA manifest (kept here for compatibility with the original UI) -->
     <link rel="manifest" href="/passwd/manifest.json">
 
-    <!-- Runtime shim: prefix absolute calls with /passwd when mounted -->
-    <script>
-    (function(){
-        const PREFIX = '/passwd';
-        const _fetch = window.fetch.bind(window);
-        window.fetch = function(input, init){
-            try{
-                if(typeof input === 'string'){
-                    if(input.startsWith('/api') || input === '/api' || input.startsWith('/manifest.json') || input.startsWith('/sw.js') || input.startsWith('/static/') || input === '/login' || input === '/logout' || input === '/setup'){
-                        input = PREFIX + input;
-                    }
-                } else if(input && input.url){
-                    const u = input.url;
-                    if(!u.startsWith('http') && (u.startsWith('/api') || u.startsWith('/manifest.json') || u.startsWith('/sw.js') || u.startsWith('/static/') || u === '/login' || u === '/logout' || u === '/setup')){
-                        input = new Request(PREFIX + u, input);
-                    }
-                }
-            }catch(e){}
-            return _fetch(input, init);
-        };
-        try{
-            const _open = XMLHttpRequest.prototype.open;
-            XMLHttpRequest.prototype.open = function(method, url){
-                try{
-                    if(typeof url === 'string' && (url.startsWith('/api') || url === '/manifest.json' || url.startsWith('/sw.js') || url.startsWith('/static/') || url === '/login' || url === '/logout' || url === '/setup')){
-                        url = PREFIX + url;
-                    }
-                }catch(e){}
-                return _open.apply(this, arguments);
-            };
-        }catch(e){}
-        document.addEventListener('DOMContentLoaded', function(){
-            document.querySelectorAll('a[href^="/"]').forEach(function(a){
-                try{
-                    const h = a.getAttribute('href');
-                    if(h && (h.startsWith('/api') || h === '/login' || h === '/logout' || h === '/setup' || h === '/manifest.json' || h === '/sw.js')){
-                        a.setAttribute('href', PREFIX + h);
-                    }
-                }catch(e){}
-            });
-        });
-    })();
-    </script>
+    <!-- Note: runtime URL prefix shim removed. Client-side calls must target the blueprint-mounted paths directly (e.g. /passwd/api/...) -->
 
     <style>
         /* Display categories as a horizontal, scrollable row */
@@ -123,9 +81,7 @@
                         <button type="button" class="btn btn-success" onclick="exportToXlsx()" title="Esporta in Excel protetto con password di login">
                             <i class="fas fa-file-excel"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-danger logout-btn" onclick="performLogout()">
-                            <i class="fas fa-sign-out-alt"></i>
-                        </button>
+                        
                     </div>
                 </div>
 
@@ -278,7 +234,6 @@
 {%- endblock %}
 
 {%- block scripts %}
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // PWA Service Worker Registration
         if ('serviceWorker' in navigator) {
@@ -335,7 +290,7 @@
 
         function showInstallButton() {
             // Crea e mostra il pulsante di installazione
-            if (!installButton && deferredPrompt) {
+                if (!installButton && deferredPrompt) {
                 const headerButtons = document.querySelector('.d-flex.gap-2');
                 installButton = document.createElement('button');
                 installButton.className = 'btn btn-primary';
@@ -343,9 +298,8 @@
                 installButton.innerHTML = '<i class="fas fa-download"></i>';
                 installButton.addEventListener('click', installApp);
                 
-                // Inserisce il pulsante prima del logout
-                const logoutBtn = document.querySelector('.logout-btn');
-                headerButtons.insertBefore(installButton, logoutBtn);
+                // Inserisce il pulsante nell'header (append alla fine dei button group)
+                if (headerButtons) headerButtons.appendChild(installButton);
             }
         }
 
@@ -451,7 +405,7 @@
             try {
                 // Carica tutti i dati se non già caricati
                 if (allData.length === 0) {
-                    const response = await fetch('/api/search');
+                    const response = await fetch('/passwd/api/search');
                     allData = await response.json();
                 }
                 
@@ -695,9 +649,138 @@
 
         function applyCategoryLayout(){ /* minimal layout adjust to keep UI consistent */ }
 
-        // Placeholder for the many other functions (copyToClipboard, saveCredential, deleteCredential etc.)
-        // If you want, I can restore the exact originals here; I kept this file focused on integrating the
-        // template into `base.html`. Restoring the full verbatim JS is straightforward—tell me and I will
-        // paste it back into this block.
+        // Minimal implementations for modal CRUD and helpers so edit/save/delete work.
+
+        function showAddCredentialModal() {
+            try {
+                document.getElementById('credentialId').value = '';
+                document.getElementById('modalCategoria').value = '';
+                document.getElementById('modalServizio').value = '';
+                document.getElementById('modalUtenza').value = '';
+                document.getElementById('modalPassword').value = '';
+                document.getElementById('modalAltro').value = '';
+                document.getElementById('credentialModalTitle').textContent = 'Aggiungi Credenziale';
+                const modal = new bootstrap.Modal(document.getElementById('credentialModal'));
+                modal.show();
+            } catch (e) {
+                console.error('Errore showAddCredentialModal', e);
+            }
+        }
+
+        function editCredential(id) {
+            if (!id) return;
+            // Try to fetch decrypted credential from server
+            fetch(`/passwd/api/credentials/${id}/decrypted`).then(resp => {
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                return resp.json();
+            }).then(item => {
+                document.getElementById('credentialId').value = item.id || id;
+                document.getElementById('modalCategoria').value = item.CATEGORIA || '';
+                document.getElementById('modalServizio').value = item.SERVIZIO || '';
+                document.getElementById('modalUtenza').value = item.UTENZA || '';
+                document.getElementById('modalPassword').value = item.PASSWORD || '';
+                document.getElementById('modalAltro').value = item.ALTRO || '';
+                document.getElementById('credentialModalTitle').textContent = 'Modifica Credenziale';
+                const modal = new bootstrap.Modal(document.getElementById('credentialModal'));
+                modal.show();
+            }).catch(err => {
+                console.error('Impossibile caricare credenziale', err);
+                alert('Impossibile caricare la credenziale per la modifica');
+            });
+        }
+
+        async function saveCredential() {
+            try {
+                const id = document.getElementById('credentialId').value;
+                const payload = {
+                    CATEGORIA: document.getElementById('modalCategoria').value,
+                    SERVIZIO: document.getElementById('modalServizio').value,
+                    UTENZA: document.getElementById('modalUtenza').value,
+                    PASSWORD: document.getElementById('modalPassword').value,
+                    ALTRO: document.getElementById('modalAltro').value
+                };
+
+                let resp;
+                if (id) {
+                    resp = await fetch(`/passwd/api/credentials/${id}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+                } else {
+                    resp = await fetch(`/passwd/api/credentials`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+                }
+
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+                // Close modal and refresh data
+                const modalEl = document.getElementById('credentialModal');
+                const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                modal.hide();
+
+                // Reload page to reflect changes (simple and reliable)
+                window.location.reload();
+            } catch (err) {
+                console.error('Errore salvataggio credenziale', err);
+                alert('Errore nel salvataggio della credenziale');
+            }
+        }
+
+        function deleteCredential(id, serviceName) {
+            if (!confirm(`Eliminare la credenziale ${serviceName || id}?`)) return;
+            fetch(`/passwd/api/credentials/${id}`, { method: 'DELETE' }).then(r => r.json()).then(j => {
+                if (j && (j.ok === true || j.ok === 1)) {
+                    window.location.reload();
+                } else {
+                    alert('Eliminazione fallita');
+                }
+            }).catch(e => {
+                console.error('Errore deleteCredential', e);
+                alert('Errore durante l\'eliminazione');
+            });
+        }
+
+        function copyToClipboard(text, label) {
+            try {
+                navigator.clipboard.writeText(text).then(() => {
+                    const message = `${label || 'Testo'} copiato negli appunti`;
+                    const feedback = document.getElementById('copyFeedback');
+                    if (feedback) {
+                        document.getElementById('copyMessage').textContent = message;
+                        feedback.style.display = 'block';
+                        setTimeout(() => feedback.style.display = 'none', 1500);
+                    } else {
+                        alert(message);
+                    }
+                });
+            } catch (e) {
+                console.error('copyToClipboard failed', e);
+                alert(text);
+            }
+        }
+
+        function toggleModalPassword() {
+            const pwd = document.getElementById('modalPassword');
+            const icon = document.getElementById('modalPasswordIcon');
+            if (!pwd) return;
+            if (pwd.type === 'password') {
+                pwd.type = 'text';
+                if (icon) icon.className = 'fas fa-eye-slash';
+            } else {
+                pwd.type = 'password';
+                if (icon) icon.className = 'fas fa-eye';
+            }
+        }
+
+        // performLogout removed from this page; logout is available globally in the main header
+
+        function exportToXlsx() {
+            // Trigger server export endpoint mounted under blueprint
+            window.location.href = '/passwd/api/export/xlsx';
+        }
     </script>
 {%- endblock %}
