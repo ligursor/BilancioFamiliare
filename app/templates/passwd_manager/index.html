@@ -8,64 +8,7 @@
 
     <!-- Note: runtime URL prefix shim removed. Client-side calls must target the blueprint-mounted paths directly (e.g. /passwd/api/...) -->
 
-    <style>
-        /* Display categories as a horizontal, scrollable row */
-        #categoriesGrid {
-            display: flex;
-            gap: .5rem;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            padding-bottom: .5rem;
-            align-items: flex-start;
-        }
-
-        /* Each category column becomes a fixed-size, non-wrapping flex item
-           Default: fixed width to allow horizontal scrolling on small screens.
-           On wide viewports we calculate a 7-per-row layout so seven cards fit the full width. */
-        .category-col {
-            flex: 0 0 auto;
-            width: 11rem; /* mobile / small screens: keep readable fixed width */
-        }
-
-        /* At large viewports, size columns so exactly 7 items fit on one row (account for gaps).
-           gap is 0.5rem, so 6 gaps = 3rem total space. */
-        @media (min-width: 992px) {
-            .category-col {
-                width: auto;
-                flex: 0 0 calc((100% - 3rem) / 7);
-                max-width: calc((100% - 3rem) / 7);
-            }
-        }
-
-        /* Hide copy feedback by default; shown programmatically when needed */
-        .copy-feedback {
-            display: none;
-            position: fixed;
-            bottom: 1rem;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.75);
-            color: #fff;
-            padding: 0.5rem 0.75rem;
-            border-radius: 6px;
-            z-index: 2000;
-            font-size: 0.9rem;
-        }
-
-        /* Ensure the compact card fills the available column height */
-        .category-card-compact {
-            height: 100%;
-        }
-
-        /* Small visual tweak for the horizontal scrollbar */
-        #categoriesGrid::-webkit-scrollbar {
-            height: 8px;
-        }
-        #categoriesGrid::-webkit-scrollbar-thumb {
-            background: rgba(0,0,0,0.1);
-            border-radius: 4px;
-        }
-    </style>
+    <!-- styles moved to static/css/templates.css -->
 
     <div class="container-fluid py-4">
         <div class="row">
@@ -104,7 +47,7 @@
                     </div>
                     
                     <!-- Contenuto della categoria selezionata -->
-                    <div id="selectedCategoryContent" style="display: none; margin-top: 1rem;">
+                    <div id="selectedCategoryContent" class="d-none mt-3">
                         <div class="row" id="selectedCategoryServices">
                             <!-- I servizi verranno inseriti qui dinamicamente -->
                         </div>
@@ -528,7 +471,7 @@
                         </div>` : ''}
                         
                         ${item.PASSWORD ? `
-                        <div class="mb-2 sensitive-content" style="display: none;">
+                        <div class="mb-2 sensitive-content d-none">
                             <small class="text-muted d-block">
                                 <i class="fas fa-key me-1"></i>Password:
                             </small>
@@ -543,7 +486,7 @@
                         </div>` : ''}
                         
                         ${item.ALTRO ? `
-                        <div class="mb-0 sensitive-content" style="display: none;">
+                        <div class="mb-0 sensitive-content d-none">
                             <small class="text-muted d-block">
                                 <i class="fas fa-info-circle me-1"></i>Altro:
                             </small>

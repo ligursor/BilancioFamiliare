@@ -161,16 +161,16 @@
                                     {# I dettagli finanziari sono stati rimossi dalla card per evitare duplicazioni; usare la pagina dettaglio per informazioni complete #}
                                 </div>
                                 <div class="card-footer">
-                                    <div class="btn-group w-100" role="group">
+                                    <div class="inline-footer-buttons w-100">
                                         {%- if veicolo.tipo in ['auto','moto'] -%}
-                                        <button type="button" class="btn btn-sm btn-success" data-action="open-inline-bollo" data-id="{{ veicolo.id }}" data-name="{{ veicolo.nome_completo }}">
-                                            <i class="fas fa-receipt"></i> Bollo
+                                        <button type="button" class="btn btn-sm btn-success w-100" data-action="open-inline-bollo" data-id="{{ veicolo.id }}" data-name="{{ veicolo.nome_completo }}">
+                                            <i class="fas fa-receipt"></i> <br/>Bollo
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-info" data-action="open-inline-assicurazione" data-id="{{ veicolo.id }}" data-name="{{ veicolo.nome_completo }}">
+                                        <button type="button" class="btn btn-sm btn-info w-100" data-action="open-inline-assicurazione" data-id="{{ veicolo.id }}" data-name="{{ veicolo.nome_completo }}">
                                             <i class="fas fa-shield-alt"></i> Assicurazione
                                         </button>
                                         {%- endif -%}
-                                        <button type="button" class="btn btn-sm btn-warning" data-action="open-inline-manutenzione" data-id="{{ veicolo.id }}" data-name="{{ veicolo.nome_completo }}">
+                                        <button type="button" class="btn btn-sm btn-warning w-100" data-action="open-inline-manutenzione" data-id="{{ veicolo.id }}" data-name="{{ veicolo.nome_completo }}">
                                             <i class="fas fa-wrench"></i> Manutenzione
                                         </button>
                                     </div>
@@ -221,7 +221,7 @@
                                         <td class="text-center">{{ bollo.anno_riferimento }}</td>
                                         <td class="text-center">{{ (bollo.importo) | format_currency }}</td>
                                         <td class="text-center">
-                                            <form method="POST" action="{{ url_for('veicoli.elimina_bollo', bollo_id=bollo.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo bollo?">
+                                            <form method="POST" action="{{ url_for('veicoli.elimina_bollo', bollo_id=bollo.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo bollo?">
                                                 <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina bollo" aria-label="Elimina bollo">
                                                     <i class="fas fa-trash" aria-hidden="true"></i>
                                                     <span class="visually-hidden">Elimina bollo</span>
@@ -268,7 +268,7 @@
                                         <td class="text-start">{{ assicurazione.compagnia }}</td>
                                         <td class="text-center">{{ assicurazione.importo | format_currency }}</td>
                                         <td class="text-center">
-                                            <form method="POST" action="{{ url_for('veicoli.elimina_assicurazione', assicurazione_id=assicurazione.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa assicurazione?">
+                                            <form method="POST" action="{{ url_for('veicoli.elimina_assicurazione', assicurazione_id=assicurazione.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa assicurazione?">
                                                 <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina assicurazione" aria-label="Elimina assicurazione">
                                                     <i class="fas fa-trash" aria-hidden="true"></i>
                                                     <span class="visually-hidden">Elimina assicurazione</span>
@@ -315,7 +315,7 @@
                                         <td class="text-start">{{ manutenzione.tipo_intervento }}<br><small class="text-muted">{{ manutenzione.officina }} - KM {{ "{:,}".format(manutenzione.km_intervento).replace(',', '.') }}</small></td>
                                         <td class="text-center">{{ (manutenzione.costo) | format_currency }}</td>
                                         <td class="text-center">
-                                            <form method="POST" action="{{ url_for('veicoli.elimina_manutenzione', manutenzione_id=manutenzione.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa manutenzione?">
+                                            <form method="POST" action="{{ url_for('veicoli.elimina_manutenzione', manutenzione_id=manutenzione.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa manutenzione?">
                                                 <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina manutenzione" aria-label="Elimina manutenzione">
                                                     <i class="fas fa-trash" aria-hidden="true"></i>
                                                     <span class="visually-hidden">Elimina manutenzione</span>
@@ -342,9 +342,9 @@
     <div id="card-nuovo-veicolo" class="card mb-2 inline-add-box">
         <div class="card-header d-flex align-items-center py-2">
             <h5 class="mb-0 fs-6"><i class="fas fa-plus me-2"></i>Nuovo Veicolo</h5>
-            <button type="button" class="btn btn-link p-0 ms-auto" aria-label="Chiudi" id="btn-close-nuovo-veicolo">
-                <i class="fas fa-times" style="font-size:1.1rem;color:#000;"></i>
-            </button>
+                <button type="button" class="btn btn-link p-0 ms-auto" aria-label="Chiudi" id="btn-close-nuovo-veicolo">
+                    <i class="fas fa-times icon-times"></i>
+                </button>
         </div>
         <div class="card-body py-2">
             <form id="form-nuovo-veicolo" method="POST" action="{{ url_for('veicoli.aggiungi_veicolo') }}">
@@ -369,7 +369,7 @@
                     <div class="col-6 col-md-2 field-bollo">
                         <div class="d-flex align-items-center">
                             <label class="form-label small mb-0 me-2 text-nowrap">Mese bollo:</label>
-                            <select class="form-control form-control-sm" name="mese_scadenza_bollo" aria-label="Mese bollo" style="width: auto;"
+                            <select class="form-control form-control-sm w-auto" name="mese_scadenza_bollo" aria-label="Mese bollo">
                                 <option value="">Sel.</option>
                                 <option value="1">Gennaio</option>
                                 <option value="2">Febbraio</option>
@@ -394,28 +394,28 @@
                     </div>
 
                     <!-- Financing fields (shown when checkbox selected) -->
-                    <div class="col-6 col-md-3 financing-fields" style="display:none;">
+                    <div class="col-6 col-md-3 financing-fields d-none">
                         <div class="d-flex align-items-center">
                             <label class="form-label small mb-0 me-2">Costo:</label>
                             <input id="costo_finanziamento" type="number" class="form-control form-control-sm text-end flex-fill financing-field" name="costo_finanziamento" placeholder="Costo (€)" step="0.01" min="0" aria-label="Costo">
                         </div>
                     </div>
-                    <div class="col-6 col-md-2 financing-fields" style="display:none;">
+                    <div class="col-6 col-md-2 financing-fields d-none">
                         <div class="d-flex align-items-center">
                             <label class="form-label small mb-0 me-2 text-nowrap">Numero rate:</label>
-                            <input id="numero_rate" type="number" class="form-control form-control-sm financing-field" name="numero_rate" placeholder="Rate" min="0" aria-label="Numero rate" style="width: 70px;">
+                            <input id="numero_rate" type="number" class="form-control form-control-sm financing-field w-70" name="numero_rate" placeholder="Rate" min="0" aria-label="Numero rate">
                         </div>
                     </div>
-                    <div class="col-6 col-md-2 financing-fields" style="display:none;">
+                    <div class="col-6 col-md-2 financing-fields d-none">
                         <div class="d-flex align-items-center">
                             <label class="form-label small mb-0 me-2">Rata:</label>
                             <input id="rata_mensile" type="number" class="form-control form-control-sm text-end flex-fill financing-field" name="rata_mensile" placeholder="Rata (€)" step="0.01" min="0" aria-label="Rata mensile">
                         </div>
                     </div>
-                    <div class="col-6 col-md-2 financing-fields" style="display:none;">
+                    <div class="col-6 col-md-2 financing-fields d-none">
                         <div class="d-flex align-items-center">
                             <label class="form-label small mb-0 me-2 text-nowrap">Prima rata:</label>
-                            <input id="prima_rata" type="date" class="form-control form-control-sm financing-field" name="prima_rata" aria-label="Prima rata" style="width: auto;">
+                            <input id="prima_rata" type="date" class="form-control form-control-sm financing-field w-auto" name="prima_rata" aria-label="Prima rata">
                         </div>
                     </div>
 
@@ -434,9 +434,9 @@
     <div class="card my-3 inline-add-box">
         <div class="card-header d-flex align-items-center py-1">
             <h5 class="mb-0 fs-6"><i class="fas fa-receipt me-2"></i>Nuovo Bollo per <span class="ms-2"><strong class="inline-target-name"></strong></span></h5>
-            <button type="button" class="btn btn-link p-0 ms-auto inline-cancel" aria-label="Chiudi">
-                <i class="fas fa-times" style="font-size:1.1rem;color:#000;"></i>
-            </button>
+                <button type="button" class="btn btn-link p-0 ms-auto inline-cancel" aria-label="Chiudi">
+                    <i class="fas fa-times icon-times"></i>
+                </button>
         </div>
         <div class="card-body py-1">
             <form class="form-inline-bollo" method="POST" action="{{ url_for('veicoli.aggiungi_bollo') }}">
@@ -473,9 +473,9 @@
     <div class="card mb-2 inline-add-box">
         <div class="card-header d-flex align-items-center py-2">
             <h5 class="mb-0 fs-6"><i class="fas fa-wrench me-2"></i>Nuova Manutenzione per <span class="ms-2"><strong class="inline-target-name"></strong></span></h5>
-            <button type="button" class="btn btn-link p-0 ms-auto inline-cancel" aria-label="Chiudi">
-                <i class="fas fa-times" style="font-size:1.1rem;color:#000;"></i>
-            </button>
+                <button type="button" class="btn btn-link p-0 ms-auto inline-cancel" aria-label="Chiudi">
+                    <i class="fas fa-times icon-times"></i>
+                </button>
         </div>
         <div class="card-body py-2">
             <form class="form-inline-manutenzione" method="POST" action="{{ url_for('veicoli.aggiungi_manutenzione') }}">
@@ -539,9 +539,9 @@
     <div class="card my-3 inline-add-box">
         <div class="card-header d-flex align-items-center py-1">
             <h5 class="mb-0 fs-6"><i class="fas fa-shield-alt me-2"></i>Nuova Assicurazione per <span class="ms-2"><strong class="inline-target-name"></strong></span></h5>
-            <button type="button" class="btn btn-link p-0 ms-auto inline-cancel" aria-label="Chiudi">
-                <i class="fas fa-times" style="font-size:1.1rem;color:#000;"></i>
-            </button>
+                <button type="button" class="btn btn-link p-0 ms-auto inline-cancel" aria-label="Chiudi">
+                    <i class="fas fa-times icon-times"></i>
+                </button>
         </div>
         <div class="card-body py-1 mb-3 mt-3">
             <form class="form-inline-assicurazione" method="POST" action="{{ url_for('veicoli.aggiungi_assicurazione') }}">
@@ -881,13 +881,19 @@ document.addEventListener('DOMContentLoaded', function(){
 
                 function updateInlineVisibility(){
                     var tipoVal = tipoEl ? (tipoEl.value || '').toLowerCase() : '';
-                    // hide bollo for bici
+                    // hide bollo for bici using class toggling (templates use d-none)
                     if (bolloBlock) {
-                        bolloBlock.style.display = (tipoVal === 'bici') ? 'none' : '';
+                        if (tipoVal === 'bici') {
+                            bolloBlock.classList.add('d-none');
+                        } else {
+                            bolloBlock.classList.remove('d-none');
+                        }
                     }
-                    // show financing fields only if checkbox is checked
+                    // show financing fields only if checkbox is checked (toggle d-none)
                     var showFin = hasFinEl ? hasFinEl.checked : false;
-                    financingBlocks.forEach(function(b){ b.style.display = showFin ? '' : 'none'; });
+                    financingBlocks.forEach(function(b){
+                        if (showFin) b.classList.remove('d-none'); else b.classList.add('d-none');
+                    });
                 }
 
                 if (tipoEl) tipoEl.addEventListener('change', updateInlineVisibility);

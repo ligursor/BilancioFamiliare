@@ -1,0 +1,174 @@
+/* Consolidated template CSS (extracted from templates and optimized)
+   Location: app/static/css/templates.css
+*/
+
+/* ---------- Navbar (moved from base.html inline styles) ---------- */
+.navbar {
+  position: relative;
+  z-index: 1100;
+}
+.navbar .nav-link {
+  color: rgba(255,255,255,0.95) !important;
+  font-weight: 600;
+  padding: .35rem .6rem;
+  transition: background-color .12s ease, color .12s ease;
+}
+.navbar .nav-link .fas, .navbar .nav-link .fab {
+  opacity: 0.98;
+  font-size: 1.05em;
+}
+.navbar .nav-link:hover, .navbar .nav-link:focus {
+  color: #ffffff !important;
+  background: rgba(255,255,255,0.06);
+  border-radius: .25rem;
+  text-decoration: none;
+}
+.navbar .logout-btn {
+  background: rgba(255,255,255,0.08);
+  padding: .25rem .5rem;
+  border-radius: .25rem;
+  margin-left: .5rem;
+  color: #fff !important;
+}
+.navbar .logout-btn:hover { background: rgba(255,255,255,0.16); color: #fff !important; }
+.navbar .dropdown-menu { min-width: 12rem; }
+
+/* ---------- Password Manager layout (from passwd_manager/index.html) ---------- */
+#categoriesGrid {
+  display: flex;
+  gap: .5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: .5rem;
+  align-items: flex-start;
+}
+.category-col {
+  flex: 0 0 auto;
+  width: 11rem;
+}
+@media (min-width: 992px) {
+  .category-col {
+    width: auto;
+    flex: 0 0 calc((100% - 3rem) / 7);
+    max-width: calc((100% - 3rem) / 7);
+  }
+}
+.copy-feedback {
+  display: none;
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  z-index: 2000;
+  font-size: 0.9rem;
+}
+.category-card-compact { height: 100%; }
+#categoriesGrid::-webkit-scrollbar { height: 8px; }
+#categoriesGrid::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
+
+/* ---------- Small page-specific helpers ---------- */
+/* Remove number input spinners for the inline Nuovo Versamento card */
+#card-nuovo-versamento input[type=number]::-webkit-outer-spin-button,
+#card-nuovo-versamento input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+#card-nuovo-versamento input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+/* Equal-height utility used by vehicle detail page */
+.equal-height { min-height: 100%; display: flex; flex-direction: column; }
+.card.equal-height { flex: 1 1 auto; }
+
+/* ---------- Login page (scoped) ---------- */
+body.login-page {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #343a40;
+}
+body.login-page .login-container {
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  padding: 2rem;
+  max-width: 400px;
+  width: 100%;
+}
+body.login-page .login-header { text-align: center; margin-bottom: 2rem; }
+body.login-page .form-control { border-radius: 10px; padding: 0.75rem 1rem; }
+body.login-page .btn-login {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none; border-radius: 10px; padding: 0.75rem 2rem; color: white; font-weight:600; width:100%;
+}
+body.login-page .btn-login:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); color: white; }
+body.login-page .password-input-group { position: relative; }
+body.login-page .toggle-password { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); border: none; background: none; color: #6c757d; cursor: pointer; }
+body.login-page .app-title { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+body.login-page .app-logo { color: #667eea; text-shadow: 0 2px 4px rgba(102, 126, 234, 0.3); margin-bottom: 1rem; font-size: 3rem; }
+
+/* ---------- Setup-required page (scoped) ---------- */
+body.setup-required { display: flex; align-items: center; justify-content: center; height: 100vh; }
+
+/* small utilities / fallbacks */
+.toast-container .toast { min-width: 240px; }
+
+/* End of consolidated CSS */
+
+/* ---------- Utility classes extracted from inline styles ---------- */
+.btn-circle-sm { width: 28px; height: 28px; padding: 0; border-width: 1px; font-size: 12px; display:inline-flex; align-items:center; justify-content:center; }
+.icon-sm { font-size: 12px; color: inherit; }
+.icon-times-lg { font-size: 1.25rem; color: #fff; }
+.icon-times { font-size: 1.1rem; color: #000; }
+.display-inline { display: inline !important; }
+.display-inline-block { display: inline-block !important; }
+.min-height-1 { min-height: 1px !important; }
+.w-140 { width: 140px !important; }
+.w-70 { width: 70px !important; }
+.w-200 { width: 200px !important; }
+.min-w-120 { min-width: 120px !important; }
+.min-w-110 { min-width: 110px !important; }
+.no-spinner input[type=number]::-webkit-outer-spin-button,
+.no-spinner input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.no-spinner input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+.flex-fixed-140 { flex: 0 0 140px !important; }
+.flex-fixed-200 { flex: 0 0 200px !important; }
+.flex-gap { gap: .5rem; }
+.overflow-auto { overflow: auto; }
+
+.w-100 { width: 100% !important; }
+.w-120 { width: 120px !important; }
+.min-w-160 { min-width: 160px !important; }
+.flex-fill-min-160 { flex: 1 1 280px !important; min-width: 160px !important; }
+
+/* Toast positioning (moved from base.html inline styles) */
+.toast-area {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1080;
+}
+.toast-inner {
+  position: relative;
+  min-height: 200px;
+}
+
+/* Utility for orange background used in some templates */
+.bg-orange { background-color: #fd7e14 !important; }
+
+/* Footer inline buttons for vehicle cards: make buttons share full width and be responsive */
+.inline-footer-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: .25rem; /* matches gap-1 */
+}
+@media (max-width: 576px) {
+  .inline-footer-buttons {
+    grid-template-columns: 1fr;
+  }
+}

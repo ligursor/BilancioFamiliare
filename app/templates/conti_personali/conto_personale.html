@@ -74,18 +74,7 @@
                     </div>
                 </div>
                 </div>
-                <style>
-                /* remove number input spinners for the inline Nuovo Versamento card */
-                #card-nuovo-versamento input[type=number]::-webkit-outer-spin-button,
-                #card-nuovo-versamento input[type=number]::-webkit-inner-spin-button {
-                    -webkit-appearance: none;
-                    margin: 0;
-                }
-                #card-nuovo-versamento input[type=number] {
-                    -moz-appearance: textfield;
-                    appearance: textfield;
-                }
-                </style>
+                <!-- spinner removal styles relocated to static/css/templates.css -->
 
                 <template id="tmpl-nuovo-versamento">
                     <div id="card-nuovo-versamento" class="card mb-4">
@@ -157,7 +146,7 @@
                         <td class="text-center">{{ versamento.data.strftime('%d/%m/%Y') }}</td>
                         <td class="text-center">{{ (versamento.importo | default(0.0)) | format_currency }}</td>
                         <td class="text-center">
-                            <form class="form-elimina-versamento" method="POST" action="{{ url_for('conti.elimina_versamento', versamento_id=versamento.id) }}" style="display:inline">
+                            <form class="form-elimina-versamento d-inline" method="POST" action="{{ url_for('conti.elimina_versamento', versamento_id=versamento.id) }}">
                                 <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina versamento">
                                     <i class="fas fa-trash"></i>
                                 </button>

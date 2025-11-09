@@ -8,38 +8,10 @@
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet" crossorigin="anonymous">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='money.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
-    <style>
-        /* Emphasize navbar items so Sezioni / Gestione / Logout are more visible */
-        .navbar .nav-link {
-            color: rgba(255,255,255,0.95) !important;
-            font-weight: 600;
-            padding: .35rem .6rem;
-            transition: background-color .12s ease, color .12s ease;
-        }
-        .navbar .nav-link .fas, .navbar .nav-link .fab {
-            opacity: 0.98;
-            font-size: 1.05em;
-        }
-        .navbar .nav-link:hover, .navbar .nav-link:focus {
-            color: #ffffff !important;
-            background: rgba(255,255,255,0.06);
-            border-radius: .25rem;
-            text-decoration: none;
-        }
-        .navbar .logout-btn {
-            background: rgba(255,255,255,0.08);
-            padding: .25rem .5rem;
-            border-radius: .25rem;
-            margin-left: .5rem;
-            color: #fff !important;
-        }
-        .navbar .logout-btn:hover { background: rgba(255,255,255,0.16); color: #fff !important; }
-        /* Slightly wider dropdowns for better readability */
-        .navbar .dropdown-menu { min-width: 12rem; }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/templates.css') }}">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary" style="position:relative; z-index:1100;">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('main.index') }}">
                 <i class="fas fa-wallet me-2"></i>Casa Ligurso
@@ -116,8 +88,8 @@
     </nav>
 
     <!-- Toast container per notifiche client-side (usare showToast(msg, type)) -->
-    <div aria-live="polite" aria-atomic="true" style="position: fixed; top: 1rem; right: 1rem; z-index: 1080;">
-        <div id="toast-container" style="position: relative; min-height: 200px;"></div>
+    <div aria-live="polite" aria-atomic="true" class="toast-area">
+        <div id="toast-container" class="toast-inner"></div>
     </div>
 
     <!-- Global confirmation modal to avoid native browser confirm dialogs (Firefox suppress checkbox) -->

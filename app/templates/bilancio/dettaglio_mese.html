@@ -185,7 +185,7 @@ function modificaMonthlyBudget(btn) {
                         </div>
                     </div>
                     <div class="col-md-2">
-                        <div class="card bg-orange text-white" style="background-color: #fd7e14 !important;">
+                        <div class="card bg-orange text-white">
                             <div class="card-body text-center">
                                 <h6>
                                     <button id="togglePieBtn" class="btn btn-sm btn-outline-light ms-2" type="button" aria-pressed="false" data-bs-toggle="modal" data-bs-target="#uscitePieModal" title="Mostra grafico">
@@ -415,7 +415,7 @@ function modificaMonthlyBudget(btn) {
                                             <i class="fas fa-edit" aria-hidden="true"></i>
                                             <span class="visually-hidden">Modifica transazione</span>
                                         </button>
-                                        <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?">
+                                        <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?">
                                             <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina transazione" aria-label="Elimina transazione">
                                                 <i class="fas fa-trash" aria-hidden="true"></i>
                                                 <span class="visually-hidden">Elimina transazione</span>
@@ -488,7 +488,7 @@ function modificaMonthlyBudget(btn) {
                                                 <i class="fas fa-edit" aria-hidden="true"></i>
                                                 <span class="visually-hidden">Modifica transazione</span>
                                             </button>
-                                            <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?">
+                                            <form method="POST" action="{{ url_for('dettaglio_periodo.elimina_transazione_periodo', start_date=start_date, end_date=end_date, id=transazione.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa transazione?">
                                                 <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina transazione" aria-label="Elimina transazione">
                                                     <i class="fas fa-trash" aria-hidden="true"></i>
                                                     <span class="visually-hidden">Elimina transazione</span>

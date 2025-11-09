@@ -3,16 +3,7 @@
 {% block title %}{{ veicolo.nome_completo }} - Dettaglio{% endblock %}
 
 {% block content %}
-<style>
-  .equal-height {
-	min-height: 100%;
-	display: flex;
-	flex-direction: column;
-  }
-  .card.equal-height {
-	flex: 1 1 auto;
-  }
-</style>
+<!-- equal-height styles moved to static/css/templates.css -->
 <div class="container-fluid mt-4">
 	<div class="row">
 		<div class="col-lg-12">
@@ -23,7 +14,7 @@
 						<i class="fas fa-arrow-left me-1"></i>Garage
 					</a>
 					<!-- Modifica button removed per richiesta -->
-					<form method="POST" action="{{ url_for('veicoli.rimuovi_veicolo', veicolo_id=veicolo.id) }}" style="display:inline-block;" data-action="confirm-delete" data-message="Confermi la rimozione del veicolo dal garage?">
+					<form method="POST" action="{{ url_for('veicoli.rimuovi_veicolo', veicolo_id=veicolo.id) }}" class="d-inline-block" data-action="confirm-delete" data-message="Confermi la rimozione del veicolo dal garage?">
 						<button type="submit" class="btn btn-danger ms-2">
 							<i class="fas fa-trash me-1"></i>Rimuovi
 						</button>
@@ -201,7 +192,7 @@
 									<td class="text-center">{{ bollo.data_pagamento.strftime('%d/%m/%Y') }}</td>
 									<td class="text-center">{{ (bollo.importo or 0) | format_currency }}</td>
 									<td class="text-center">
-										<form method="POST" action="{{ url_for('veicoli.elimina_bollo', bollo_id=bollo.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo bollo?">
+										<form method="POST" action="{{ url_for('veicoli.elimina_bollo', bollo_id=bollo.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo bollo?">
 											<input type="hidden" name="redirect_to_veicolo" value="1">
 											<button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina bollo" aria-label="Elimina bollo">
 												<i class="fas fa-trash" aria-hidden="true"></i>
@@ -253,7 +244,7 @@
 									<td class="text-center">{{ "{:,}".format(manutenzione.km_intervento).replace(',', '.') }}</td>
 									<td class="text-center">{{ (manutenzione.costo or 0) | format_currency }}</td>
 									<td class="text-center">
-										<form method="POST" action="{{ url_for('veicoli.elimina_manutenzione', manutenzione_id=manutenzione.id) }}" style="display:inline;" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa manutenzione?">
+										<form method="POST" action="{{ url_for('veicoli.elimina_manutenzione', manutenzione_id=manutenzione.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa manutenzione?">
 											<input type="hidden" name="redirect_to_veicolo" value="1">
 											<button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina manutenzione" aria-label="Elimina manutenzione">
 												<i class="fas fa-trash" aria-hidden="true"></i>
@@ -283,7 +274,7 @@
 	    <div class="card-header d-flex align-items-center py-2">
 		    <h5 class="mb-0 fs-6"><i class="fas fa-receipt me-2"></i>Nuovo Bollo per <span class="ms-2"><strong class="inline-target-name">{{ veicolo.nome_completo }}</strong></span></h5>
 			<button type="button" class="btn btn-link p-0 ms-auto inline-cancel" aria-label="Chiudi">
-				<i class="fas fa-times" style="font-size:1.1rem;color:#000;"></i>
+				<i class="fas fa-times icon-times"></i>
 			</button>
 		</div>
 		<div class="card-body py-2">

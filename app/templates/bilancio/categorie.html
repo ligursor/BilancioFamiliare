@@ -19,7 +19,7 @@
                             <div class="card-header d-flex align-items-center">
                                 <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Nuova Categoria</h5>
                                 <button type="button" class="btn btn-link p-0 ms-auto" aria-label="Chiudi" id="btn-close-nuova-categoria">
-                                    <i class="fas fa-times" style="font-size:1.25rem;color:#fff;"></i>
+                                    <i class="fas fa-times fa-lg text-white"></i>
                                 </button>
                             </div>
                             <div class="card-body">
@@ -65,7 +65,7 @@
                                             <i class="fas fa-edit" aria-hidden="true"></i>
                                             <span class="visually-hidden">Modifica categoria</span>
                                         </button>
-                                        <form method="POST" action="{{ url_for('categorie.elimina', categoria_id=categoria.id) }}" style="display: inline;">
+                                        <form method="POST" action="{{ url_for('categorie.elimina', categoria_id=categoria.id) }}" class="d-inline">
                                             <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina categoria" aria-label="Elimina categoria"
                                                     data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa categoria?">
                                                 <i class="fas fa-trash" aria-hidden="true"></i>
@@ -98,7 +98,7 @@
                                             <i class="fas fa-edit" aria-hidden="true"></i>
                                             <span class="visually-hidden">Modifica categoria</span>
                                         </button>
-                                        <form method="POST" action="{{ url_for('categorie.elimina', categoria_id=categoria.id) }}" style="display: inline;">
+                                        <form method="POST" action="{{ url_for('categorie.elimina', categoria_id=categoria.id) }}" class="d-inline">
                                             <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina categoria" aria-label="Elimina categorie"
                                                     data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa categoria?">
                                                 <i class="fas fa-trash" aria-hidden="true"></i>
