@@ -364,8 +364,9 @@
                     }
                 });
                 
-                // Mostra il contenuto della categoria
-                document.getElementById('selectedCategoryContent').style.display = 'block';
+                // Mostra il contenuto della categoria (usa la classe d-none per coerenza con Bootstrap)
+                const selContent = document.getElementById('selectedCategoryContent');
+                if (selContent) selContent.classList.remove('d-none');
                 
                 // Popola i servizi
                 const servicesContainer = document.getElementById('selectedCategoryServices');
@@ -391,26 +392,32 @@
         // Toggle visibilità dettagli sensibili in una card specifica
         function toggleServiceDetails(button) {
             const card = button.closest('.card');
+            if (!card) return;
             const sensitiveContent = card.querySelectorAll('.sensitive-content');
             const icon = button.querySelector('i');
-            
+
             if (sensitiveContent.length === 0) {
                 return; // Nessun contenuto sensibile da mostrare
             }
-            
-            const isHidden = sensitiveContent[0].style.display === 'none';
-            
+
+            // Usa la classe 'd-none' (Bootstrap) per determinare lo stato
+            const isHidden = sensitiveContent[0].classList.contains('d-none');
+
             sensitiveContent.forEach(element => {
-                element.style.display = isHidden ? 'block' : 'none';
+                if (isHidden) element.classList.remove('d-none');
+                else element.classList.add('d-none');
             });
-            
-            // Aggiorna l'icona del pulsante
+
+            // Aggiorna l'icona del pulsante e lo stile
+            if (!icon) return;
             if (isHidden) {
+                // Ora visibile
                 icon.className = 'fas fa-eye-slash';
                 button.title = 'Nascondi dettagli';
                 button.classList.remove('btn-outline-info');
                 button.classList.add('btn-info');
             } else {
+                // Ora nascosto
                 icon.className = 'fas fa-eye';
                 button.title = 'Mostra dettagli';
                 button.classList.remove('btn-info');
@@ -421,8 +428,9 @@
         // Deseleziona la categoria
         function deselectCategory() {
             selectedCategory = null;
-            document.getElementById('selectedCategoryContent').style.display = 'none';
-            
+            const sel = document.getElementById('selectedCategoryContent');
+            if (sel) sel.classList.add('d-none');
+
             // Rimuovi l'evidenziazione da tutte le card
             document.querySelectorAll('.category-card-compact').forEach(card => {
                 card.classList.remove('category-card-active');
@@ -586,6 +594,117 @@
         window.addEventListener('resize', function() {
             applyCategoryLayout();
         });
+
+        // ----- Data loading helpers (provide minimal implementations that were removed) -----
+        // For compatibility with older code paths which call forceDataReload(), loadCategories(), loadAllData(), etc.
+        async function forceDataReload() {
+            try {
+                console.log('🔁 Forzando reload completo dei dati...');
+                const resp = await fetch('/passwd/api/search');
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                allData = await resp.json();
+
+                // ricava le categorie dai dati
+                const categoriesMap = {};
+                allData.forEach(i => {
+                    const c = i.CATEGORIA || 'UNCLASSIFIED';
+                    categoriesMap[c] = (categoriesMap[c] || 0) + 1;
+                });
+
+                allCategories = Object.keys(categoriesMap);
+
+                // aggiorna datalist per i suggerimenti
+                const datalist = document.getElementById('categoriesList');
+                if (datalist) {
+                    datalist.innerHTML = '';
+                    allCategories.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c;
+                        datalist.appendChild(opt);
+                    });
+                }
+
+                // renderizza la griglia categorie
+                renderCategoriesGrid(categoriesMap);
+
+                // aggiorna la vista della categoria selezionata se presente
+                await reloadCategoryView(true);
+            } catch (e) {
+                console.error('forceDataReload error', e);
+            }
+        }
+
+        async function loadAllData(force) {
+            if (!force && allData && allData.length) return allData;
+            try {
+                const resp = await fetch('/passwd/api/search');
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                allData = await resp.json();
+                return allData;
+            } catch (e) {
+                console.error('loadAllData error', e);
+                return [];
+            }
+        }
+
+        async function loadCategories(force) {
+            if (!force && allCategories && allCategories.length) return allCategories;
+            // ensure we have allData
+            if (!allData || allData.length === 0) await loadAllData(true);
+            const categoriesMap = {};
+            (allData || []).forEach(i => {
+                const c = i.CATEGORIA || 'UNCLASSIFIED';
+                categoriesMap[c] = (categoriesMap[c] || 0) + 1;
+            });
+            allCategories = Object.keys(categoriesMap);
+            renderCategoriesGrid(categoriesMap);
+            return allCategories;
+        }
+
+        async function reloadCategoryView(force) {
+            if (!selectedCategory) return;
+            // ensure data available
+            if (!allData || allData.length === 0) await loadAllData(true);
+
+            try {
+                const servicesContainer = document.getElementById('selectedCategoryServices');
+                if (!servicesContainer) return;
+                servicesContainer.innerHTML = '';
+
+                const categoryServices = (allData || []).filter(item => item.CATEGORIA === selectedCategory);
+                categoryServices.forEach(item => {
+                    const card = createCompactServiceCard(item);
+                    servicesContainer.appendChild(card);
+                });
+
+                const selectedContent = document.getElementById('selectedCategoryContent');
+                if (selectedContent) selectedContent.classList.remove('d-none');
+            } catch (e) {
+                console.error('reloadCategoryView error', e);
+            }
+        }
+
+        function renderCategoriesGrid(categoriesMap) {
+            const grid = document.getElementById('categoriesGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            Object.keys(categoriesMap).forEach(c => {
+                const col = document.createElement('div');
+                col.className = 'category-col mb-1';
+                col.innerHTML = `
+                    <div class="card category-card-compact h-100" onclick="selectCategory('${c.replace(/'/g, "\\'")}')">
+                        <div class="card-body p-1 text-center">
+                            <div class="mb-1">
+                                <i class="fas fa-folder text-primary" style="font-size: 0.9rem;"></i>
+                            </div>
+                            <h6 class="mb-1 text-truncate category-name" style="font-size: 0.75rem; line-height: 1.2;">${c}</h6>
+                            <small class="badge bg-primary" style="font-size: 0.65rem;">${categoriesMap[c]}</small>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(col);
+            });
+        }
         
         // ----- rest of the page JS (CRUD, copy, export functions) -----
         // To preserve maintainability, helper functions defined below mirror the original app behavior.

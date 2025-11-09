@@ -108,3 +108,11 @@ def api_export_xlsx():
         return jsonify({'ok': False}), 500
     directory, filename = os.path.split(path)
     return send_from_directory(directory, filename, as_attachment=True)
+
+
+# Serve service worker file expected at /passwd/sw.js
+@bp.route('/sw.js')
+def service_worker():
+    # The service worker file is placed under app/static/passwd/sw.js
+    sw_dir = os.path.join(current_app.root_path, 'static', 'passwd')
+    return send_from_directory(sw_dir, 'sw.js', mimetype='application/javascript')
