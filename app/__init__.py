@@ -64,6 +64,7 @@ def create_app(config_name='default'):
             'ricorrenti.lista': {'name': 'Ricorrenti', 'icon': 'fas fa-sync-alt'},
             'paypal.dashboard': {'name': 'PayPal', 'icon': 'fab fa-paypal'},
             'ppay.evolution': {'name': 'PPay Evolution', 'icon': 'fas fa-credit-card'},
+            'libretto.dashboard': {'name': 'Libretto Smart', 'icon': 'fas fa-book'},
             'veicoli.garage': {'name': 'Garage', 'icon': 'fas fa-car'},
             'passwd.index': {'name': 'Password Manager', 'icon': 'fas fa-key'},
             'main.reset': {'name': 'Reset', 'icon': 'fas fa-undo'},
@@ -151,6 +152,7 @@ def create_app(config_name='default'):
     from app.views.conto_personale import conti_bp
     from app.views.veicoli.veicoli import veicoli_bp
     from app.views.ppay_evolution import ppay_bp
+    from app.views.libretto import libretto_bp
     # Password manager blueprint (integrated)
     try:
         from app.views.passwd_manager.passwd_manager import bp as passwd_bp
@@ -167,6 +169,7 @@ def create_app(config_name='default'):
     app.register_blueprint(conti_bp, url_prefix='/conti')
     app.register_blueprint(veicoli_bp, url_prefix='/veicoli')
     app.register_blueprint(ppay_bp, url_prefix='/ppay_evolution')
+    app.register_blueprint(libretto_bp, url_prefix='/libretto')
     if passwd_bp:
         # mount the passwd manager under /passwd
         app.register_blueprint(passwd_bp, url_prefix='/passwd')

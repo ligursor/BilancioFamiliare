@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}Libretto Smart - Gestione Bilancio Familiare{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+                        <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-circle' }} me-2"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% if libretto %}
+            <!-- Card informazioni libretto -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <h6 class="card-title"><strong>Identificativo</strong></h6>
+                            <p class="mb-0 text-center">{{ libretto.identificativo }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h6 class="card-title"><strong>Intestatari</strong></h6>
+                            <p class="mb-0 text-center">{{ libretto.intestatari }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">
+                                <strong>Saldo Disponibile</strong>
+                                <button type="button" class="btn btn-sm btn-outline-light ms-1" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#correggiSaldoLibrettoModal"
+                                        title="Correggi saldo">
+                                    <i class="fas fa-wrench" aria-hidden="true"></i>
+                                </button>
+                            </h6>
+                            <p class="mb-0" id="saldo_libretto_val">{{ (libretto.saldo_disponibile | default(0.0)) | format_currency }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <h6 class="card-title"><strong>Depositi Attivi</strong></h6>
+                            <p class="mb-0 text-center">{{ statistiche.numero_depositi_attivi | default(0) }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card statistiche depositi -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card border-primary">
+                        <div class="card-body">
+                            <h6 class="card-title text-primary">Totale Depositato Attivo</h6>
+                            <h4 class="text-center">{{ (statistiche.totale_depositato_attivo | default(0.0)) | format_currency }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-success">
+                        <div class="card-body">
+                            <h6 class="card-title text-success">Netto Atteso</h6>
+                            <h4 class="text-center">{{ (statistiche.totale_netto_attivo | default(0.0)) | format_currency }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-info">
+                        <div class="card-body">
+                            <h6 class="card-title text-info">Totale a Scadenza</h6>
+                            <h4 class="text-center">{{ (statistiche.totale_a_scadenza_attivo | default(0.0)) | format_currency }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Container per il form inline del nuovo deposito -->
+            <div id="inline-deposito-container" class="mb-2"></div>
+
+            <!-- Tabella depositi -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 d-inline">
+                            <i class="fas fa-list me-2"></i>Depositi Supersmart
+                            {% if depositi %}
+                            <span class="badge bg-primary ms-2">{{ depositi|length }}</span>
+                            {% endif %}
+                        </h5>
+                    </div>
+                    <button id="btn-nuovo-deposito" class="btn btn-success btn-sm" type="button">
+                        <i class="fas fa-plus me-1"></i>Nuovo Deposito
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if depositi and depositi|length > 0 %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Descrizione</th>
+                                    <th class="text-center">Attivazione</th>
+                                    <th class="text-center">Scadenza</th>
+                                    <th class="text-center">Tasso</th>
+                                    <th class="text-center">Deposito</th>
+                                    <th class="text-center">Netto</th>
+                                    <th class="text-center">Totale</th>
+                                    <th class="text-center">Giorni Rimanenti</th>
+                                    <th class="text-center">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for deposito in depositi %}
+                                <tr class="{% if deposito.is_scaduto %}table-secondary{% endif %}">
+                                    <td>
+                                        {{ deposito.descrizione }}
+                                        {% if deposito.is_scaduto %}
+                                        <span class="badge bg-secondary ms-2">Scaduto</span>
+                                        {% else %}
+                                        <span class="badge bg-success ms-2">Attivo</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ deposito.data_attivazione.strftime('%d/%m/%Y') }}</td>
+                                    <td class="text-center">{{ deposito.data_scadenza.strftime('%d/%m/%Y') }}</td>
+                                    <td class="text-center">{{ deposito.tasso }}%</td>
+                                    <td class="text-center">{{ (deposito.deposito | default(0.0)) | format_currency }}</td>
+                                    <td class="text-center text-success"><strong>{{ (deposito.netto | default(0.0)) | format_currency }}</strong></td>
+                                    <td class="text-center">{{ (deposito.totale_a_scadenza | default(0.0)) | format_currency }}</td>
+                                    <td class="text-center">
+                                        {% if deposito.is_scaduto %}
+                                        <span class="text-muted">-</span>
+                                        {% else %}
+                                        <span class="badge bg-info">{{ deposito.giorni_rimanenti }} giorni</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <form method="POST" action="{{ url_for('libretto.elimina_deposito', deposito_id=deposito.id) }}" 
+                                              class="d-inline form-elimina-deposito">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" 
+                                                    title="Elimina deposito">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <h5>Nessun deposito registrato</h5>
+                        <p>Inizia aggiungendo il tuo primo deposito Supersmart utilizzando il modulo sopra.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% else %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Libretto non trovato. Verrà creato automaticamente al primo accesso.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Template per il form di nuovo deposito -->
+<template id="tmpl-nuovo-deposito">
+    <div id="card-nuovo-deposito" class="card mb-3">
+        <div class="card-header d-flex align-items-center">
+            <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Nuovo Deposito Supersmart</h5>
+            <button type="button" class="btn btn-link p-0 ms-auto" aria-label="Chiudi">
+                <i class="fas fa-times" style="font-size:1.25rem;color:#fff;"></i>
+            </button>
+        </div>
+        <div class="card-body">
+            <form class="form-nuovo-deposito" method="POST" action="{{ url_for('libretto.aggiungi_deposito') }}">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="descrizione_new" class="form-label">Descrizione</label>
+                        <input type="text" class="form-control" name="descrizione" 
+                               placeholder="Es: Deposito Gennaio 2025" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="data_attivazione_new" class="form-label">Data Attivazione</label>
+                        <input type="date" class="form-control" name="data_attivazione" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="data_scadenza_new" class="form-label">Data Scadenza</label>
+                        <input type="date" class="form-control" name="data_scadenza" required>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="tasso_new" class="form-label">Tasso (%)</label>
+                        <input type="number" step="0.01" class="form-control" name="tasso" 
+                               placeholder="Es: 2.50" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="deposito_new" class="form-label">Deposito (€)</label>
+                        <input type="number" step="0.01" class="form-control" name="deposito" 
+                               placeholder="Es: 5000.00" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="netto_new" class="form-label">Netto Atteso (€)</label>
+                        <input type="number" step="0.01" class="form-control" name="netto" 
+                               placeholder="Es: 125.00" required>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-plus me-1"></i>Aggiungi Deposito
+                        </button>
+                        <button type="button" class="btn btn-secondary ms-2" onclick="this.closest('.card').remove()">
+                            <i class="fas fa-times me-1"></i>Annulla
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</template>
+
+<!-- Modal per correggere il saldo -->
+<div class="modal fade" id="correggiSaldoLibrettoModal" tabindex="-1" aria-labelledby="correggiSaldoLibrettoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="correggiSaldoLibrettoModalLabel"><i class="fas fa-wrench me-2"></i>Correggi Saldo Libretto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+            </div>
+            <form id="correggiSaldoLibrettoForm" method="POST" action="{{ url_for('libretto.aggiorna_saldo') }}">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Saldo Attuale Registrato:</strong> <span id="saldo_libretto_registrato_display">{{ (libretto.saldo_disponibile | default(0.0)) | format_currency }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="saldo_disponibile_input" class="form-label">Inserisci il Saldo Reale (€)</label>
+                        <input type="number" step="0.01" class="form-control" id="saldo_disponibile_input" name="saldo_disponibile" required placeholder="0.00">
+                        <div class="form-text">
+                            Il saldo del libretto verrà aggiornato con il valore inserito.
+                        </div>
+                    </div>
+                    <div id="differenza_libretto_preview" class="alert" style="display:none;">
+                        <strong>Differenza:</strong> <span id="differenza_libretto_text"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check me-1"></i>Aggiorna Saldo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Gestione inserimento nuovo deposito con template
+    const btnNuovoDeposito = document.getElementById('btn-nuovo-deposito');
+    const inlineDepositoContainer = document.getElementById('inline-deposito-container');
+    
+    if (btnNuovoDeposito && inlineDepositoContainer) {
+        btnNuovoDeposito.addEventListener('click', function() {
+            // Verifica se il form è già presente
+            if (document.querySelector('.form-nuovo-deposito')) {
+                const firstInput = document.querySelector('.form-nuovo-deposito input');
+                if (firstInput) firstInput.focus();
+                return;
+            }
+            
+            // Clona il template
+            const tmpl = document.getElementById('tmpl-nuovo-deposito');
+            if (!tmpl) return;
+            const clone = tmpl.content.cloneNode(true);
+            
+            // Inserisci il form nel container
+            inlineDepositoContainer.insertBefore(clone, inlineDepositoContainer.firstChild);
+            
+            // Trova il card e il form inseriti
+            const insertedCard = inlineDepositoContainer.querySelector('.card');
+            if (insertedCard) {
+                // Rimuovi gli id per evitare duplicati
+                insertedCard.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+                insertedCard.classList.add('inline-inserted');
+            }
+            
+            const insertedForm = inlineDepositoContainer.querySelector('form');
+            if (insertedForm) {
+                // Imposta la data odierna come default per data attivazione
+                const dataAttivazioneField = insertedForm.querySelector('[name="data_attivazione"]');
+                if (dataAttivazioneField && !dataAttivazioneField.value) {
+                    const today = new Date().toISOString().split('T')[0];
+                    dataAttivazioneField.value = today;
+                }
+                
+                // Focus sul primo campo
+                const firstInput = insertedForm.querySelector('input');
+                if (firstInput) firstInput.focus();
+                
+                // Gestione pulsante chiudi
+                const closeBtn = insertedCard.querySelector('button[aria-label="Chiudi"]');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function() {
+                        insertedCard.remove();
+                    });
+                }
+            }
+        });
+    }
+    
+    // Gestione modal correzione saldo
+    const correggiSaldoLibrettoModal = document.getElementById('correggiSaldoLibrettoModal');
+    const correggiSaldoLibrettoForm = document.getElementById('correggiSaldoLibrettoForm');
+    const saldoDisponibileInput = document.getElementById('saldo_disponibile_input');
+    const differenzaLibrettoPreview = document.getElementById('differenza_libretto_preview');
+    const differenzaLibrettoText = document.getElementById('differenza_libretto_text');
+    const saldoLibrettoRegistratoDisplay = document.getElementById('saldo_libretto_registrato_display');
+    const saldoLibrettoVal = document.getElementById('saldo_libretto_val');
+    
+    if (correggiSaldoLibrettoModal && correggiSaldoLibrettoForm) {
+        // Aggiorna il display del saldo quando si apre il modal
+        correggiSaldoLibrettoModal.addEventListener('show.bs.modal', function() {
+            if (saldoLibrettoVal && saldoLibrettoRegistratoDisplay) {
+                saldoLibrettoRegistratoDisplay.textContent = saldoLibrettoVal.textContent;
+            }
+            if (saldoDisponibileInput) {
+                saldoDisponibileInput.value = '';
+            }
+            if (differenzaLibrettoPreview) {
+                differenzaLibrettoPreview.style.display = 'none';
+            }
+        });
+        
+        // Mostra preview della differenza mentre l'utente digita
+        if (saldoDisponibileInput) {
+            saldoDisponibileInput.addEventListener('input', function() {
+                const saldoReale = parseFloat(this.value) || 0;
+                const saldoAttuale = parseFloat(saldoLibrettoVal.textContent.replace('€', '').replace(',', '.').trim()) || 0;
+                const differenza = saldoReale - saldoAttuale;
+                
+                if (Math.abs(differenza) >= 0.01) {
+                    differenzaLibrettoPreview.style.display = 'block';
+                    if (differenza > 0) {
+                        differenzaLibrettoPreview.className = 'alert alert-success';
+                        differenzaLibrettoText.innerHTML = '<i class="fas fa-arrow-up me-1"></i>+€' + Math.abs(differenza).toFixed(2) + ' (Incremento)';
+                    } else {
+                        differenzaLibrettoPreview.className = 'alert alert-danger';
+                        differenzaLibrettoText.innerHTML = '<i class="fas fa-arrow-down me-1"></i>-€' + Math.abs(differenza).toFixed(2) + ' (Decremento)';
+                    }
+                } else {
+                    differenzaLibrettoPreview.style.display = 'none';
+                }
+            });
+        }
+        
+        // Gestione submit form
+        correggiSaldoLibrettoForm.addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.disabled = true;
+            
+            // Aggiorna il valore visualizzato prima del redirect
+            const nuovoSaldo = parseFloat(saldoDisponibileInput.value) || 0;
+            if (saldoLibrettoVal) {
+                saldoLibrettoVal.textContent = '€ ' + nuovoSaldo.toFixed(2);
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
