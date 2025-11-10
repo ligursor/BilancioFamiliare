@@ -460,7 +460,7 @@ window.initMovimentiPagination = function(preferredPage) {
         var start = (page - 1) * pageSize;
         var end = start + pageSize;
         rows.forEach(function(r, idx){
-            r.style.display = (idx >= start && idx < end) ? '' : 'none';
+            r.classList.toggle('d-none', !(idx >= start && idx < end));
         });
         table.dataset.currentPage = page;
         renderControls(page);
@@ -514,7 +514,7 @@ window.initAbbonamentiPagination = function(preferredPage) {
         var start = (page - 1) * pageSize;
         var end = start + pageSize;
         rows.forEach(function(r, idx){
-            r.style.display = (idx >= start && idx < end) ? '' : 'none';
+            r.classList.toggle('d-none', !(idx >= start && idx < end));
         });
         table.dataset.currentPage = page;
         renderControls(page);

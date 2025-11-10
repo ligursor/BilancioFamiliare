@@ -13,21 +13,6 @@
     <div class="container-fluid py-4">
         <div class="row">
             <div class="col-12">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h1 class="mb-0 app-title">
-                        <i class="fas fa-lock app-logo"></i> Password Manager
-                    </h1>
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-success" onclick="showAddCredentialModal()" title="Aggiungi Credenziale">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                        <button type="button" class="btn btn-success" onclick="exportToXlsx()" title="Esporta in Excel protetto con password di login">
-                            <i class="fas fa-file-excel"></i>
-                        </button>
-                        
-                    </div>
-                </div>
-
                 <!-- Contenuto organizzato per categoria -->
                 <div id="categoryContent">
                     <div class="row mb-5 g-1" id="categoriesGrid">
@@ -58,8 +43,26 @@
     </div>
 
     <!-- Feedback per operazioni di copia -->
-    <div id="copyFeedback" class="copy-feedback">
+    <div id="copyFeedback" class="copy-feedback d-none">
         <i class="fas fa-check"></i> <span id="copyMessage">Copiato negli appunti!</span>
+    </div>
+
+    <!-- Pulsanti flottanti in basso a destra -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
+        <div class="d-flex flex-column gap-2">
+            <button type="button" class="btn btn-success rounded-circle shadow" 
+                    onclick="exportToXlsx()" 
+                    title="Esporta in Excel protetto con password di login"
+                    style="width: 56px; height: 56px;">
+                <i class="fas fa-file-excel"></i>
+            </button>
+            <button type="button" class="btn btn-primary rounded-circle shadow" 
+                    onclick="showAddCredentialModal()" 
+                    title="Aggiungi Credenziale"
+                    style="width: 56px; height: 56px;">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
     </div>
 
     <!-- Modal per aggiungere/modificare credenziale -->
@@ -813,8 +816,8 @@
                     const feedback = document.getElementById('copyFeedback');
                     if (feedback) {
                         document.getElementById('copyMessage').textContent = message;
-                        feedback.style.display = 'block';
-                        setTimeout(() => feedback.style.display = 'none', 1500);
+                        feedback.classList.remove('d-none');
+                        setTimeout(() => feedback.classList.add('d-none'), 1500);
                     } else {
                         alert(message);
                     }

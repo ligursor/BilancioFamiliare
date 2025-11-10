@@ -7,13 +7,7 @@
     
         <div class="row">
             <div class="col-12">
-                <h1 class="mb-4 d-flex align-items-center gap-2">
-                    <i class="fas fa-user-circle me-2 text-primary"></i>
-                    <span>Conto {{ nome_persona }}</span>
-                    <button type="button" class="btn btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center ms-2 shadow-none" style="width:28px;height:28px;padding:0;border-width:1px;font-size:12px;" data-bs-toggle="modal" data-bs-target="#infoModal" aria-label="Informazioni conto">
-                        <i class="fas fa-info-circle" style="font-size:12px;color:inherit;"></i>
-                    </button>
-                </h1>
+
                 {% set totale_versato = (versamenti | map(attribute='importo') | sum) if versamenti else 0.0 %}
                 {% set saldo_calcolato = (conto.strumento.saldo_iniziale | default(0.0)) - (totale_versato | default(0.0)) %}
 
@@ -142,7 +136,7 @@
                 <tbody>
                     {% for versamento in versamenti %}
                     <tr>
-                        <td class="text-start"><strong>{{ versamento.descrizione }}</strong></td>
+                        <td class="text-start">{{ versamento.descrizione }}</td>
                         <td class="text-center">{{ versamento.data.strftime('%d/%m/%Y') }}</td>
                         <td class="text-center">{{ (versamento.importo | default(0.0)) | format_currency }}</td>
                         <td class="text-center">
@@ -234,14 +228,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const nuovoSaldoCorrente = saldoCorrente + differenza;
 
             if (nuovoSaldo > 0 && nuovoSaldo !== saldoAttuale) {
-                previewDiv.style.display = 'block';
+                if (previewDiv) previewDiv.classList.remove('d-none');
                 document.getElementById('nuovo-saldo').textContent = formatEuro(nuovoSaldo);
                 document.getElementById('differenza').textContent = formatEuro(differenza);
                 document.getElementById('differenza').className = differenza >= 0 ? 'text-success' : 'text-danger';
                 document.getElementById('saldo-risultante').textContent = formatEuro(nuovoSaldoCorrente);
                 document.getElementById('saldo-risultante').className = nuovoSaldoCorrente >= 0 ? 'text-success' : 'text-danger';
             } else {
-                previewDiv.style.display = 'none';
+                if (previewDiv) previewDiv.classList.add('d-none');
             }
         }
 

@@ -48,6 +48,77 @@ def create_app(config_name='default'):
         except Exception:
             return {'conti_personali': []}
 
+    @app.context_processor
+    def inject_active_section():
+        """Inietta nei template la sezione attiva corrente basandosi sull'endpoint"""
+        from flask import request
+        
+        # Mappatura degli endpoint alle sezioni con icone e nomi
+        section_map = {
+            'main.index': {'name': 'Dashboard', 'icon': 'fas fa-home'},
+            'dashboard.view': {'name': 'Dashboard', 'icon': 'fas fa-home'},
+            'dettaglio_periodo.index': {'name': 'Dettaglio Mese', 'icon': 'fas fa-calendar-alt'},
+            'dettaglio_periodo.mese': {'name': 'Dettaglio Mese', 'icon': 'fas fa-calendar-alt'},
+            'dettaglio_periodo.dettaglio': {'name': 'Dettaglio Periodo', 'icon': 'fas fa-calendar-alt'},
+            'categorie.lista': {'name': 'Categorie', 'icon': 'fas fa-tags'},
+            'ricorrenti.lista': {'name': 'Ricorrenti', 'icon': 'fas fa-sync-alt'},
+            'paypal.dashboard': {'name': 'PayPal', 'icon': 'fab fa-paypal'},
+            'ppay.evolution': {'name': 'PPay Evolution', 'icon': 'fas fa-credit-card'},
+            'veicoli.garage': {'name': 'Garage', 'icon': 'fas fa-car'},
+            'passwd.index': {'name': 'Password Manager', 'icon': 'fas fa-key'},
+            'main.reset': {'name': 'Reset', 'icon': 'fas fa-undo'},
+        }
+        
+        # Gestione speciale per i conti personali e veicoli
+        endpoint = request.endpoint or ''
+        active_section = {'name': 'Dashboard', 'icon': 'fas fa-home'}
+        
+        if endpoint.startswith('conti.'):
+            # Per i conti personali, prova a recuperare il nome dal percorso
+            try:
+                from app.models.ContoPersonale import ContoPersonale
+                conto_id = request.view_args.get('conto_id')
+                if conto_id:
+                    conto = ContoPersonale.query.get(conto_id)
+                    if conto:
+                        active_section = {'name': f'Conto {conto.nome_conto}', 'icon': 'fas fa-user-circle'}
+                    else:
+                        active_section = {'name': 'Conto Personale', 'icon': 'fas fa-user-circle'}
+                else:
+                    active_section = {'name': 'Conto Personale', 'icon': 'fas fa-user-circle'}
+            except Exception:
+                active_section = {'name': 'Conto Personale', 'icon': 'fas fa-user-circle'}
+        elif endpoint.startswith('veicoli.'):
+            # Per i veicoli, prova a recuperare il nome/marca/modello dal percorso
+            if endpoint == 'veicoli.garage':
+                active_section = {'name': 'Garage', 'icon': 'fas fa-car'}
+            else:
+                try:
+                    from app.models.Veicoli import Veicoli
+                    veicolo_id = request.view_args.get('veicolo_id')
+                    if veicolo_id:
+                        veicolo = Veicoli.query.get(veicolo_id)
+                        if veicolo:
+                            # Determina l'icona in base al tipo di veicolo
+                            icon_map = {
+                                'auto': 'fas fa-car',
+                                'moto': 'fas fa-motorcycle',
+                                'bici': 'fas fa-bicycle'
+                            }
+                            icona = icon_map.get(veicolo.tipo, 'fas fa-car')
+                            nome_veicolo = veicolo.modello if hasattr(veicolo, 'modello') else 'Veicolo'
+                            active_section = {'name': nome_veicolo, 'icon': icona}
+                        else:
+                            active_section = {'name': 'Dettaglio Veicolo', 'icon': 'fas fa-car'}
+                    else:
+                        active_section = {'name': 'Garage', 'icon': 'fas fa-car'}
+                except Exception:
+                    active_section = {'name': 'Garage', 'icon': 'fas fa-car'}
+        elif endpoint in section_map:
+            active_section = section_map[endpoint]
+        
+        return {'active_section': active_section}
+
     # Jinja filter: format_currency (re-uses helper in app.utils.formatting)
     try:
         from app.utils.formatting import format_currency as format_currency_helper

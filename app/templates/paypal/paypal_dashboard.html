@@ -3,13 +3,6 @@
 {% block title %}PayPal - Gestione Piani{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h2><i class="fab fa-paypal me-2"></i>Gestione Piani PayPal</h2>
-        <p class="text-muted">Monitora e gestisci i tuoi piani di pagamento PayPal a 3 rate</p>
-    </div>
-    
-</div>
 
 <!-- Statistiche -->
 <div id="top-cards" class="row mb-4">
@@ -147,7 +140,7 @@
                     {% for piano in piani_in_corso %}
                     <tr>
                         <td class="text-start">
-                            <strong>{{ piano.descrizione }}</strong>
+                            {{ piano.descrizione }}
                             {% if piano.note %}
                             <br><small class="text-muted">{{ piano.note[:50] }}{% if piano.note|length > 50 %}...{% endif %}
 </small>                                                                                                                                                {% endif %}
@@ -226,7 +219,7 @@ aria-label="Modifica piano"                                                     
                     {% for piano in piani_completati %}
                     <tr>
                         <td class="text-start">
-                            <strong>{{ piano.descrizione }}</strong>
+                            {{ piano.descrizione }}
                         </td>
                         <td class="text-center">€ {{ "%.2f"|format(piano.importo_totale) }}</td>
                         <td class="text-center">€ {{ "%.2f"|format(piano.importo_rata) }}</td>
@@ -278,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function(){
         var start = (page - 1) * pageSize;
         var end = start + pageSize;
         rows.forEach(function(r, idx){
-            r.style.display = (idx >= start && idx < end) ? '' : 'none';
+            r.classList.toggle('d-none', !(idx >= start && idx < end));
         });
         renderControls(page);
     }

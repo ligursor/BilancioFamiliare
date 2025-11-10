@@ -7,6 +7,33 @@
     font-weight: bold;
 }
 
+/* Active section indicator in navbar */
+.active-section-indicator {
+    display: flex;
+    align-items: center;
+    padding: 8px 20px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    color: white;
+    font-weight: 500;
+    font-size: 1.1rem;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.active-section-indicator:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.active-section-indicator i {
+    font-size: 1.2rem;
+    color: #667eea;
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.8));
+}
+
 /* Card headers gradient used across app */
 .card-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

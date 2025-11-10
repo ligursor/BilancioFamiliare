@@ -84,10 +84,10 @@
                 var url = '/dettaglio/' + encodeURIComponent(cfg.start_date) + '/' + encodeURIComponent(cfg.end_date) + '/aggiungi_transazione';
                 fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(function(resp){ if (!resp.ok) throw new Error('Server error'); return resp.json(); })
-                .then(function(json){ if (!json || json.status !== 'ok') throw new Error('Errore creazione transazione'); if (json.summary) applySummary(json.summary); if (json.transazione) { var tbody = document.querySelector('#tabella-transazioni table tbody'); if (tbody) { tbody.insertBefore(createTransactionRow(json.transazione, cfg), tbody.firstChild); } } var inlineBox = document.getElementById('inline-add-transaction'); if (inlineBox) inlineBox.style.display='none'; clone.reset(); showToast('Transazione aggiunta', 'success'); })
+                .then(function(json){ if (!json || json.status !== 'ok') throw new Error('Errore creazione transazione'); if (json.summary) applySummary(json.summary); if (json.transazione) { var tbody = document.querySelector('#tabella-transazioni table tbody'); if (tbody) { tbody.insertBefore(createTransactionRow(json.transazione, cfg), tbody.firstChild); } } var inlineBox = document.getElementById('inline-add-transaction'); if (inlineBox) inlineBox.classList.add('d-none'); clone.reset(); showToast('Transazione aggiunta', 'success'); })
                 .catch(function(e){ console.error(e); showToast('Errore durante l\'inserimento. Riprova.','danger'); });
             });
-            var cancel = document.getElementById('inline_add_cancel'); if (cancel) cancel.addEventListener('click', function(){ var inlineBox = document.getElementById('inline-add-transaction'); if (inlineBox) inlineBox.style.display='none'; });
+            var cancel = document.getElementById('inline_add_cancel'); if (cancel) cancel.addEventListener('click', function(){ var inlineBox = document.getElementById('inline-add-transaction'); if (inlineBox) inlineBox.classList.add('d-none'); });
         }catch(e){ console && console.error && console.error('bindInlineAdd error', e); }
     }
 
@@ -99,11 +99,11 @@
             var noDataEl = document.getElementById('uscitePieModalNoData');
             if (!canvas) return;
             if (!stats || stats.length === 0) {
-                if (noDataEl) noDataEl.style.display = 'block';
+                if (noDataEl) noDataEl.classList.remove('d-none');
                 if (canvas.__chart_instance) { try { canvas.__chart_instance.destroy(); } catch(e){}; canvas.__chart_instance = null; }
                 return;
             }
-            if (noDataEl) noDataEl.style.display = 'none';
+            if (noDataEl) noDataEl.classList.add('d-none');
                 var labels = stats.map(function(s){ return s.categoria_nome || 'Categoria'; });
                 var data = stats.map(function(s){ return Math.abs(Number(s.importo) || 0); });
                 // compute percentages for legend/datalabels

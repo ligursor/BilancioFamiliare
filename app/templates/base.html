@@ -12,14 +12,20 @@
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('main.index') }}">
-                <i class="fas fa-wallet me-2"></i>Casa Ligurso
-            </a>
+        <div class="container position-relative">
+            
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
+                <!-- Indicatore sezione attiva a sinistra -->
+                <div class="d-none d-lg-flex align-items-center me-3">
+                    <div class="active-section-indicator">
+                        <i class="{{ active_section.icon }} me-2"></i>
+                        <span>{{ active_section.name }}</span>
+                    </div>
+                </div>
+                
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarAltro" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -27,6 +33,9 @@
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarAltro">
                             <li><h6 class="dropdown-header">Conti Personali</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.index') }}">
+                                <i class="fas fa-wallet me-2"></i>Roberto
+                            </a></li>
                             {% for conto in conti_personali %}
                             <li><a class="dropdown-item" href="{{ url_for('conti.view', conto_id=conto.id) }}">
                                 <i class="fas fa-user me-2"></i>{{ conto.nome }}
@@ -117,7 +126,7 @@
 
     <footer class="footer">
         <div class="container text-center">
-            <span class="text-muted">Gestione Bilancio Familiare - 2025</span>
+            <span class="text-muted"><i class="fas fa-wallet me-2"></i>Ligurso - 2025</span>
         </div>
     </footer>
 

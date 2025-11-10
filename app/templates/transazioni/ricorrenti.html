@@ -95,7 +95,7 @@
             {% if ricorrenti and ricorrenti|length > 0 %}
             <div class="table-responsive">
                 <!-- Hidden edit box shown above the table (matches behavior used in other pages) -->
-                <div id="editFormContainer" style="display:none;" class="card mb-3">
+                <div id="editFormContainer" class="card mb-3 d-none">
                     <div class="card-header bg-light d-flex justify-content-between align-items-center">
                         <h6 class="mb-0"><i class="fas fa-edit me-2"></i>Modifica Transazione Ricorrente</h6>
                         <button type="button" class="btn btn-sm btn-link" onclick="closeEditForm()">Chiudi</button>
@@ -245,11 +245,13 @@
 <script>
     function toggleFormAggiungi() {
         const form = document.getElementById('formAggiungi');
-        if (form.style.display === 'none') {
-            form.style.display = 'block';
+        if (!form) return;
+        const isHidden = form.classList.contains('d-none');
+        if (isHidden) {
+            form.classList.remove('d-none');
             form.scrollIntoView({ behavior: 'smooth' });
         } else {
-            form.style.display = 'none';
+            form.classList.add('d-none');
         }
     }
 
@@ -273,13 +275,13 @@
     // set form action replacing placeholder 0 with actual id
     // use the route template so we always build a relative path (avoid absolute origins)
     form.action = '{{ url_for("ricorrenti.modifica", ricorrente_id=0) }}'.replace('0', id);
-        container.style.display = 'block';
-        container.scrollIntoView({ behavior: 'smooth' });
+    container.classList.remove('d-none');
+    container.scrollIntoView({ behavior: 'smooth' });
     }
 
     function closeEditForm() {
         const container = document.getElementById('editFormContainer');
-        if (container) container.style.display = 'none';
+        if (container) container.classList.add('d-none');
     }
 
     function confermaEliminazione(id, descrizione) {
