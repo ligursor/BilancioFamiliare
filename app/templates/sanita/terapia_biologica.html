@@ -1,0 +1,484 @@
+{% extends 'base.html' %}
+
+{% block title %}Terapia Biologica - Sanità{% endblock %}
+
+{% block content %}
+
+<div class="terapia-content">
+
+    <div class="row align-items-start">
+        <div class="col-md-2">
+            <label class="form-label mb-1">Inizio PT</label>
+            <input id="therapyStart" type="date" class="form-control">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label mb-1">Farmaci PT</label>
+            <input id="totalDrugs" type="number" min="1" class="form-control" value="0">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label mb-1">Consegne</label>
+            <input id="numDeliveriesDisplay" type="number" class="form-control" value="0" readonly>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label mb-1">Selezione consegne</label>
+            <!-- area between 'Consegne' input and action buttons: full width for checkboxes -->
+            <div id="inlineConsegne" class="d-flex flex-wrap gap-2 w-100"></div>
+        </div>
+        <div class="col-md-2 d-flex align-items-start justify-content-end">
+            <div class="text-end">
+                <label class="form-label mb-1">Azioni</label>
+                <div class="d-flex gap-2">
+                    <button id="cancelFormBtn" class="btn btn-outline-secondary" title="Cancella form (reset dati)"><i
+                            class="fas fa-eraser"></i></button>
+                    <button id="savePlanBtn" class="btn btn-success" title="Salva piano"><i
+                            class="fas fa-check"></i></button>
+                    <button id="resetPlanBtn" class="btn btn-outline-danger" title="Elimina piano dal DB"><i
+                            class="fas fa-trash-alt"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- deliveries list removed: inline numbered checkboxes are used instead -->
+</div>
+
+<!-- Fixed legend: inserted here so it appears above the calendar. JS will position it below the navbar and reveal it. -->
+<div id="terapiaLegend" class="terapia-legend bg-light border-bottom py-2 d-none">
+    <div class="container">
+        <div class="d-flex justify-content-start align-items-center">
+            <div class="me-3">Legenda:</div>
+            <div class="me-2"><span class="badge bg-success">Coperto</span></div>
+            <div class="me-2"><span class="badge bg-danger">Scoperto</span></div>
+            <div><span class="badge bg-secondary">Somministrazione</span></div>
+        </div>
+    </div>
+</div>
+
+<div class="row" id="calendarArea" data-year0="{{ current_year }}" data-year1="{{ next_year }}">
+    <div class="col-12 mt-3 mb-3 d-flex align-items-center justify-content-between">
+        <div>
+            <button id="prevYearBtn" class="btn btn-outline-secondary" aria-label="Anno precedente"
+                title="Anno precedente">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+        </div>
+        <h4 id="displayYearLabel" class="m-0"></h4>
+        <div>
+            <button id="nextYearBtn" class="btn btn-outline-secondary" aria-label="Anno successivo"
+                title="Anno successivo">
+                <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div id="yearContainer0" class="calendar-single d-none">
+            <div id="calendarYear1" class="calendar-year d-flex flex-wrap"></div>
+        </div>
+        <div id="yearContainer1" class="calendar-single d-none">
+            <div id="calendarYear2" class="calendar-year d-flex flex-wrap"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Minimal calendar styles */
+    .calendar-year {
+        gap: 1rem;
+    }
+
+    .month {
+        width: 220px;
+        border: 1px solid #e6e6e6;
+        padding: 6px;
+        border-radius: 6px;
+        margin-right: 8px;
+    }
+
+    .month .month-title {
+        font-weight: 600;
+        text-align: center;
+        margin-bottom: 6px;
+    }
+
+    .weekdays,
+    .days {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+    }
+
+    .weekday {
+        font-size: 0.8rem;
+        color: #666;
+        text-align: center;
+    }
+
+    .day {
+        height: 28px;
+        text-align: center;
+        line-height: 28px;
+        border-radius: 4px;
+    }
+
+    .empty {
+        background: transparent;
+    }
+
+    .marked {
+        background: #6c757d;
+        color: #fff;
+        position: relative;
+    }
+
+    .covered {
+        background: #198754 !important;
+        color: #fff;
+    }
+
+    .uncovered {
+        background: #dc3545 !important;
+        color: #fff;
+    }
+
+    .today {
+        box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.12) inset;
+    }
+
+    .day[data-date] {
+        cursor: default;
+    }
+
+    /* Inline numbered consegne styles */
+    .inline-consegne-container {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .inline-consegna {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 56px;
+        height: 40px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        background: #fff;
+        box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+        transition: all .12s ease-in-out;
+    }
+
+    .inline-consegna .form-check-input {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+    }
+
+    .inline-consegna .consegna-label {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin: 0;
+        user-select: none;
+    }
+
+    .inline-consegna:hover {
+        transform: translateY(-2px);
+        border-color: #b3b3b3;
+    }
+
+    .inline-consegna.checked {
+        background: #e9f7ef;
+        border-color: #198754;
+    }
+
+    .inline-consegna .form-check-input:focus {
+        outline: 2px solid rgba(13, 110, 253, 0.12);
+    }
+
+    .inline-consegne-scroll {
+        overflow-x: auto;
+        padding-bottom: 2px;
+    }
+
+    /* Backwards-compatible rules for the dynamically-created consegna-inline labels */
+
+    .consegna-inline,
+    .inline-consegna {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px; /* spacing between checkbox and number */
+        min-width: 64px;
+        height: 40px; /* match typical form-control height */
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        background: #fff;
+        box-shadow: 0 0 0 0 rgba(0,0,0,0);
+        transition: all .12s ease-in-out;
+        font-size: 1rem;
+    }
+
+    .consegna-inline input[type="checkbox"],
+    .inline-consegna input[type="checkbox"] {
+        width: 28px;
+        height: 28px;
+        margin: 0;
+        transform: none;
+        vertical-align: middle;
+    }
+
+    .consegna-inline .consegna-label,
+    .inline-consegna .consegna-label {
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin: 0;
+        user-select: none;
+    }
+
+    .consegna-inline.checked,
+    .inline-consegna.checked {
+        background: #e9f7ef;
+        border-color: #198754;
+    }
+
+    .terapia-content {
+        padding-top: 8px;
+    }
+
+    .terapia-legend {
+        position: fixed !important;
+        left: 0;
+        right: 0;
+        top: 0;
+        z-index: 9999;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        background: rgba(255, 255, 255, 0.98);
+    }
+</style>
+
+{% endblock %}
+{% block scripts %}
+<script>
+    // Helper date utilities
+    function parseDateInput(v) { if (!v) return null; let parts = v.split('-'); return new Date(parts[0], parseInt(parts[1], 10) - 1, parts[2]); }
+    function formatISO(d) { if (!d) return ''; return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+    function addDays(d, n) { let r = new Date(d); r.setDate(r.getDate() + n); return r; }
+    function datesEqual(a, b) { if (!a || !b) return false; return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+
+    function renderCalendarYear(container, year, markedMap) {
+        container.innerHTML = '';
+        const monthNames = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+        for (let m = 0; m < 12; m++) {
+            const monthDiv = document.createElement('div'); monthDiv.className = 'month';
+            const title = document.createElement('div'); title.className = 'month-title'; title.textContent = monthNames[m] + ' ' + year;
+            monthDiv.appendChild(title);
+            const weekdays = document.createElement('div'); weekdays.className = 'weekdays';
+            ['L', 'M', 'M', 'G', 'V', 'S', 'D'].forEach(w => { const el = document.createElement('div'); el.className = 'weekday'; el.textContent = w; weekdays.appendChild(el); });
+            monthDiv.appendChild(weekdays);
+            const days = document.createElement('div'); days.className = 'days';
+            const first = new Date(year, m, 1);
+            let jsdow = first.getDay();
+            let offset = (jsdow + 6) % 7;
+            for (let i = 0; i < offset; i++) { const e = document.createElement('div'); e.className = 'day empty'; days.appendChild(e); }
+            const daysInMonth = new Date(year, m + 1, 0).getDate();
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dt = new Date(year, m, d);
+                const cell = document.createElement('div'); cell.className = 'day'; cell.setAttribute('data-date', formatISO(dt)); cell.textContent = d;
+                const key = formatISO(dt);
+                if (markedMap && markedMap.has(key)) {
+                    const meta = markedMap.get(key);
+                    cell.classList.add('marked');
+                    if (meta.covered) cell.classList.add('covered'); else cell.classList.add('uncovered');
+                    cell.title = meta.title || (meta.covered ? 'Coperto' : 'Scoperto');
+                }
+                const t = new Date(); if (datesEqual(t, dt)) cell.classList.add('today');
+                days.appendChild(cell);
+            }
+            monthDiv.appendChild(days);
+            container.appendChild(monthDiv);
+        }
+    }
+
+    function computeMarkedDates(startDate, endDate) {
+        const arr = [];
+        if (!startDate) return arr;
+        let cur = startOfDay(startDate);
+        while (cur <= endDate) { arr.push(new Date(cur)); cur = addDays(cur, 14); }
+        return arr;
+    }
+
+    function buildMarkedMap(startDate, deliveries, lastDay) {
+        const map = new Map();
+        if (!startDate) return map;
+        const marked = computeMarkedDates(startDate, lastDay);
+        for (const md of marked) { const key = formatISO(md); map.set(key, { covered: false, date: new Date(md) }); }
+        const dl = (deliveries || []).map(d => ({ date: d.delivery_date ? parseDateInput(d.delivery_date) : null, qty: parseInt(d.quantity || 0, 10) || 0, received: !!d.received })).filter(d => d.date);
+        dl.sort((a, b) => a.date - b.date);
+        for (let i = 0; i < marked.length; i++) {
+            const sched = marked[i]; let cum = 0; for (const dv of dl) { if (dv.received && dv.date <= sched) cum += dv.qty; }
+            const needed = i + 1; const key = formatISO(sched); const obj = map.get(key); if (obj) { obj.covered = (cum >= needed); map.set(key, obj); }
+        }
+        return map;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const therapyStartEl = document.getElementById('therapyStart');
+        const totalDrugsEl = document.getElementById('totalDrugs');
+        const numDeliveriesDisplayEl = document.getElementById('numDeliveriesDisplay');
+    const savePlanBtn = document.getElementById('savePlanBtn');
+        const yearEls = [document.getElementById('calendarYear1'), document.getElementById('calendarYear2')];
+        const containerEls = [document.getElementById('yearContainer0'), document.getElementById('yearContainer1')];
+        const displayYearLabel = document.getElementById('displayYearLabel');
+        const prevBtn = document.getElementById('prevYearBtn');
+        const nextBtn = document.getElementById('nextYearBtn');
+        const terapiaLegendEl = document.getElementById('terapiaLegend');
+        const terapiaContentEl = document.querySelector('.terapia-content');
+
+        function adjustLegendPosition() {
+            try {
+                const navbar = document.querySelector('.navbar'); const navbarH = navbar ? navbar.offsetHeight : 0;
+                if (terapiaLegendEl && terapiaLegendEl.classList.contains('d-none')) terapiaLegendEl.classList.remove('d-none');
+                const legendH = terapiaLegendEl ? terapiaLegendEl.offsetHeight : 0;
+                if (terapiaLegendEl) terapiaLegendEl.style.top = navbarH + 'px';
+                try {
+                    const mainEl = document.querySelector('main'); const mainMt = mainEl ? parseFloat(window.getComputedStyle(mainEl).marginTop) || 0 : 0;
+                    let desired = navbarH + legendH - mainMt; if (desired < 0) desired = 0; if (terapiaContentEl) terapiaContentEl.style.paddingTop = desired + 'px';
+                    const pullUp = Math.max(0, mainMt - 0); if (terapiaContentEl) terapiaContentEl.style.marginTop = (-pullUp) + 'px';
+                } catch (e) { if (terapiaContentEl) terapiaContentEl.style.paddingTop = (navbarH + legendH + 6) + 'px'; }
+            } catch (e) { console && console.error && console.error('adjustLegendPosition error', e); }
+        }
+
+        window.addEventListener('resize', adjustLegendPosition);
+        setTimeout(adjustLegendPosition, 50);
+
+        const area = document.getElementById('calendarArea');
+        const years = [parseInt(area.dataset.year0, 10), parseInt(area.dataset.year1, 10)];
+        let activeIndex = 0;
+
+        const today = new Date(); therapyStartEl.value = formatISO(today); totalDrugsEl.value = 8; numDeliveriesDisplayEl.value = Math.floor(parseInt(totalDrugsEl.value, 10) / 2) || 0;
+
+        let currentPlan = null;
+        let localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, parseDateInput(therapyStartEl.value));
+        let displayedDeliveries = [];
+
+        // compute planned deliveries
+        function computePlannedDeliveries(total, startDate) {
+            const list = []; const n = Math.floor((parseInt(total, 10) || 0) / 2);
+            let cur = startDate ? new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()) : null;
+            for (let i = 0; i < n; i++) { const iso = formatISO(cur); list.push({ id: null, delivery_date: iso, quantity: 2, received: false }); cur.setMonth(cur.getMonth() + 1); }
+            return list;
+        }
+
+        // renderDeliveries: keep only inline numbered checkboxes, remove list rows
+        function renderDeliveries(deliveries) {
+            // no list element anymore; render only inline checkboxes
+            if (!deliveries || deliveries.length === 0) { displayedDeliveries = []; renderInlineConsegne([]); return; }
+            displayedDeliveries = deliveries;
+            renderInlineConsegne(deliveries);
+        }
+
+        function renderInlineConsegne(deliveries) {
+            const container = document.getElementById('inlineConsegne'); if (!container) return; container.innerHTML = '';
+            if (!deliveries || deliveries.length === 0) { container.innerHTML = '<small class="text-muted">-</small>'; return; }
+            container.classList.add('inline-consegne-container', 'inline-consegne-scroll');
+            // find first non-received
+            const firstUnreceivedIndex = deliveries.findIndex(d => !d.received);
+            deliveries.forEach((d, idx) => {
+                const i = idx + 1; const id = d.id ? `cb-inline-${d.id}` : `cb-inline-local-${i}`;
+                const label = document.createElement('label'); label.className = 'consegna-inline me-2';
+                const inp = document.createElement('input'); inp.type = 'checkbox'; inp.id = id; inp.checked = !!d.received;
+                const isAllowedToCheck = (firstUnreceivedIndex === -1) ? false : (idx === firstUnreceivedIndex);
+                if (!isAllowedToCheck && !d.received) { inp.disabled = true; label.classList.add('text-muted'); }
+                inp.addEventListener('change', async (ev) => {
+                    if (inp.checked) {
+                        if (!isAllowedToCheck) { inp.checked = false; showToast('Selezione non consentita: selezionare solo la consegna successiva.'); return; }
+                        if (d.id) {
+                            const res = await fetch(`/sanita/api/delivery/${d.id}/toggle`, { method: 'POST' });
+                            if (res.ok) { const js = await res.json(); currentPlan = js.plan; displayedDeliveries = currentPlan.deliveries; renderDeliveries(currentPlan.deliveries); renderInlineConsegne(currentPlan.deliveries); refresh(); } else { showToast('Errore comunicazione server'); inp.checked = !inp.checked; }
+                        } else {
+                            const payload = { start_date: therapyStartEl.value || null, total_drugs: parseInt(totalDrugsEl.value || '0'), deliveries: displayedDeliveries.map(sd => ({ delivery_date: sd.delivery_date, quantity: sd.quantity, received: sd === d ? true : !!sd.received })) };
+                            const res = await fetch('/sanita/api/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                            if (res.ok) { const js = await res.json(); currentPlan = js.plan; displayedDeliveries = currentPlan.deliveries; renderDeliveries(currentPlan.deliveries); renderInlineConsegne(currentPlan.deliveries); refresh(); showToast('Consegna salvata.'); } else { showToast('Errore salvataggio piano'); inp.checked = false; }
+                        }
+                    } else {
+                        if (d.id) { const res = await fetch(`/sanita/api/delivery/${d.id}/toggle`, { method: 'POST' }); if (res.ok) { const js = await res.json(); currentPlan = js.plan; displayedDeliveries = currentPlan.deliveries; renderDeliveries(currentPlan.deliveries); renderInlineConsegne(currentPlan.deliveries); refresh(); } else { showToast('Errore comunicazione server'); inp.checked = !inp.checked; } }
+                        else { inp.checked = true; showToast('Per annullare una consegna salvata, usare una consegna già persistita.'); }
+                    }
+                });
+                const span = document.createElement('span'); span.className = 'consegna-label'; span.textContent = `${i}`; label.appendChild(inp); label.appendChild(span); container.appendChild(label);
+            });
+        }
+
+        function refresh() {
+            const start = parseDateInput(therapyStartEl.value); const lastDay = new Date(years[1], 11, 31);
+            const deliveries = (currentPlan && currentPlan.deliveries) ? currentPlan.deliveries : localPlannedDeliveries;
+            const coverageMap = annotateCoverageAndBadges(start, deliveries); const markedMap = buildMarkedMap(start, deliveries, lastDay);
+            for (const [k, info] of coverageMap.entries()) { if (markedMap.has(k)) { const m = markedMap.get(k); m.covered = info.covered; if (info.delivery_date) m.covering_delivery_date = formatISO(info.delivery_date); markedMap.set(k, m); } }
+            renderCalendarYear(yearEls[0], years[0], markedMap); renderCalendarYear(yearEls[1], years[1], markedMap); showIndex(activeIndex);
+        }
+
+        function annotateCoverageAndBadges(start, deliveries) {
+            if (!start) return new Map(); const lastDay = new Date(years[1], 11, 31); const schedules = computeMarkedDates(start, lastDay);
+            const assignments = new Array(schedules.length).fill(null);
+            const dl = (deliveries || []).map(d => ({ id: d.id, date: d.delivery_date ? parseDateInput(d.delivery_date) : null, qty: parseInt(d.quantity || 0, 10) || 0, received: !!d.received, remaining_after: 0 })).filter(d => d.date).sort((a, b) => a.date - b.date);
+            for (const dv of dl) {
+                if (!dv.received) { dv.remaining_after = 0; continue; }
+                let pool = dv.qty;
+                for (let i = 0; i < schedules.length && pool > 0; i++) { if (schedules[i] < dv.date) continue; if (assignments[i] === null) { assignments[i] = dv.id; pool--; } }
+                const cumReceived = dl.filter(x => x.date <= dv.date && x.received).reduce((s, x) => s + x.qty, 0);
+                const assignedUpToNow = assignments.reduce((s, x, i) => { if (x && schedules[i] <= dv.date) return s + 1; return s; }, 0);
+                dv.remaining_after = Math.max(0, cumReceived - assignedUpToNow);
+            }
+            const map = new Map(); for (let i = 0; i < schedules.length; i++) { const key = formatISO(schedules[i]); const did = assignments[i]; const info = { covered: did != null, delivery_id: did }; if (did) { const dv = dl.find(x => x.id === did); if (dv) { info.delivery_date = dv.date; } } map.set(key, info); }
+            dl.forEach(dv => { const badge = document.querySelector('[data-delivery-id="' + dv.id + '"]'); if (badge) badge.textContent = 'Rimanenti: ' + dv.remaining_after; });
+            return map;
+        }
+
+        function showIndex(i) { activeIndex = i; displayYearLabel.textContent = years[i]; containerEls.forEach((c, idx) => { if (idx === i) c.classList.remove('d-none'); else c.classList.add('d-none'); }); prevBtn.disabled = (i === 0); nextBtn.disabled = (i === years.length - 1); }
+
+        prevBtn.addEventListener('click', function () { if (activeIndex > 0) { showIndex(activeIndex - 1); } });
+        nextBtn.addEventListener('click', function () { if (activeIndex < years.length - 1) { showIndex(activeIndex + 1); } });
+
+        savePlanBtn.addEventListener('click', function () {
+            const payloadDeliveries = (displayedDeliveries && displayedDeliveries.length) ? displayedDeliveries.map(d => ({ delivery_date: d.delivery_date, quantity: d.quantity, received: !!d.received })) : [];
+            const payload = { start_date: therapyStartEl.value, total_drugs: parseInt(totalDrugsEl.value, 10) || 0, deliveries: payloadDeliveries };
+            fetch('/sanita/api/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+                .then(r => r.json())
+                .then(js => {
+                    if (js.error) { window.showToast('Errore salvataggio piano', 'danger'); return; }
+                    currentPlan = js.plan;
+                    numDeliveriesDisplayEl.value = currentPlan.num_deliveries || Math.floor((currentPlan.total_drugs || 0) / 2);
+                    renderDeliveries(currentPlan.deliveries || []);
+                    refresh();
+                    window.showToast('Piano salvato', 'success');
+                }).catch(() => { window.showToast('Errore salvataggio', 'danger'); });
+        });
+
+        totalDrugsEl.addEventListener('input', function () { const v = Math.floor((parseInt(totalDrugsEl.value, 10) || 0) / 2); numDeliveriesDisplayEl.value = v; const start = parseDateInput(therapyStartEl.value); localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, start); renderDeliveries(localPlannedDeliveries); refresh(); });
+        therapyStartEl.addEventListener('input', function () { const start = parseDateInput(therapyStartEl.value); localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, start); renderDeliveries(localPlannedDeliveries); refresh(); });
+
+        const resetPlanBtn = document.getElementById('resetPlanBtn');
+        resetPlanBtn.addEventListener('click', function () {
+            if (!confirm('Confermi la cancellazione del piano terapeutico? Questa operazione è irreversibile.')) return;
+            fetch('/sanita/api/plan', { method: 'DELETE' }).then(r => r.json()).then(js => {
+                if (js.error) { window.showToast('Errore cancellazione piano', 'danger'); return; }
+                currentPlan = null; displayedDeliveries = []; renderInlineConsegne([]);
+                totalDrugsEl.value = 8; therapyStartEl.value = formatISO(new Date()); numDeliveriesDisplayEl.value = Math.floor(parseInt(totalDrugsEl.value, 10) / 2) || 0;
+                refresh(); window.showToast('Piano cancellato', 'success');
+            }).catch(() => { window.showToast('Errore cancellazione', 'danger'); });
+        });
+
+        const cancelFormBtn = document.getElementById('cancelFormBtn');
+        cancelFormBtn.addEventListener('click', function () { therapyStartEl.value = formatISO(new Date()); totalDrugsEl.value = 8; numDeliveriesDisplayEl.value = Math.floor(parseInt(totalDrugsEl.value, 10) / 2) || 0; localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, parseDateInput(therapyStartEl.value)); renderDeliveries(localPlannedDeliveries); currentPlan = null; refresh(); });
+
+    function loadPlan() { fetch('/sanita/api/plan').then(r => r.json()).then(js => { if (js.plan) { currentPlan = js.plan; therapyStartEl.value = currentPlan.start_date || therapyStartEl.value; totalDrugsEl.value = currentPlan.total_drugs || totalDrugsEl.value; numDeliveriesDisplayEl.value = currentPlan.num_deliveries || Math.floor((currentPlan.total_drugs || 0) / 2); renderDeliveries(currentPlan.deliveries || []); } else { currentPlan = null; displayedDeliveries = []; renderInlineConsegne([]); } refresh(); }).catch(() => { window.showToast('Errore caricamento piano', 'danger'); }); }
+
+        loadPlan();
+        refresh();
+    });
+</script>
+
+{% endblock %}

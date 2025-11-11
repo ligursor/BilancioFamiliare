@@ -66,6 +66,7 @@ def create_app(config_name='default'):
             'ppay.evolution': {'name': 'PPay Evolution', 'icon': 'fas fa-credit-card'},
             'libretto.dashboard': {'name': 'Libretto Smart', 'icon': 'fas fa-book'},
             'veicoli.garage': {'name': 'Garage', 'icon': 'fas fa-car'},
+            'sanita.terapia': {'name': 'Sanità', 'icon': 'fas fa-notes-medical'},
             'passwd.index': {'name': 'Password Manager', 'icon': 'fas fa-key'},
             'main.reset': {'name': 'Reset', 'icon': 'fas fa-undo'},
         }
@@ -153,6 +154,11 @@ def create_app(config_name='default'):
     from app.views.veicoli.veicoli import veicoli_bp
     from app.views.ppay_evolution import ppay_bp
     from app.views.libretto import libretto_bp
+    # Sanità blueprint (terapia biologica)
+    try:
+        from app.views.sanita.sanita import sanita_bp
+    except Exception:
+        sanita_bp = None
     # Password manager blueprint (integrated)
     try:
         from app.views.passwd_manager.passwd_manager import bp as passwd_bp
@@ -170,6 +176,8 @@ def create_app(config_name='default'):
     app.register_blueprint(veicoli_bp, url_prefix='/veicoli')
     app.register_blueprint(ppay_bp, url_prefix='/ppay_evolution')
     app.register_blueprint(libretto_bp, url_prefix='/libretto')
+    if sanita_bp:
+        app.register_blueprint(sanita_bp, url_prefix='/sanita')
     if passwd_bp:
         # mount the passwd manager under /passwd
         app.register_blueprint(passwd_bp, url_prefix='/passwd')
