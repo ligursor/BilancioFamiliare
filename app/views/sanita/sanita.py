@@ -20,20 +20,11 @@ def terapia():
         return render_template('sanita/terapia_biologica.html', current_year=date.today().year, next_year=date.today().year + 1)
 
 
-def add_months(dt, months):
-    """Add months to a date handling month overflow (naive implementation)."""
-    month = dt.month - 1 + months
-    year = dt.year + month // 12
-    month = month % 12 + 1
-    day = min(dt.day, (date(year, month % 12 + 1, 1) - timedelta(days=1)).day)
-    return date(year, month, day)
-
-
 @sanita_bp.route('/api/plan', methods=['GET'])
 def get_plan():
-    """Return latest terapia plan if any."""
+    """Return the single active terapia plan if any."""
     try:
-        plan = TerapiaPlan.query.order_by(TerapiaPlan.id.desc()).first()
+        plan = TerapiaPlan.query.first()
         if not plan:
             return jsonify({'plan': None})
         return jsonify({'plan': plan.to_dict()})
@@ -44,11 +35,19 @@ def get_plan():
 
 @sanita_bp.route('/api/plan', methods=['POST'])
 def save_plan():
-    """Create a new plan and deliveries. Expected JSON: start_date (YYYY-MM-DD), total_drugs
-    Number of deliveries is computed server-side as total_drugs // 2 (2 drugs per delivery).
+    """Create a new plan with all deliveries in one operation.
+    Only one plan can exist at a time.
+    If a plan already exists, return error - user must delete first.
+    Expected JSON: start_date (YYYY-MM-DD), total_drugs
+    Creates all deliveries with progressive numbers, first one marked as received.
     """
     data = request.get_json() or {}
     try:
+        # Check if a plan already exists
+        existing = TerapiaPlan.query.first()
+        if existing:
+            return jsonify({'error': 'plan_exists', 'message': 'Esiste già un piano. Eliminarlo prima di crearne uno nuovo.'}), 400
+        
         sd = data.get('start_date')
         total = int(data.get('total_drugs') or 0)
         # number of deliveries is computed as total_drugs // 2 (one delivery contains 2 drugs)
@@ -60,29 +59,35 @@ def save_plan():
 
         # ensure tables exist
         db.create_all()
+        
+        # Create plan
         plan = TerapiaPlan(start_date=start, total_drugs=total, num_deliveries=num)
         db.session.add(plan)
         db.session.flush()
 
-        # Each delivery is monthly starting from start, quantity fixed at 2 (per spec)
+        # Create ALL deliveries by date: every 28 days from start until end of next year
         qty_per_delivery = 2
-        cur_date = start
-        # Prepare map of received flags if provided by client
-        provided_deliveries = {}
-        for pd in data.get('deliveries', []) or []:
-            dd = pd.get('delivery_date')
-            if dd:
-                provided_deliveries[dd] = bool(pd.get('received'))
-
-        for i in range(num):
-            d = TerapiaDelivery(plan_id=plan.id, delivery_date=cur_date, quantity=qty_per_delivery, received=False)
-            # if client provided received flag for this date, apply it
-            iso = cur_date.isoformat()
-            if iso in provided_deliveries and provided_deliveries[iso]:
-                d.received = True
+        cur = start
+        end_year = start.year + 1
+        last_day = date(end_year, 12, 31)
+        delivery_num = 0
+        while cur <= last_day:
+            delivery_num += 1
+            # Mark the first delivery as received
+            is_received = True if delivery_num == 1 else False
+            d = TerapiaDelivery(
+                plan_id=plan.id,
+                delivery_number=delivery_num,
+                quantity=qty_per_delivery,
+                received=is_received
+            )
             db.session.add(d)
-            # next month
-            cur_date = add_months(cur_date, 1)
+            # advance 28 days
+            cur = cur + timedelta(days=28)
+
+        # Update plan totals based on created deliveries
+        plan.num_deliveries = delivery_num
+        plan.total_drugs = plan.num_deliveries * qty_per_delivery
 
         db.session.commit()
         return jsonify({'plan': plan.to_dict()})
@@ -101,18 +106,41 @@ def toggle_delivery(did):
         delivery.received = not bool(delivery.received)
         db.session.add(delivery)
         db.session.commit()
-        return jsonify({'delivery': delivery.to_dict()})
+        # Return the full plan to update UI
+        plan = TerapiaPlan.query.get(delivery.plan_id)
+        return jsonify({'plan': plan.to_dict() if plan else None})
     except Exception:
         current_app.logger.exception('Errore toggling delivery')
         db.session.rollback()
         return jsonify({'error': 'internal'}), 500
 
 
+@sanita_bp.route('/api/delivery/next/mark', methods=['POST'])
+def mark_next_delivery():
+    """Mark the first unreceived delivery of the active plan as received and return updated plan."""
+    try:
+        plan = TerapiaPlan.query.first()
+        if not plan:
+            return jsonify({'error': 'no_plan'}), 404
+        delivery = TerapiaDelivery.query.filter_by(plan_id=plan.id, received=False).order_by(TerapiaDelivery.delivery_number).first()
+        if not delivery:
+            return jsonify({'error': 'no_pending'}), 400
+        delivery.received = True
+        db.session.add(delivery)
+        db.session.commit()
+        plan = TerapiaPlan.query.get(plan.id)
+        return jsonify({'plan': plan.to_dict()})
+    except Exception:
+        current_app.logger.exception('Errore marking next delivery')
+        db.session.rollback()
+        return jsonify({'error': 'internal'}), 500
+
+
 @sanita_bp.route('/api/plan', methods=['DELETE'])
 def delete_plan():
-    """Delete the latest terapia plan and its deliveries."""
+    """Delete the active terapia plan and its deliveries."""
     try:
-        plan = TerapiaPlan.query.order_by(TerapiaPlan.id.desc()).first()
+        plan = TerapiaPlan.query.first()
         if not plan:
             return jsonify({'result': 'none'}), 200
         # delete cascade will remove deliveries
@@ -121,6 +149,58 @@ def delete_plan():
         return jsonify({'result': 'deleted'})
     except Exception:
         current_app.logger.exception('Errore deleting plan')
+        db.session.rollback()
+        return jsonify({'error': 'internal'}), 500
+
+
+@sanita_bp.route('/api/plan/extend', methods=['POST'])
+def extend_plan():
+    """Extend the existing plan by adding the same number of deliveries.
+    Can only be called when all current deliveries are marked as received.
+    """
+    try:
+        plan = TerapiaPlan.query.first()
+        if not plan:
+            return jsonify({'error': 'no_plan', 'message': 'Nessun piano esistente da estendere.'}), 404
+        
+        # Get all current deliveries
+        deliveries = TerapiaDelivery.query.filter_by(plan_id=plan.id).order_by(TerapiaDelivery.delivery_number).all()
+        
+        if not deliveries:
+            return jsonify({'error': 'no_deliveries', 'message': 'Nessuna consegna da estendere.'}), 400
+        
+        # Check if all deliveries are received
+        all_received = all(d.received for d in deliveries)
+        if not all_received:
+            return jsonify({'error': 'not_all_received', 'message': 'Tutte le consegne devono essere ricevute prima di estendere.'}), 400
+        
+        # Get the last delivery number
+        last_delivery_num = max(d.delivery_number for d in deliveries)
+        
+        # Count how many deliveries to add (same as current count)
+        num_to_add = len(deliveries)
+        
+        # Add new deliveries
+        qty_per_delivery = 2
+        for i in range(num_to_add):
+            new_delivery_num = last_delivery_num + i + 1
+            d = TerapiaDelivery(
+                plan_id=plan.id,
+                delivery_number=new_delivery_num,
+                quantity=qty_per_delivery,
+                received=False
+            )
+            db.session.add(d)
+        
+        # Update plan totals
+        plan.num_deliveries = last_delivery_num + num_to_add
+        plan.total_drugs = plan.num_deliveries * qty_per_delivery
+        db.session.add(plan)
+        
+        db.session.commit()
+        return jsonify({'plan': plan.to_dict()})
+    except Exception:
+        current_app.logger.exception('Errore extending plan')
         db.session.rollback()
         return jsonify({'error': 'internal'}), 500
 

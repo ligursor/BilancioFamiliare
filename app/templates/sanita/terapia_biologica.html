@@ -15,14 +15,20 @@
             <label class="form-label mb-1">Farmaci PT</label>
             <input id="totalDrugs" type="number" min="1" class="form-control" value="0">
         </div>
-        <div class="col-md-2">
-            <label class="form-label mb-1">Consegne</label>
-            <input id="numDeliveriesDisplay" type="number" class="form-control" value="0" readonly>
-        </div>
+        <!-- Consegne count removed as per UX update -->
         <div class="col-md-4">
-            <label class="form-label mb-1">Selezione consegne</label>
-            <!-- area between 'Consegne' input and action buttons: full width for checkboxes -->
-            <div id="inlineConsegne" class="d-flex flex-wrap gap-2 w-100"></div>
+            <label class="form-label mb-1">Controllo consegne</label>
+            <!-- Area per marcare la prossima consegna come ricevuta -->
+            <div id="markNextDeliveryArea" class="d-flex align-items-center">
+                <div class="form-check d-flex align-items-center">
+                    <input id="markNextDeliveryCb" type="checkbox" class="form-check-input">
+                    <label for="markNextDeliveryCb" class="form-check-label mb-0">Segna prossima consegna come ricevuta</label>
+                    <!-- spinner shown while request is in flight -->
+                    <span id="markNextDeliverySpinner" class="spinner-border spinner-border-sm text-primary ms-2 d-none" role="status" aria-hidden="true"></span>
+                    <!-- small status text -->
+                    <span id="markNextDeliveryText" class="ms-2 small text-muted d-none"></span>
+                </div>
+            </div>
         </div>
         <div class="col-md-2 d-flex align-items-start justify-content-end">
             <div class="text-end">
@@ -32,6 +38,8 @@
                             class="fas fa-eraser"></i></button>
                     <button id="savePlanBtn" class="btn btn-success" title="Salva piano"><i
                             class="fas fa-check"></i></button>
+                    <button id="extendPlanBtn" class="btn btn-info d-none" title="Estendi piano (aggiungi consegne)"><i
+                            class="fas fa-plus-circle"></i></button>
                     <button id="resetPlanBtn" class="btn btn-outline-danger" title="Elimina piano dal DB"><i
                             class="fas fa-trash-alt"></i></button>
                 </div>
@@ -303,39 +311,71 @@
     }
 
     function computeMarkedDates(startDate, endDate) {
+        // Always compute ALL dates every 14 days from start for the entire 2-year period
         const arr = [];
         if (!startDate) return arr;
         let cur = startOfDay(startDate);
-        while (cur <= endDate) { arr.push(new Date(cur)); cur = addDays(cur, 14); }
+        while (cur <= endDate) { 
+            arr.push(new Date(cur)); 
+            cur = addDays(cur, 14); 
+        }
         return arr;
     }
 
     function buildMarkedMap(startDate, deliveries, lastDay) {
         const map = new Map();
         if (!startDate) return map;
+        
+        // Get ALL scheduled dates (every 14 days for 2 years)
         const marked = computeMarkedDates(startDate, lastDay);
-        for (const md of marked) { const key = formatISO(md); map.set(key, { covered: false, date: new Date(md) }); }
-        const dl = (deliveries || []).map(d => ({ date: d.delivery_date ? parseDateInput(d.delivery_date) : null, qty: parseInt(d.quantity || 0, 10) || 0, received: !!d.received })).filter(d => d.date);
-        dl.sort((a, b) => a.date - b.date);
-        for (let i = 0; i < marked.length; i++) {
-            const sched = marked[i]; let cum = 0; for (const dv of dl) { if (dv.received && dv.date <= sched) cum += dv.qty; }
-            const needed = i + 1; const key = formatISO(sched); const obj = map.get(key); if (obj) { obj.covered = (cum >= needed); map.set(key, obj); }
+        
+        // Initialize all dates as uncovered (scoperto)
+        for (const md of marked) { 
+            const key = formatISO(md); 
+            map.set(key, { covered: false, date: new Date(md) }); 
         }
+        
+        // Now mark as covered based on received deliveries (both saved and local)
+        // Each received delivery covers 2 consecutive dates starting from the earliest uncovered
+        const received = (deliveries || [])
+            .filter(d => d.received) // Only received deliveries
+            .map(d => ({ 
+                id: d.id || 'local', 
+                delivery_number: d.delivery_number,
+                qty: parseInt(d.quantity || 0, 10) || 0 
+            }))
+            .sort((a, b) => a.delivery_number - b.delivery_number);
+        
+        let coveredCount = 0;
+        for (const rec of received) {
+            // Each delivery covers qty doses (typically 2)
+            for (let i = 0; i < rec.qty && coveredCount < marked.length; i++) {
+                const dateToMark = marked[coveredCount];
+                const key = formatISO(dateToMark);
+                const obj = map.get(key);
+                if (obj) {
+                    obj.covered = true;
+                    map.set(key, obj);
+                }
+                coveredCount++;
+            }
+        }
+        
         return map;
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        const therapyStartEl = document.getElementById('therapyStart');
-        const totalDrugsEl = document.getElementById('totalDrugs');
-        const numDeliveriesDisplayEl = document.getElementById('numDeliveriesDisplay');
+    const therapyStartEl = document.getElementById('therapyStart');
+    const totalDrugsEl = document.getElementById('totalDrugs');
     const savePlanBtn = document.getElementById('savePlanBtn');
         const yearEls = [document.getElementById('calendarYear1'), document.getElementById('calendarYear2')];
         const containerEls = [document.getElementById('yearContainer0'), document.getElementById('yearContainer1')];
         const displayYearLabel = document.getElementById('displayYearLabel');
         const prevBtn = document.getElementById('prevYearBtn');
         const nextBtn = document.getElementById('nextYearBtn');
-        const terapiaLegendEl = document.getElementById('terapiaLegend');
-        const terapiaContentEl = document.querySelector('.terapia-content');
+    const terapiaLegendEl = document.getElementById('terapiaLegend');
+    const terapiaContentEl = document.querySelector('.terapia-content');
+    const markNextCb = document.getElementById('markNextDeliveryCb');
 
         function adjustLegendPosition() {
             try {
@@ -358,123 +398,329 @@
         const years = [parseInt(area.dataset.year0, 10), parseInt(area.dataset.year1, 10)];
         let activeIndex = 0;
 
-        const today = new Date(); therapyStartEl.value = formatISO(today); totalDrugsEl.value = 8; numDeliveriesDisplayEl.value = Math.floor(parseInt(totalDrugsEl.value, 10) / 2) || 0;
+    const today = new Date(); therapyStartEl.value = formatISO(today); totalDrugsEl.value = 8;
 
         let currentPlan = null;
         let localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, parseDateInput(therapyStartEl.value));
+        // Force first delivery as received in local state
+        if (localPlannedDeliveries.length > 0) {
+            localPlannedDeliveries[0].received = true;
+        }
         let displayedDeliveries = [];
 
         // compute planned deliveries
         function computePlannedDeliveries(total, startDate) {
-            const list = []; const n = Math.floor((parseInt(total, 10) || 0) / 2);
-            let cur = startDate ? new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()) : null;
-            for (let i = 0; i < n; i++) { const iso = formatISO(cur); list.push({ id: null, delivery_date: iso, quantity: 2, received: false }); cur.setMonth(cur.getMonth() + 1); }
+            const list = []; 
+            const n = Math.floor((parseInt(total, 10) || 0) / 2);
+            for (let i = 0; i < n; i++) { 
+                list.push({ 
+                    id: null, 
+                    delivery_number: i + 1, 
+                    quantity: 2, 
+                    received: false 
+                }); 
+            }
             return list;
         }
 
-        // renderDeliveries: keep only inline numbered checkboxes, remove list rows
+        // renderDeliveries: store deliveries for the UI and update counts
         function renderDeliveries(deliveries) {
-            // no list element anymore; render only inline checkboxes
-            if (!deliveries || deliveries.length === 0) { displayedDeliveries = []; renderInlineConsegne([]); return; }
+            if (!deliveries || deliveries.length === 0) { displayedDeliveries = []; return; }
             displayedDeliveries = deliveries;
-            renderInlineConsegne(deliveries);
-        }
-
-        function renderInlineConsegne(deliveries) {
-            const container = document.getElementById('inlineConsegne'); if (!container) return; container.innerHTML = '';
-            if (!deliveries || deliveries.length === 0) { container.innerHTML = '<small class="text-muted">-</small>'; return; }
-            container.classList.add('inline-consegne-container', 'inline-consegne-scroll');
-            // find first non-received
-            const firstUnreceivedIndex = deliveries.findIndex(d => !d.received);
-            deliveries.forEach((d, idx) => {
-                const i = idx + 1; const id = d.id ? `cb-inline-${d.id}` : `cb-inline-local-${i}`;
-                const label = document.createElement('label'); label.className = 'consegna-inline me-2';
-                const inp = document.createElement('input'); inp.type = 'checkbox'; inp.id = id; inp.checked = !!d.received;
-                const isAllowedToCheck = (firstUnreceivedIndex === -1) ? false : (idx === firstUnreceivedIndex);
-                if (!isAllowedToCheck && !d.received) { inp.disabled = true; label.classList.add('text-muted'); }
-                inp.addEventListener('change', async (ev) => {
-                    if (inp.checked) {
-                        if (!isAllowedToCheck) { inp.checked = false; showToast('Selezione non consentita: selezionare solo la consegna successiva.'); return; }
-                        if (d.id) {
-                            const res = await fetch(`/sanita/api/delivery/${d.id}/toggle`, { method: 'POST' });
-                            if (res.ok) { const js = await res.json(); currentPlan = js.plan; displayedDeliveries = currentPlan.deliveries; renderDeliveries(currentPlan.deliveries); renderInlineConsegne(currentPlan.deliveries); refresh(); } else { showToast('Errore comunicazione server'); inp.checked = !inp.checked; }
-                        } else {
-                            const payload = { start_date: therapyStartEl.value || null, total_drugs: parseInt(totalDrugsEl.value || '0'), deliveries: displayedDeliveries.map(sd => ({ delivery_date: sd.delivery_date, quantity: sd.quantity, received: sd === d ? true : !!sd.received })) };
-                            const res = await fetch('/sanita/api/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                            if (res.ok) { const js = await res.json(); currentPlan = js.plan; displayedDeliveries = currentPlan.deliveries; renderDeliveries(currentPlan.deliveries); renderInlineConsegne(currentPlan.deliveries); refresh(); showToast('Consegna salvata.'); } else { showToast('Errore salvataggio piano'); inp.checked = false; }
-                        }
-                    } else {
-                        if (d.id) { const res = await fetch(`/sanita/api/delivery/${d.id}/toggle`, { method: 'POST' }); if (res.ok) { const js = await res.json(); currentPlan = js.plan; displayedDeliveries = currentPlan.deliveries; renderDeliveries(currentPlan.deliveries); renderInlineConsegne(currentPlan.deliveries); refresh(); } else { showToast('Errore comunicazione server'); inp.checked = !inp.checked; } }
-                        else { inp.checked = true; showToast('Per annullare una consegna salvata, usare una consegna già persistita.'); }
-                    }
-                });
-                const span = document.createElement('span'); span.className = 'consegna-label'; span.textContent = `${i}`; label.appendChild(inp); label.appendChild(span); container.appendChild(label);
-            });
         }
 
         function refresh() {
-            const start = parseDateInput(therapyStartEl.value); const lastDay = new Date(years[1], 11, 31);
+            const start = parseDateInput(therapyStartEl.value); 
+            const lastDay = new Date(years[1], 11, 31);
             const deliveries = (currentPlan && currentPlan.deliveries) ? currentPlan.deliveries : localPlannedDeliveries;
-            const coverageMap = annotateCoverageAndBadges(start, deliveries); const markedMap = buildMarkedMap(start, deliveries, lastDay);
-            for (const [k, info] of coverageMap.entries()) { if (markedMap.has(k)) { const m = markedMap.get(k); m.covered = info.covered; if (info.delivery_date) m.covering_delivery_date = formatISO(info.delivery_date); markedMap.set(k, m); } }
-            renderCalendarYear(yearEls[0], years[0], markedMap); renderCalendarYear(yearEls[1], years[1], markedMap); showIndex(activeIndex);
+            const coverageMap = annotateCoverageAndBadges(start, deliveries); 
+            const markedMap = buildMarkedMap(start, deliveries, lastDay);
+            for (const [k, info] of coverageMap.entries()) { 
+                if (markedMap.has(k)) { 
+                    const m = markedMap.get(k); 
+                    m.covered = info.covered; 
+                    if (info.delivery_date) m.covering_delivery_date = formatISO(info.delivery_date); 
+                    markedMap.set(k, m); 
+                } 
+            }
+            renderCalendarYear(yearEls[0], years[0], markedMap); 
+            renderCalendarYear(yearEls[1], years[1], markedMap); 
+            showIndex(activeIndex);
         }
 
         function annotateCoverageAndBadges(start, deliveries) {
-            if (!start) return new Map(); const lastDay = new Date(years[1], 11, 31); const schedules = computeMarkedDates(start, lastDay);
+            if (!start) return new Map(); 
+            const lastDay = new Date(years[1], 11, 31); 
+            const schedules = computeMarkedDates(start, lastDay);
             const assignments = new Array(schedules.length).fill(null);
-            const dl = (deliveries || []).map(d => ({ id: d.id, date: d.delivery_date ? parseDateInput(d.delivery_date) : null, qty: parseInt(d.quantity || 0, 10) || 0, received: !!d.received, remaining_after: 0 })).filter(d => d.date).sort((a, b) => a.date - b.date);
+            const dl = (deliveries || [])
+                .map(d => ({ 
+                    id: d.id || 'local', 
+                    delivery_number: d.delivery_number,
+                    qty: parseInt(d.quantity || 0, 10) || 0, 
+                    received: !!d.received, 
+                    remaining_after: 0 
+                }))
+                .sort((a, b) => a.delivery_number - b.delivery_number);
+            
+            // Assign doses to scheduled dates sequentially
+            let scheduleIndex = 0;
             for (const dv of dl) {
-                if (!dv.received) { dv.remaining_after = 0; continue; }
+                if (!dv.received) { 
+                    dv.remaining_after = 0; 
+                    continue; 
+                }
                 let pool = dv.qty;
-                for (let i = 0; i < schedules.length && pool > 0; i++) { if (schedules[i] < dv.date) continue; if (assignments[i] === null) { assignments[i] = dv.id; pool--; } }
-                const cumReceived = dl.filter(x => x.date <= dv.date && x.received).reduce((s, x) => s + x.qty, 0);
-                const assignedUpToNow = assignments.reduce((s, x, i) => { if (x && schedules[i] <= dv.date) return s + 1; return s; }, 0);
-                dv.remaining_after = Math.max(0, cumReceived - assignedUpToNow);
+                // Assign this delivery's doses to the next uncovered schedules
+                while (pool > 0 && scheduleIndex < schedules.length) {
+                    if (assignments[scheduleIndex] === null) {
+                        assignments[scheduleIndex] = dv.id;
+                        pool--;
+                    }
+                    scheduleIndex++;
+                }
+                dv.remaining_after = pool; // Any leftover doses
             }
-            const map = new Map(); for (let i = 0; i < schedules.length; i++) { const key = formatISO(schedules[i]); const did = assignments[i]; const info = { covered: did != null, delivery_id: did }; if (did) { const dv = dl.find(x => x.id === did); if (dv) { info.delivery_date = dv.date; } } map.set(key, info); }
-            dl.forEach(dv => { const badge = document.querySelector('[data-delivery-id="' + dv.id + '"]'); if (badge) badge.textContent = 'Rimanenti: ' + dv.remaining_after; });
+            
+            const map = new Map(); 
+            for (let i = 0; i < schedules.length; i++) { 
+                const key = formatISO(schedules[i]); 
+                const did = assignments[i]; 
+                const info = { covered: did != null, delivery_id: did }; 
+                if (did) { 
+                    const dv = dl.find(x => x.id === did); 
+                    if (dv) { 
+                        info.delivery_number = dv.delivery_number; 
+                    } 
+                } 
+                map.set(key, info); 
+            }
+            dl.forEach(dv => { 
+                const badge = document.querySelector('[data-delivery-id="' + dv.id + '"]'); 
+                if (badge) badge.textContent = 'Rimanenti: ' + dv.remaining_after; 
+            });
             return map;
         }
 
         function showIndex(i) { activeIndex = i; displayYearLabel.textContent = years[i]; containerEls.forEach((c, idx) => { if (idx === i) c.classList.remove('d-none'); else c.classList.add('d-none'); }); prevBtn.disabled = (i === 0); nextBtn.disabled = (i === years.length - 1); }
 
+        function updateButtonStates() {
+            const hasPlan = !!currentPlan;
+            const resetPlanBtn = document.getElementById('resetPlanBtn');
+            const extendPlanBtn = document.getElementById('extendPlanBtn');
+            
+            // Disable Save button if plan exists
+            savePlanBtn.disabled = hasPlan;
+            resetPlanBtn.disabled = !hasPlan;
+            
+            // Show Extend button only if all deliveries are received
+            if (hasPlan && currentPlan.deliveries) {
+                const allReceived = currentPlan.deliveries.every(d => d.received);
+                if (allReceived) {
+                    extendPlanBtn.classList.remove('d-none');
+                } else {
+                    extendPlanBtn.classList.add('d-none');
+                }
+            } else {
+                extendPlanBtn.classList.add('d-none');
+            }
+            
+            // Update button styles to show disabled state clearly
+            if (hasPlan) {
+                savePlanBtn.classList.add('disabled');
+                resetPlanBtn.classList.remove('disabled');
+            } else {
+                savePlanBtn.classList.remove('disabled');
+                resetPlanBtn.classList.add('disabled');
+            }
+        }
+            // Update mark-next-delivery checkbox state
+            try {
+                if (!markNextCb) return;
+                if (!hasPlan || !currentPlan.deliveries) {
+                    markNextCb.disabled = true;
+                    markNextCb.checked = false;
+                } else {
+                    const hasPending = currentPlan.deliveries.some(d => !d.received);
+                    markNextCb.disabled = !hasPending;
+                    // always leave unchecked (it's an action trigger)
+                    markNextCb.checked = false;
+                }
+            } catch (e) { console && console.error && console.error('updateButtonStates markNext error', e); }
+
         prevBtn.addEventListener('click', function () { if (activeIndex > 0) { showIndex(activeIndex - 1); } });
         nextBtn.addEventListener('click', function () { if (activeIndex < years.length - 1) { showIndex(activeIndex + 1); } });
 
         savePlanBtn.addEventListener('click', function () {
-            const payloadDeliveries = (displayedDeliveries && displayedDeliveries.length) ? displayedDeliveries.map(d => ({ delivery_date: d.delivery_date, quantity: d.quantity, received: !!d.received })) : [];
-            const payload = { start_date: therapyStartEl.value, total_drugs: parseInt(totalDrugsEl.value, 10) || 0, deliveries: payloadDeliveries };
+            // Simple: always create a new plan (server will check if one exists)
+            const payload = { 
+                start_date: therapyStartEl.value, 
+                total_drugs: parseInt(totalDrugsEl.value, 10) || 0
+            };
             fetch('/sanita/api/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
                 .then(r => r.json())
                 .then(js => {
-                    if (js.error) { window.showToast('Errore salvataggio piano', 'danger'); return; }
+                    if (js.error) { 
+                        if (js.error === 'plan_exists') {
+                            window.showToast('Esiste già un piano. Eliminarlo prima di crearne uno nuovo.', 'warning');
+                        } else {
+                            window.showToast('Errore salvataggio piano', 'danger'); 
+                        }
+                        return; 
+                    }
                     currentPlan = js.plan;
-                    numDeliveriesDisplayEl.value = currentPlan.num_deliveries || Math.floor((currentPlan.total_drugs || 0) / 2);
-                    renderDeliveries(currentPlan.deliveries || []);
+                    displayedDeliveries = currentPlan.deliveries || [];
+                    renderDeliveries(displayedDeliveries);
+                    updateButtonStates();
                     refresh();
                     window.showToast('Piano salvato', 'success');
                 }).catch(() => { window.showToast('Errore salvataggio', 'danger'); });
         });
 
-        totalDrugsEl.addEventListener('input', function () { const v = Math.floor((parseInt(totalDrugsEl.value, 10) || 0) / 2); numDeliveriesDisplayEl.value = v; const start = parseDateInput(therapyStartEl.value); localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, start); renderDeliveries(localPlannedDeliveries); refresh(); });
-        therapyStartEl.addEventListener('input', function () { const start = parseDateInput(therapyStartEl.value); localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, start); renderDeliveries(localPlannedDeliveries); refresh(); });
+        const extendPlanBtn = document.getElementById('extendPlanBtn');
+        extendPlanBtn.addEventListener('click', function () {
+            if (!confirm('Confermi l\'estensione del piano? Verranno aggiunte altre ' + (currentPlan ? currentPlan.deliveries.length : 0) + ' consegne.')) return;
+            fetch('/sanita/api/plan/extend', { method: 'POST' })
+                .then(r => r.json())
+                .then(js => {
+                    if (js.error) {
+                        if (js.error === 'not_all_received') {
+                            window.showToast('Tutte le consegne devono essere ricevute prima di estendere.', 'warning');
+                        } else {
+                            window.showToast('Errore estensione piano', 'danger');
+                        }
+                        return;
+                    }
+                    currentPlan = js.plan;
+                    totalDrugsEl.value = currentPlan.total_drugs || 0;
+                    displayedDeliveries = currentPlan.deliveries || [];
+                    renderDeliveries(displayedDeliveries);
+                    updateButtonStates();
+                    refresh();
+                    window.showToast('Piano esteso con successo', 'success');
+                }).catch(() => { window.showToast('Errore estensione', 'danger'); });
+        });
+
+        totalDrugsEl.addEventListener('input', function () { 
+            const v = Math.floor((parseInt(totalDrugsEl.value, 10) || 0) / 2); 
+            const start = parseDateInput(therapyStartEl.value); 
+            localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, start); 
+            // If no plan saved, force first delivery as received
+            if (!currentPlan && localPlannedDeliveries.length > 0) {
+                localPlannedDeliveries[0].received = true;
+            }
+            renderDeliveries(localPlannedDeliveries); 
+            refresh(); 
+        });
+        therapyStartEl.addEventListener('input', function () { 
+            const start = parseDateInput(therapyStartEl.value); 
+            localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, start); 
+            // If no plan saved, force first delivery as received
+            if (!currentPlan && localPlannedDeliveries.length > 0) {
+                localPlannedDeliveries[0].received = true;
+            }
+            renderDeliveries(localPlannedDeliveries); 
+            refresh(); 
+        });
 
         const resetPlanBtn = document.getElementById('resetPlanBtn');
         resetPlanBtn.addEventListener('click', function () {
             if (!confirm('Confermi la cancellazione del piano terapeutico? Questa operazione è irreversibile.')) return;
             fetch('/sanita/api/plan', { method: 'DELETE' }).then(r => r.json()).then(js => {
                 if (js.error) { window.showToast('Errore cancellazione piano', 'danger'); return; }
-                currentPlan = null; displayedDeliveries = []; renderInlineConsegne([]);
-                totalDrugsEl.value = 8; therapyStartEl.value = formatISO(new Date()); numDeliveriesDisplayEl.value = Math.floor(parseInt(totalDrugsEl.value, 10) / 2) || 0;
-                refresh(); window.showToast('Piano cancellato', 'success');
+                currentPlan = null; 
+                displayedDeliveries = []; 
+                totalDrugsEl.value = 8; 
+                therapyStartEl.value = formatISO(new Date()); 
+                numDeliveriesDisplayEl.value = Math.floor(parseInt(totalDrugsEl.value, 10) / 2) || 0;
+                localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, parseDateInput(therapyStartEl.value));
+                // Force first delivery as received when no plan
+                if (localPlannedDeliveries.length > 0) {
+                    localPlannedDeliveries[0].received = true;
+                }
+                renderDeliveries(localPlannedDeliveries);
+                // No per-delivery inline UI anymore
+                updateButtonStates();
+                refresh(); 
+                window.showToast('Piano cancellato', 'success');
             }).catch(() => { window.showToast('Errore cancellazione', 'danger'); });
         });
 
         const cancelFormBtn = document.getElementById('cancelFormBtn');
-        cancelFormBtn.addEventListener('click', function () { therapyStartEl.value = formatISO(new Date()); totalDrugsEl.value = 8; numDeliveriesDisplayEl.value = Math.floor(parseInt(totalDrugsEl.value, 10) / 2) || 0; localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, parseDateInput(therapyStartEl.value)); renderDeliveries(localPlannedDeliveries); currentPlan = null; refresh(); });
+        cancelFormBtn.addEventListener('click', function () { 
+            therapyStartEl.value = formatISO(new Date()); 
+            totalDrugsEl.value = 8; 
+            numDeliveriesDisplayEl.value = Math.floor(parseInt(totalDrugsEl.value, 10) / 2) || 0; 
+            localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, parseDateInput(therapyStartEl.value)); 
+            // Force first delivery as received when no plan
+            if (localPlannedDeliveries.length > 0) {
+                localPlannedDeliveries[0].received = true;
+            }
+            renderDeliveries(localPlannedDeliveries); 
+            currentPlan = null; 
+            refresh(); 
+        });
 
-    function loadPlan() { fetch('/sanita/api/plan').then(r => r.json()).then(js => { if (js.plan) { currentPlan = js.plan; therapyStartEl.value = currentPlan.start_date || therapyStartEl.value; totalDrugsEl.value = currentPlan.total_drugs || totalDrugsEl.value; numDeliveriesDisplayEl.value = currentPlan.num_deliveries || Math.floor((currentPlan.total_drugs || 0) / 2); renderDeliveries(currentPlan.deliveries || []); } else { currentPlan = null; displayedDeliveries = []; renderInlineConsegne([]); } refresh(); }).catch(() => { window.showToast('Errore caricamento piano', 'danger'); }); }
+    function loadPlan() { 
+        fetch('/sanita/api/plan').then(r => r.json()).then(js => { 
+            if (js.plan) { 
+                currentPlan = js.plan; 
+                therapyStartEl.value = currentPlan.start_date || therapyStartEl.value; 
+                totalDrugsEl.value = currentPlan.total_drugs || totalDrugsEl.value; 
+                displayedDeliveries = currentPlan.deliveries || [];
+                renderDeliveries(displayedDeliveries); 
+            } else { 
+                currentPlan = null; 
+                displayedDeliveries = localPlannedDeliveries;
+                // Force first delivery as received when no plan
+                if (localPlannedDeliveries.length > 0) {
+                    localPlannedDeliveries[0].received = true;
+                }
+                renderDeliveries(localPlannedDeliveries);
+            }
+                updateButtonStates();
+                refresh(); 
+        }).catch(() => { 
+            window.showToast('Errore caricamento piano', 'danger'); 
+        }); 
+    }
+
+        // Wire the mark-next-delivery checkbox: it acts as a one-shot action trigger
+        if (markNextCb) {
+            const markNextSpinner = document.getElementById('markNextDeliverySpinner');
+            const markNextText = document.getElementById('markNextDeliveryText');
+            markNextCb.addEventListener('change', function () {
+                if (!markNextCb.checked) return; // only act when checked
+                if (!currentPlan) { markNextCb.checked = false; return; }
+                // show feedback
+                try { if (markNextSpinner) markNextSpinner.classList.remove('d-none'); } catch(e){}
+                try { if (markNextText) { markNextText.textContent = 'Invio...'; markNextText.classList.remove('d-none'); } } catch(e){}
+                // disable control while request in flight
+                markNextCb.disabled = true;
+                fetch('/sanita/api/delivery/next/mark', { method: 'POST' })
+                    .then(r => r.json())
+                    .then(js => {
+                        if (js.error) {
+                            window.showToast('Errore marcatura consegna', 'danger');
+                            return;
+                        }
+                        currentPlan = js.plan;
+                        displayedDeliveries = currentPlan.deliveries || [];
+                        renderDeliveries(displayedDeliveries);
+                        updateButtonStates();
+                        refresh();
+                        window.showToast('Prossima consegna marcata come ricevuta', 'success');
+                    }).catch(() => { window.showToast('Errore marcatura', 'danger'); })
+                    .finally(() => {
+                        // hide feedback and restore state; updateButtonStates will re-disable if needed
+                        try { if (markNextSpinner) markNextSpinner.classList.add('d-none'); } catch(e){}
+                        try { if (markNextText) { markNextText.classList.add('d-none'); markNextText.textContent = ''; } } catch(e){}
+                        if (markNextCb) { markNextCb.checked = false; }
+                        // Let updateButtonStates determine whether checkbox should be enabled
+                        try { updateButtonStates(); } catch(e) { if (markNextCb) markNextCb.disabled = false; }
+                    });
+            });
+        }
 
         loadPlan();
         refresh();
