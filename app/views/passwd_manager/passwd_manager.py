@@ -7,8 +7,14 @@ from app.services.passwd_manager.passwd_manager_service import (
 )
 from werkzeug.utils import secure_filename
 import os
+import hashlib
 
 bp = Blueprint('passwd', __name__, template_folder='templates')
+
+
+def hash_password(password):
+    """Genera un hash SHA256 della password"""
+    return hashlib.sha256(password.encode('utf-8')).hexdigest()
 
 
 @bp.route('/')
@@ -17,6 +23,11 @@ def index():
     # The previous automatic reconfiguration/setup flow has been removed.
     if not has_security_config():
         return ("Password Manager non configurato. Contatta l'amministratore per la configurazione.", 503)
+    
+    # Verifica che la sessione sia autenticata
+    if not session.get('authenticated') or not session.get('password_hash'):
+        return redirect(url_for('passwd.login'))
+    
     # If the encryption system is not yet initialized, redirect to the login page
     if not is_initialized():
         return redirect(url_for('passwd.login'))
@@ -41,8 +52,9 @@ def login():
     if request.method == 'POST':
         password = request.form.get('password')
         if initialize_encryption(password):
+            session.permanent = True  # Attiva la durata configurata (3 minuti)
             session['authenticated'] = True
-            session['user_password'] = password
+            session['password_hash'] = hash_password(password)  # Memorizza solo l'hash
             return redirect(url_for('main.index'))
         return render_template('login.html', error='Invalid password')
     return render_template('login.html')
@@ -51,7 +63,7 @@ def login():
 @bp.route('/logout')
 def logout():
     session.pop('authenticated', None)
-    session.pop('user_password', None)
+    session.pop('password_hash', None)
     return redirect(url_for('passwd.login'))
 
 

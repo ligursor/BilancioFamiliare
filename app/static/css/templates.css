@@ -66,7 +66,7 @@
   z-index: 2000;
   font-size: 0.9rem;
 }
-.category-card-compact { height: 100%; }
+.category-card-compact { height: 100%; position: relative; }
 #categoriesGrid::-webkit-scrollbar { height: 8px; }
 #categoriesGrid::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
 
@@ -171,4 +171,55 @@ body.setup-required { display: flex; align-items: center; justify-content: cente
   .inline-footer-buttons {
     grid-template-columns: 1fr;
   }
+}
+
+/* Back button for selected category (positioned top-right) */
+.btn-back-category {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 6;
+  padding: .25rem .4rem;
+  border-radius: .35rem;
+}
+
+/* When the fake 'Tutte' card is inserted we want the back button to appear
+   in the same place as the original badge (centered under the title).
+   Override positioning for that specific container. */
+#category-all-col .btn-back-category {
+  position: static;
+  top: auto;
+  right: auto;
+  display: inline-block; /* badges are inline-block */
+  vertical-align: middle;
+  /* Match Bootstrap badge sizing: small font + compact padding */
+  font-size: 0.65rem;
+  line-height: 1;
+  padding: .25rem .4rem; /* same as typical badge */
+  margin-top: 0.12rem;
+  border-radius: .25rem; /* badge-like radius */
+  /* Remove forced min-width/height so it follows content like a badge */
+  min-width: 0;
+  height: auto;
+  /* Make it visually identical to the small badge: primary background, white text, no border */
+  background: var(--bs-primary) !important;
+  color: #fff !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Fade animations for smoother transitions */
+.fade-in {
+  animation: fadeIn .28s ease forwards;
+}
+.fade-out {
+  animation: fadeOut .28s ease forwards;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-4px); }
 }

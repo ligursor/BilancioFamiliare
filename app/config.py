@@ -1,5 +1,6 @@
 """Configurazione per l'applicazione di gestione bilancio familiare"""
 import os
+from datetime import timedelta
 
 class Config:
     """Configurazione principale dell'applicazione"""
@@ -13,6 +14,11 @@ class Config:
     
     # Flask
     SECRET_KEY = 'bilancio-familiare-secret-key-2025'
+    
+    # Sessione
+    PERMANENT_SESSION_LIFETIME = timedelta(minutes=3)  # Durata sessione: 3 minuti
+    SESSION_COOKIE_HTTPONLY = True  # Cookie non accessibile da JavaScript
+    SESSION_COOKIE_SAMESITE = 'Lax'  # Protezione CSRF
     
     # Server
     HOST = '0.0.0.0'

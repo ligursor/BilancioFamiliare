@@ -194,7 +194,7 @@ def create_app(config_name='default'):
             if path.startswith('/passwd') or path.startswith('/static') or path.startswith('/favicon.ico'):
                 return
             # If session indicates authenticated, allow
-            if session.get('authenticated') and session.get('user_password'):
+            if session.get('authenticated') and session.get('password_hash'):
                 return
             # Allow health endpoints or probes if present
             if path.startswith('/_health') or path.startswith('/health'):
