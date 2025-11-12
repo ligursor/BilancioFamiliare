@@ -73,13 +73,14 @@ def save_plan():
         delivery_num = 0
         while cur <= last_day:
             delivery_num += 1
-            # Mark the first delivery as received
-            is_received = True if delivery_num == 1 else False
+            # By default, when creating a new plan we should NOT mark deliveries or doses as administered.
             d = TerapiaDelivery(
                 plan_id=plan.id,
                 delivery_number=delivery_num,
                 quantity=qty_per_delivery,
-                received=is_received
+                received=False,
+                dose1=False,
+                dose2=False
             )
             db.session.add(d)
             # advance 28 days
@@ -103,7 +104,9 @@ def toggle_delivery(did):
         delivery = TerapiaDelivery.query.get(did)
         if not delivery:
             return jsonify({'error': 'not_found'}), 404
-        delivery.received = not bool(delivery.received)
+        # Toggle received state; do NOT auto-mark doses as administered here.
+        new_state = not bool(delivery.received)
+        delivery.received = new_state
         db.session.add(delivery)
         db.session.commit()
         # Return the full plan to update UI
@@ -125,6 +128,8 @@ def mark_next_delivery():
         delivery = TerapiaDelivery.query.filter_by(plan_id=plan.id, received=False).order_by(TerapiaDelivery.delivery_number).first()
         if not delivery:
             return jsonify({'error': 'no_pending'}), 400
+        # Mark delivery as received (arrival). Do NOT auto-mark doses as administered;
+        # individual doses (dose1/dose2) are recorded when the user confirms a date.
         delivery.received = True
         db.session.add(delivery)
         db.session.commit()
@@ -153,54 +158,116 @@ def delete_plan():
         return jsonify({'error': 'internal'}), 500
 
 
-@sanita_bp.route('/api/plan/extend', methods=['POST'])
-def extend_plan():
-    """Extend the existing plan by adding the same number of deliveries.
-    Can only be called when all current deliveries are marked as received.
+
+
+
+@sanita_bp.route('/api/delivery/mark_date', methods=['POST'])
+def mark_delivery_by_date():
+    """Mark the delivery that covers the given scheduled date as received.
+    Expected JSON: { date: 'YYYY-MM-DD' }
+    The server computes the schedule (every 14 days from plan.start_date) and
+    finds which delivery covers that schedule index (each delivery has quantity doses).
+    Then the delivery.received flag is set to True and the updated plan returned.
     """
+    data = request.get_json() or {}
+    dt = data.get('date')
     try:
+        if not dt:
+            return jsonify({'error': 'invalid'}), 400
         plan = TerapiaPlan.query.first()
         if not plan:
-            return jsonify({'error': 'no_plan', 'message': 'Nessun piano esistente da estendere.'}), 404
-        
-        # Get all current deliveries
+            return jsonify({'error': 'no_plan'}), 404
+
+        # parse date
+        parts = dt.split('-')
+        if len(parts) != 3:
+            return jsonify({'error': 'invalid_date'}), 400
+        target = date(int(parts[0]), int(parts[1]), int(parts[2]))
+
+        # build schedules every 14 days from plan.start_date until plan end (dec 31 next year)
+        start = plan.start_date
+        end_year = start.year + 1
+        last_day = date(end_year, 12, 31)
+        schedules = []
+        cur = start
+        while cur <= last_day:
+            schedules.append(cur)
+            cur = cur + timedelta(days=14)
+
+        # find index of target date in schedules
+        try:
+            idx = next(i for i, s in enumerate(schedules) if s == target)
+        except StopIteration:
+            current_app.logger.info('mark_delivery_by_date: date_not_scheduled target=%s start=%s', target, start)
+            return jsonify({'error': 'date_not_scheduled', 'message': 'La data non corrisponde a una somministrazione programmata.'}), 400
+
+        # iterate deliveries in ascending delivery_number and find which covers idx
         deliveries = TerapiaDelivery.query.filter_by(plan_id=plan.id).order_by(TerapiaDelivery.delivery_number).all()
-        
-        if not deliveries:
-            return jsonify({'error': 'no_deliveries', 'message': 'Nessuna consegna da estendere.'}), 400
-        
-        # Check if all deliveries are received
-        all_received = all(d.received for d in deliveries)
-        if not all_received:
-            return jsonify({'error': 'not_all_received', 'message': 'Tutte le consegne devono essere ricevute prima di estendere.'}), 400
-        
-        # Get the last delivery number
-        last_delivery_num = max(d.delivery_number for d in deliveries)
-        
-        # Count how many deliveries to add (same as current count)
-        num_to_add = len(deliveries)
-        
-        # Add new deliveries
-        qty_per_delivery = 2
-        for i in range(num_to_add):
-            new_delivery_num = last_delivery_num + i + 1
-            d = TerapiaDelivery(
-                plan_id=plan.id,
-                delivery_number=new_delivery_num,
-                quantity=qty_per_delivery,
-                received=False
-            )
-            db.session.add(d)
-        
-        # Update plan totals
-        plan.num_deliveries = last_delivery_num + num_to_add
-        plan.total_drugs = plan.num_deliveries * qty_per_delivery
-        db.session.add(plan)
-        
+        covered_count = 0
+        found = None
+        for d in deliveries:
+            qty = int(d.quantity or 0)
+            range_start = covered_count
+            range_end = covered_count + qty - 1
+            if range_start <= idx <= range_end:
+                found = d
+                break
+            covered_count += qty
+
+        if not found:
+            current_app.logger.info('mark_delivery_by_date: no_matching_delivery idx=%s schedules_len=%s deliveries=%s', idx, len(schedules), len(deliveries))
+            return jsonify({'error': 'no_matching_delivery', 'message': 'Nessuna consegna corrisponde alla data selezionata.'}), 400
+
+        # determine which dose within the delivery corresponds to idx
+        dose_index = idx - covered_count  # 0-based
+        if dose_index < 0 or dose_index >= int(found.quantity or 0):
+            current_app.logger.info('mark_delivery_by_date: invalid_dose_index dose_index=%s qty=%s', dose_index, found.quantity)
+            return jsonify({'error': 'invalid_dose_index', 'message': 'Indice dose non valido.'}), 400
+
+        # Check whether the corresponding dose is already recorded
+        already = False
+        if dose_index == 0:
+            already = bool(found.dose1)
+        else:
+            already = bool(found.dose2)
+
+        if already:
+            return jsonify({'error': 'already_received', 'message': 'Questa dose è già stata marcata come somministrata.'}), 400
+
+        # Ensure the delivery has been received (covered) before allowing marking a dose
+        if not found.received:
+            current_app.logger.info('mark_delivery_by_date: delivery_not_received delivery_id=%s', getattr(found, 'id', None))
+            return jsonify({'error': 'not_covered', 'message': 'La consegna non è stata ricevuta. Aggiungi la consegna prima di marcare la somministrazione.'}), 400
+
+        # Enforce dose ordering: cannot mark dose2 before dose1
+        if dose_index == 1 and not bool(found.dose1):
+            current_app.logger.info('mark_delivery_by_date: order_violation delivery_id=%s', getattr(found, 'id', None))
+            # compute the scheduled date that corresponds to dose1 for this delivery
+            try:
+                # covered_count is the index of the first dose of this delivery in the schedules list
+                required_date = schedules[covered_count]
+                required_iso = required_date.isoformat()
+            except Exception:
+                required_iso = None
+            return jsonify({'error': 'order_violation', 'message': 'Devi marcare prima la prima dose (dose1) prima di marcare la seconda.', 'required_date': required_iso}), 400
+
+        # Mark the specific dose as administered
+        if dose_index == 0:
+            found.dose1 = True
+        else:
+            found.dose2 = True
+
+        # If all doses are administered, set delivery.received true as well
+        if (int(found.quantity or 0) <= 1 and found.dose1) or (int(found.quantity or 0) >= 2 and found.dose1 and found.dose2):
+            found.received = True
+
+        db.session.add(found)
         db.session.commit()
+
+        plan = TerapiaPlan.query.get(plan.id)
         return jsonify({'plan': plan.to_dict()})
     except Exception:
-        current_app.logger.exception('Errore extending plan')
+        current_app.logger.exception('Errore marking delivery by date')
         db.session.rollback()
         return jsonify({'error': 'internal'}), 500
 

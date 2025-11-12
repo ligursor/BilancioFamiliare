@@ -11,37 +11,21 @@
             <label class="form-label mb-1">Inizio PT</label>
             <input id="therapyStart" type="date" class="form-control">
         </div>
-        <div class="col-md-2">
-            <label class="form-label mb-1">Farmaci PT</label>
-            <input id="totalDrugs" type="number" min="1" class="form-control" value="0">
-        </div>
-        <!-- Consegne count removed as per UX update -->
         <div class="col-md-4">
-            <label class="form-label mb-1">Controllo consegne</label>
-            <!-- Area per marcare la prossima consegna come ricevuta -->
-            <div id="markNextDeliveryArea" class="d-flex align-items-center">
-                <div class="form-check d-flex align-items-center">
-                    <input id="markNextDeliveryCb" type="checkbox" class="form-check-input">
-                    <label for="markNextDeliveryCb" class="form-check-label mb-0">Segna prossima consegna come ricevuta</label>
-                    <!-- spinner shown while request is in flight -->
-                    <span id="markNextDeliverySpinner" class="spinner-border spinner-border-sm text-primary ms-2 d-none" role="status" aria-hidden="true"></span>
-                    <!-- small status text -->
-                    <span id="markNextDeliveryText" class="ms-2 small text-muted d-none"></span>
-                </div>
-            </div>
+            <!-- left intentionally empty: controllo consegne moved to Azioni -->
         </div>
-        <div class="col-md-2 d-flex align-items-start justify-content-end">
+        <div class="col-md-6 d-flex align-items-start justify-content-end">
             <div class="text-end">
                 <label class="form-label mb-1">Azioni</label>
                 <div class="d-flex gap-2">
-                    <button id="cancelFormBtn" class="btn btn-outline-secondary" title="Cancella form (reset dati)"><i
-                            class="fas fa-eraser"></i></button>
-                    <button id="savePlanBtn" class="btn btn-success" title="Salva piano"><i
-                            class="fas fa-check"></i></button>
-                    <button id="extendPlanBtn" class="btn btn-info d-none" title="Estendi piano (aggiungi consegne)"><i
-                            class="fas fa-plus-circle"></i></button>
-                    <button id="resetPlanBtn" class="btn btn-outline-danger" title="Elimina piano dal DB"><i
-                            class="fas fa-trash-alt"></i></button>
+            <button id="cancelFormBtn" class="btn btn-outline-secondary" title="Cancella form (reset dati)"><i class="fas fa-eraser"></i></button>
+            <button id="savePlanBtn" class="btn btn-success" title="Salva piano"><i class="fas fa-check"></i></button>
+            
+            <!-- Add delivery button (marks next delivery as received) - hidden until a plan is saved -->
+            <button id="addDeliveryBtn" class="btn btn-primary d-none" title="Aggiungi consegna"><i class="fas fa-plus"></i></button>
+            <span id="addDeliverySpinner" class="spinner-border spinner-border-sm text-primary ms-2 d-none" role="status" aria-hidden="true"></span>
+            <span id="addDeliveryText" class="ms-2 small text-muted d-none"></span>
+            <button id="resetPlanBtn" class="btn btn-outline-danger" title="Elimina piano dal DB"><i class="fas fa-trash-alt"></i></button>
                 </div>
             </div>
         </div>
@@ -50,28 +34,22 @@
     <!-- deliveries list removed: inline numbered checkboxes are used instead -->
 </div>
 
-<!-- Fixed legend: inserted here so it appears above the calendar. JS will position it below the navbar and reveal it. -->
-<div id="terapiaLegend" class="terapia-legend bg-light border-bottom py-2 d-none">
-    <div class="container">
-        <div class="d-flex justify-content-start align-items-center">
-            <div class="me-3">Legenda:</div>
-            <div class="me-2"><span class="badge bg-success">Coperto</span></div>
-            <div class="me-2"><span class="badge bg-danger">Scoperto</span></div>
-            <div><span class="badge bg-secondary">Somministrazione</span></div>
-        </div>
-    </div>
-</div>
+<!-- Legend inline will be rendered in the calendar header row (left side) -->
 
 <div class="row" id="calendarArea" data-year0="{{ current_year }}" data-year1="{{ next_year }}">
     <div class="col-12 mt-3 mb-3 d-flex align-items-center justify-content-between">
-        <div>
+        <div class="d-flex align-items-center terapia-legend-inline">
+            <div class="me-3 fw-bold">Legenda:</div>
+            <div class="me-2"><span class="badge bg-success">Coperto</span></div>
+            <div class="me-2"><span class="badge bg-danger">Scoperto</span></div>
+            <div><span class="badge bg-somministrazione">Somministrazione</span></div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
             <button id="prevYearBtn" class="btn btn-outline-secondary" aria-label="Anno precedente"
                 title="Anno precedente">
                 <i class="fas fa-arrow-left"></i>
             </button>
-        </div>
-        <h4 id="displayYearLabel" class="m-0"></h4>
-        <div>
+            <h4 id="displayYearLabel" class="m-0"></h4>
             <button id="nextYearBtn" class="btn btn-outline-secondary" aria-label="Anno successivo"
                 title="Anno successivo">
                 <i class="fas fa-arrow-right"></i>
@@ -81,190 +59,15 @@
 
     <div class="col-12">
         <div id="yearContainer0" class="calendar-single d-none">
-            <div id="calendarYear1" class="calendar-year d-flex flex-wrap"></div>
+            <div id="calendarYear1" class="calendar-year"></div>
         </div>
         <div id="yearContainer1" class="calendar-single d-none">
-            <div id="calendarYear2" class="calendar-year d-flex flex-wrap"></div>
+            <div id="calendarYear2" class="calendar-year"></div>
         </div>
     </div>
 </div>
 
-<style>
-    /* Minimal calendar styles */
-    .calendar-year {
-        gap: 1rem;
-    }
-
-    .month {
-        width: 220px;
-        border: 1px solid #e6e6e6;
-        padding: 6px;
-        border-radius: 6px;
-        margin-right: 8px;
-    }
-
-    .month .month-title {
-        font-weight: 600;
-        text-align: center;
-        margin-bottom: 6px;
-    }
-
-    .weekdays,
-    .days {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 4px;
-    }
-
-    .weekday {
-        font-size: 0.8rem;
-        color: #666;
-        text-align: center;
-    }
-
-    .day {
-        height: 28px;
-        text-align: center;
-        line-height: 28px;
-        border-radius: 4px;
-    }
-
-    .empty {
-        background: transparent;
-    }
-
-    .marked {
-        background: #6c757d;
-        color: #fff;
-        position: relative;
-    }
-
-    .covered {
-        background: #198754 !important;
-        color: #fff;
-    }
-
-    .uncovered {
-        background: #dc3545 !important;
-        color: #fff;
-    }
-
-    .today {
-        box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.12) inset;
-    }
-
-    .day[data-date] {
-        cursor: default;
-    }
-
-    /* Inline numbered consegne styles */
-    .inline-consegne-container {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-    }
-
-    .inline-consegna {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 56px;
-        height: 40px;
-        padding: 4px 8px;
-        border-radius: 6px;
-        border: 1px solid #ddd;
-        background: #fff;
-        box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
-        transition: all .12s ease-in-out;
-    }
-
-    .inline-consegna .form-check-input {
-        width: 16px;
-        height: 16px;
-        margin: 0;
-    }
-
-    .inline-consegna .consegna-label {
-        font-size: 0.95rem;
-        font-weight: 600;
-        margin: 0;
-        user-select: none;
-    }
-
-    .inline-consegna:hover {
-        transform: translateY(-2px);
-        border-color: #b3b3b3;
-    }
-
-    .inline-consegna.checked {
-        background: #e9f7ef;
-        border-color: #198754;
-    }
-
-    .inline-consegna .form-check-input:focus {
-        outline: 2px solid rgba(13, 110, 253, 0.12);
-    }
-
-    .inline-consegne-scroll {
-        overflow-x: auto;
-        padding-bottom: 2px;
-    }
-
-    /* Backwards-compatible rules for the dynamically-created consegna-inline labels */
-
-    .consegna-inline,
-    .inline-consegna {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px; /* spacing between checkbox and number */
-        min-width: 64px;
-        height: 40px; /* match typical form-control height */
-        padding: 6px 10px;
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        background: #fff;
-        box-shadow: 0 0 0 0 rgba(0,0,0,0);
-        transition: all .12s ease-in-out;
-        font-size: 1rem;
-    }
-
-    .consegna-inline input[type="checkbox"],
-    .inline-consegna input[type="checkbox"] {
-        width: 28px;
-        height: 28px;
-        margin: 0;
-        transform: none;
-        vertical-align: middle;
-    }
-
-    .consegna-inline .consegna-label,
-    .inline-consegna .consegna-label {
-        font-size: 1.05rem;
-        font-weight: 700;
-        margin: 0;
-        user-select: none;
-    }
-
-    .consegna-inline.checked,
-    .inline-consegna.checked {
-        background: #e9f7ef;
-        border-color: #198754;
-    }
-
-    .terapia-content {
-        padding-top: 8px;
-    }
-
-    .terapia-legend {
-        position: fixed !important;
-        left: 0;
-        right: 0;
-        top: 0;
-        z-index: 9999;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-        background: rgba(255, 255, 255, 0.98);
-    }
-</style>
+<!-- CSS spostato in app/static/css/templates.css -->
 
 {% endblock %}
 {% block scripts %}
@@ -299,11 +102,23 @@
                 if (markedMap && markedMap.has(key)) {
                     const meta = markedMap.get(key);
                     cell.classList.add('marked');
-                    if (meta.covered) cell.classList.add('covered'); else cell.classList.add('uncovered');
-                    cell.title = meta.title || (meta.covered ? 'Coperto' : 'Scoperto');
+                    // If this specific scheduled date was administered, mark accordingly
+                    if (meta.administered) {
+                        cell.classList.add('administered');
+                        cell.title = meta.title || 'Somministrazione';
+                    } else {
+                        if (meta.covered) cell.classList.add('covered'); else cell.classList.add('uncovered');
+                        cell.title = meta.title || (meta.covered ? 'Coperto' : 'Scoperto');
+                    }
                 }
                 const t = new Date(); if (datesEqual(t, dt)) cell.classList.add('today');
                 days.appendChild(cell);
+            }
+            // Ensure each month grid has 6 rows (6*7 = 42 cells) so boxes keep uniform height
+            const totalCells = offset + daysInMonth;
+            const cellsNeeded = 42 - totalCells;
+            for (let k = 0; k < cellsNeeded; k++) {
+                const e = document.createElement('div'); e.className = 'day empty'; days.appendChild(e);
             }
             monthDiv.appendChild(days);
             container.appendChild(monthDiv);
@@ -332,80 +147,110 @@
         // Initialize all dates as uncovered (scoperto)
         for (const md of marked) { 
             const key = formatISO(md); 
-            map.set(key, { covered: false, date: new Date(md) }); 
+            map.set(key, { covered: false, administered: false, date: new Date(md) }); 
         }
         
-        // Now mark as covered based on received deliveries (both saved and local)
-        // Each received delivery covers 2 consecutive dates starting from the earliest uncovered
-        const received = (deliveries || [])
-            .filter(d => d.received) // Only received deliveries
-            .map(d => ({ 
-                id: d.id || 'local', 
-                delivery_number: d.delivery_number,
-                qty: parseInt(d.quantity || 0, 10) || 0 
-            }))
-            .sort((a, b) => a.delivery_number - b.delivery_number);
-        
-        let coveredCount = 0;
-        for (const rec of received) {
-            // Each delivery covers qty doses (typically 2)
-            for (let i = 0; i < rec.qty && coveredCount < marked.length; i++) {
-                const dateToMark = marked[coveredCount];
-                const key = formatISO(dateToMark);
-                const obj = map.get(key);
-                if (obj) {
-                    obj.covered = true;
-                    map.set(key, obj);
+        // Mark each scheduled date according to deliveries. A scheduled date is:
+        // - 'covered' if the delivery that maps to it has been received (delivery.received === true)
+        // - 'administered' if that specific dose (dose1/dose2) was recorded true
+        const dl = (deliveries || []).slice().sort((a, b) => a.delivery_number - b.delivery_number);
+        let idx = 0;
+        for (const d of dl) {
+            const qty = parseInt(d.quantity || 0, 10) || 0;
+            for (let j = 0; j < qty && idx < marked.length; j++, idx++) {
+                const key = formatISO(marked[idx]);
+                const obj = map.get(key) || { covered: false, administered: false, date: new Date(marked[idx]) };
+                // covered if delivery is marked as received
+                obj.covered = !!d.received;
+                // administered depending on dose flags (dose1 -> j==0, dose2 -> j==1)
+                if (j === 0) obj.administered = !!d.dose1; else obj.administered = !!d.dose2;
+                obj.delivery_id = d.id || 'local';
+                obj.delivery_number = d.delivery_number;
+                // Add a helpful title/tooltip explaining state and dose order
+                if (obj.administered) {
+                    // indicate which dose was administered
+                    obj.title = (j === 0) ? 'Somministrazione (dose 1)' : 'Somministrazione (dose 2)';
+                } else {
+                    if (obj.covered) {
+                        // delivery arrived but this specific dose not yet recorded
+                        if (qty >= 2) {
+                            // check if dose1 has been administered already
+                            const dose1Done = !!d.dose1;
+                            if (!dose1Done && j === 1) {
+                                obj.title = 'Coperto — devi prima marcare la dose 1; poi la dose 2.';
+                            } else if (dose1Done && j === 1) {
+                                obj.title = 'Coperto — dose 1 registrata, puoi marcare la dose 2.';
+                            } else {
+                                obj.title = 'Coperto — marcare prima dose 1, poi dose 2.';
+                            }
+                        } else {
+                            obj.title = 'Coperto — puoi marcare la somministrazione.';
+                        }
+                    } else {
+                        obj.title = 'Scoperto — consegna non ricevuta.';
+                    }
                 }
-                coveredCount++;
+                map.set(key, obj);
             }
         }
-        
         return map;
+    }
+
+    // Update the small preview text near the Add Delivery button showing which dates will be covered
+    function updateAddDeliveryPreview() {
+        try {
+            if (!addDeliveryBtn || !addDeliveryText) return;
+            // Only show preview when a plan exists
+            if (!currentPlan) {
+                addDeliveryText.classList.add('d-none');
+                addDeliveryBtn.title = 'Aggiungi consegna';
+                return;
+            }
+            const info = computeNextDeliveryDates();
+            if (!info) {
+                addDeliveryText.classList.add('d-none');
+                addDeliveryBtn.title = 'Nessuna consegna pendente';
+                return;
+            }
+            const dates = info.dates || [];
+            const pretty = dates.length ? dates.map(d => formatDisplayDate(d)).join(', ') : '(nessuna data prevista)';
+            const msg = `Consegna #${info.delivery_number} — Coprirà: ${pretty}`;
+            addDeliveryBtn.title = msg;
+            // Only show preview text when not actively sending
+            const spinnerActive = addDeliverySpinner && !addDeliverySpinner.classList.contains('d-none');
+            if (!spinnerActive) {
+                addDeliveryText.textContent = msg;
+                addDeliveryText.classList.remove('d-none');
+            }
+        } catch (e) { console && console.error && console.error('updateAddDeliveryPreview error', e); }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
     const therapyStartEl = document.getElementById('therapyStart');
-    const totalDrugsEl = document.getElementById('totalDrugs');
+    // 'Farmaci PT' input removed from UI — use a default value unless a plan is loaded
+    const defaultTotalDrugs = 8;
+    let currentTotalDrugs = defaultTotalDrugs;
     const savePlanBtn = document.getElementById('savePlanBtn');
         const yearEls = [document.getElementById('calendarYear1'), document.getElementById('calendarYear2')];
         const containerEls = [document.getElementById('yearContainer0'), document.getElementById('yearContainer1')];
         const displayYearLabel = document.getElementById('displayYearLabel');
         const prevBtn = document.getElementById('prevYearBtn');
         const nextBtn = document.getElementById('nextYearBtn');
-    const terapiaLegendEl = document.getElementById('terapiaLegend');
     const terapiaContentEl = document.querySelector('.terapia-content');
-    const markNextCb = document.getElementById('markNextDeliveryCb');
-
-        function adjustLegendPosition() {
-            try {
-                const navbar = document.querySelector('.navbar'); const navbarH = navbar ? navbar.offsetHeight : 0;
-                if (terapiaLegendEl && terapiaLegendEl.classList.contains('d-none')) terapiaLegendEl.classList.remove('d-none');
-                const legendH = terapiaLegendEl ? terapiaLegendEl.offsetHeight : 0;
-                if (terapiaLegendEl) terapiaLegendEl.style.top = navbarH + 'px';
-                try {
-                    const mainEl = document.querySelector('main'); const mainMt = mainEl ? parseFloat(window.getComputedStyle(mainEl).marginTop) || 0 : 0;
-                    let desired = navbarH + legendH - mainMt; if (desired < 0) desired = 0; if (terapiaContentEl) terapiaContentEl.style.paddingTop = desired + 'px';
-                    const pullUp = Math.max(0, mainMt - 0); if (terapiaContentEl) terapiaContentEl.style.marginTop = (-pullUp) + 'px';
-                } catch (e) { if (terapiaContentEl) terapiaContentEl.style.paddingTop = (navbarH + legendH + 6) + 'px'; }
-            } catch (e) { console && console.error && console.error('adjustLegendPosition error', e); }
-        }
-
-        window.addEventListener('resize', adjustLegendPosition);
-        setTimeout(adjustLegendPosition, 50);
+    const addDeliveryBtn = document.getElementById('addDeliveryBtn');
+    const addDeliverySpinner = document.getElementById('addDeliverySpinner');
+    const addDeliveryText = document.getElementById('addDeliveryText');
+        // Legend is inline in the header; no dynamic positioning required.
 
         const area = document.getElementById('calendarArea');
         const years = [parseInt(area.dataset.year0, 10), parseInt(area.dataset.year1, 10)];
         let activeIndex = 0;
 
-    const today = new Date(); therapyStartEl.value = formatISO(today); totalDrugsEl.value = 8;
+    const today = new Date(); therapyStartEl.value = formatISO(today); currentTotalDrugs = defaultTotalDrugs;
 
         let currentPlan = null;
-        let localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, parseDateInput(therapyStartEl.value));
-        // Force first delivery as received in local state
-        if (localPlannedDeliveries.length > 0) {
-            localPlannedDeliveries[0].received = true;
-        }
+    let localPlannedDeliveries = computePlannedDeliveries(currentTotalDrugs, parseDateInput(therapyStartEl.value));
+        // Note: do NOT mark any delivery as received for unsaved (local) plans.
         let displayedDeliveries = [];
 
         // compute planned deliveries
@@ -452,53 +297,24 @@
             if (!start) return new Map(); 
             const lastDay = new Date(years[1], 11, 31); 
             const schedules = computeMarkedDates(start, lastDay);
-            const assignments = new Array(schedules.length).fill(null);
-            const dl = (deliveries || [])
-                .map(d => ({ 
-                    id: d.id || 'local', 
-                    delivery_number: d.delivery_number,
-                    qty: parseInt(d.quantity || 0, 10) || 0, 
-                    received: !!d.received, 
-                    remaining_after: 0 
-                }))
-                .sort((a, b) => a.delivery_number - b.delivery_number);
-            
-            // Assign doses to scheduled dates sequentially
+            // We'll build a simple map: for each scheduled date, report whether it's covered
+            // (delivery received) and which delivery covers it. Also compute remaining doses
+            const map = new Map();
+            const dl = (deliveries || []).slice().sort((a, b) => a.delivery_number - b.delivery_number);
             let scheduleIndex = 0;
             for (const dv of dl) {
-                if (!dv.received) { 
-                    dv.remaining_after = 0; 
-                    continue; 
+                const qty = parseInt(dv.quantity || 0, 10) || 0;
+                // compute how many doses already administered for this delivery
+                const administeredCount = (dv.dose1 ? 1 : 0) + (dv.dose2 ? 1 : 0);
+                const remaining = Math.max(0, qty - administeredCount);
+                for (let k = 0; k < qty && scheduleIndex < schedules.length; k++, scheduleIndex++) {
+                    const key = formatISO(schedules[scheduleIndex]);
+                    map.set(key, { covered: !!dv.received, delivery_id: dv.id || 'local', delivery_number: dv.delivery_number });
                 }
-                let pool = dv.qty;
-                // Assign this delivery's doses to the next uncovered schedules
-                while (pool > 0 && scheduleIndex < schedules.length) {
-                    if (assignments[scheduleIndex] === null) {
-                        assignments[scheduleIndex] = dv.id;
-                        pool--;
-                    }
-                    scheduleIndex++;
-                }
-                dv.remaining_after = pool; // Any leftover doses
+                // update any inline badges for delivery remaining
+                const badge = document.querySelector('[data-delivery-id="' + (dv.id || 'local') + '"]');
+                if (badge) badge.textContent = 'Rimanenti: ' + remaining;
             }
-            
-            const map = new Map(); 
-            for (let i = 0; i < schedules.length; i++) { 
-                const key = formatISO(schedules[i]); 
-                const did = assignments[i]; 
-                const info = { covered: did != null, delivery_id: did }; 
-                if (did) { 
-                    const dv = dl.find(x => x.id === did); 
-                    if (dv) { 
-                        info.delivery_number = dv.delivery_number; 
-                    } 
-                } 
-                map.set(key, info); 
-            }
-            dl.forEach(dv => { 
-                const badge = document.querySelector('[data-delivery-id="' + dv.id + '"]'); 
-                if (badge) badge.textContent = 'Rimanenti: ' + dv.remaining_after; 
-            });
             return map;
         }
 
@@ -507,25 +323,29 @@
         function updateButtonStates() {
             const hasPlan = !!currentPlan;
             const resetPlanBtn = document.getElementById('resetPlanBtn');
-            const extendPlanBtn = document.getElementById('extendPlanBtn');
             
-            // Disable Save button if plan exists
-            savePlanBtn.disabled = hasPlan;
-            resetPlanBtn.disabled = !hasPlan;
-            
-            // Show Extend button only if all deliveries are received
-            if (hasPlan && currentPlan.deliveries) {
-                const allReceived = currentPlan.deliveries.every(d => d.received);
-                if (allReceived) {
-                    extendPlanBtn.classList.remove('d-none');
-                } else {
-                    extendPlanBtn.classList.add('d-none');
-                }
+            // Show only Save when no plan, only Delete when plan exists
+            const cancelFormBtn = document.getElementById('cancelFormBtn');
+            // Disable therapy start input when a saved plan exists
+            try {
+                if (therapyStartEl) therapyStartEl.disabled = hasPlan;
+            } catch (e) { }
+            if (hasPlan) {
+                // plan saved: show only delete
+                savePlanBtn.classList.add('d-none');
+                resetPlanBtn.classList.remove('d-none');
+                if (cancelFormBtn) cancelFormBtn.classList.add('d-none');
+                // ensure reset button enabled
+                if (resetPlanBtn) resetPlanBtn.disabled = false;
             } else {
-                extendPlanBtn.classList.add('d-none');
+                // no plan: show only save
+                savePlanBtn.classList.remove('d-none');
+                resetPlanBtn.classList.add('d-none');
+                if (cancelFormBtn) cancelFormBtn.classList.add('d-none');
+                if (savePlanBtn) savePlanBtn.disabled = false;
             }
-            
-            // Update button styles to show disabled state clearly
+
+            // Always keep style classes consistent
             if (hasPlan) {
                 savePlanBtn.classList.add('disabled');
                 resetPlanBtn.classList.remove('disabled');
@@ -533,20 +353,23 @@
                 savePlanBtn.classList.remove('disabled');
                 resetPlanBtn.classList.add('disabled');
             }
-        }
-            // Update mark-next-delivery checkbox state
+
+            // Update add-delivery button state (show only when plan exists)
             try {
-                if (!markNextCb) return;
-                if (!hasPlan || !currentPlan.deliveries) {
-                    markNextCb.disabled = true;
-                    markNextCb.checked = false;
-                } else {
-                    const hasPending = currentPlan.deliveries.some(d => !d.received);
-                    markNextCb.disabled = !hasPending;
-                    // always leave unchecked (it's an action trigger)
-                    markNextCb.checked = false;
+                if (addDeliveryBtn) {
+                    if (!hasPlan || !currentPlan.deliveries) {
+                        addDeliveryBtn.classList.add('d-none');
+                        addDeliveryBtn.disabled = true;
+                    } else {
+                        addDeliveryBtn.classList.remove('d-none');
+                        const hasPending = currentPlan.deliveries.some(d => !d.received);
+                        addDeliveryBtn.disabled = !hasPending;
+                    }
                 }
-            } catch (e) { console && console.error && console.error('updateButtonStates markNext error', e); }
+            } catch (e) { console && console.error && console.error('updateButtonStates addDelivery error', e); }
+            // Update preview text for add-delivery
+            try { updateAddDeliveryPreview(); } catch (e) { /* ignore */ }
+        }
 
         prevBtn.addEventListener('click', function () { if (activeIndex > 0) { showIndex(activeIndex - 1); } });
         nextBtn.addEventListener('click', function () { if (activeIndex < years.length - 1) { showIndex(activeIndex + 1); } });
@@ -555,7 +378,7 @@
             // Simple: always create a new plan (server will check if one exists)
             const payload = { 
                 start_date: therapyStartEl.value, 
-                total_drugs: parseInt(totalDrugsEl.value, 10) || 0
+                total_drugs: parseInt(currentTotalDrugs, 10) || 0
             };
             fetch('/sanita/api/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
                 .then(r => r.json())
@@ -577,48 +400,13 @@
                 }).catch(() => { window.showToast('Errore salvataggio', 'danger'); });
         });
 
-        const extendPlanBtn = document.getElementById('extendPlanBtn');
-        extendPlanBtn.addEventListener('click', function () {
-            if (!confirm('Confermi l\'estensione del piano? Verranno aggiunte altre ' + (currentPlan ? currentPlan.deliveries.length : 0) + ' consegne.')) return;
-            fetch('/sanita/api/plan/extend', { method: 'POST' })
-                .then(r => r.json())
-                .then(js => {
-                    if (js.error) {
-                        if (js.error === 'not_all_received') {
-                            window.showToast('Tutte le consegne devono essere ricevute prima di estendere.', 'warning');
-                        } else {
-                            window.showToast('Errore estensione piano', 'danger');
-                        }
-                        return;
-                    }
-                    currentPlan = js.plan;
-                    totalDrugsEl.value = currentPlan.total_drugs || 0;
-                    displayedDeliveries = currentPlan.deliveries || [];
-                    renderDeliveries(displayedDeliveries);
-                    updateButtonStates();
-                    refresh();
-                    window.showToast('Piano esteso con successo', 'success');
-                }).catch(() => { window.showToast('Errore estensione', 'danger'); });
-        });
+        // Plan extension UI and handler removed.
 
-        totalDrugsEl.addEventListener('input', function () { 
-            const v = Math.floor((parseInt(totalDrugsEl.value, 10) || 0) / 2); 
-            const start = parseDateInput(therapyStartEl.value); 
-            localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, start); 
-            // If no plan saved, force first delivery as received
-            if (!currentPlan && localPlannedDeliveries.length > 0) {
-                localPlannedDeliveries[0].received = true;
-            }
-            renderDeliveries(localPlannedDeliveries); 
-            refresh(); 
-        });
+        // When therapy start changes, recompute local planned deliveries using currentTotalDrugs
         therapyStartEl.addEventListener('input', function () { 
             const start = parseDateInput(therapyStartEl.value); 
-            localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, start); 
-            // If no plan saved, force first delivery as received
-            if (!currentPlan && localPlannedDeliveries.length > 0) {
-                localPlannedDeliveries[0].received = true;
-            }
+            localPlannedDeliveries = computePlannedDeliveries(currentTotalDrugs, start); 
+            // If no plan saved, keep localPlannedDeliveries unmarked (no covered dates)
             renderDeliveries(localPlannedDeliveries); 
             refresh(); 
         });
@@ -630,14 +418,10 @@
                 if (js.error) { window.showToast('Errore cancellazione piano', 'danger'); return; }
                 currentPlan = null; 
                 displayedDeliveries = []; 
-                totalDrugsEl.value = 8; 
+                currentTotalDrugs = defaultTotalDrugs;
                 therapyStartEl.value = formatISO(new Date()); 
-                numDeliveriesDisplayEl.value = Math.floor(parseInt(totalDrugsEl.value, 10) / 2) || 0;
-                localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, parseDateInput(therapyStartEl.value));
-                // Force first delivery as received when no plan
-                if (localPlannedDeliveries.length > 0) {
-                    localPlannedDeliveries[0].received = true;
-                }
+                localPlannedDeliveries = computePlannedDeliveries(currentTotalDrugs, parseDateInput(therapyStartEl.value));
+                // Keep local planned deliveries unmarked when no plan exists
                 renderDeliveries(localPlannedDeliveries);
                 // No per-delivery inline UI anymore
                 updateButtonStates();
@@ -649,13 +433,9 @@
         const cancelFormBtn = document.getElementById('cancelFormBtn');
         cancelFormBtn.addEventListener('click', function () { 
             therapyStartEl.value = formatISO(new Date()); 
-            totalDrugsEl.value = 8; 
-            numDeliveriesDisplayEl.value = Math.floor(parseInt(totalDrugsEl.value, 10) / 2) || 0; 
-            localPlannedDeliveries = computePlannedDeliveries(totalDrugsEl.value, parseDateInput(therapyStartEl.value)); 
-            // Force first delivery as received when no plan
-            if (localPlannedDeliveries.length > 0) {
-                localPlannedDeliveries[0].received = true;
-            }
+            currentTotalDrugs = defaultTotalDrugs;
+            localPlannedDeliveries = computePlannedDeliveries(currentTotalDrugs, parseDateInput(therapyStartEl.value)); 
+            // Keep local planned deliveries unmarked when no plan exists
             renderDeliveries(localPlannedDeliveries); 
             currentPlan = null; 
             refresh(); 
@@ -666,16 +446,14 @@
             if (js.plan) { 
                 currentPlan = js.plan; 
                 therapyStartEl.value = currentPlan.start_date || therapyStartEl.value; 
-                totalDrugsEl.value = currentPlan.total_drugs || totalDrugsEl.value; 
+                // update internal total drugs from plan
+                currentTotalDrugs = currentPlan.total_drugs || currentTotalDrugs;
                 displayedDeliveries = currentPlan.deliveries || [];
                 renderDeliveries(displayedDeliveries); 
-            } else { 
-                currentPlan = null; 
+            } else {
+                currentPlan = null;
                 displayedDeliveries = localPlannedDeliveries;
-                // Force first delivery as received when no plan
-                if (localPlannedDeliveries.length > 0) {
-                    localPlannedDeliveries[0].received = true;
-                }
+                // Keep local planned deliveries unmarked when no plan exists
                 renderDeliveries(localPlannedDeliveries);
             }
                 updateButtonStates();
@@ -685,25 +463,59 @@
         }); 
     }
 
-        // Wire the mark-next-delivery checkbox: it acts as a one-shot action trigger
-        if (markNextCb) {
-            const markNextSpinner = document.getElementById('markNextDeliverySpinner');
-            const markNextText = document.getElementById('markNextDeliveryText');
-            markNextCb.addEventListener('change', function () {
-                if (!markNextCb.checked) return; // only act when checked
-                if (!currentPlan) { markNextCb.checked = false; return; }
-                // show feedback
-                try { if (markNextSpinner) markNextSpinner.classList.remove('d-none'); } catch(e){}
-                try { if (markNextText) { markNextText.textContent = 'Invio...'; markNextText.classList.remove('d-none'); } } catch(e){}
-                // disable control while request in flight
-                markNextCb.disabled = true;
+        // Wire the add-delivery button: it acts as a one-shot action trigger similar to the previous checkbox
+        function computeNextDeliveryDates() {
+            if (!currentPlan) return null;
+            const start = parseDateInput(therapyStartEl.value);
+            const lastDay = new Date(years[1], 11, 31);
+            const schedules = computeMarkedDates(start, lastDay);
+            // count already covered slots
+            const received = (currentPlan.deliveries || [])
+                .map(d => ({ qty: parseInt(d.quantity || 0, 10) || 0, received: !!d.received }))
+                .filter(x => x.received);
+            let coveredCount = 0;
+            for (const r of received) {
+                coveredCount += r.qty;
+            }
+            // find next unreceived delivery
+            const next = (currentPlan.deliveries || []).find(d => !d.received);
+            if (!next) return null;
+            const qty = parseInt(next.quantity || 0, 10) || 0;
+            const res = [];
+            for (let i = 0; i < qty && (coveredCount + i) < schedules.length; i++) {
+                res.push(schedules[coveredCount + i]);
+            }
+            return { delivery_number: next.delivery_number, dates: res };
+        }
+
+        function formatDisplayDate(d) {
+            if (!d) return '';
+            return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+        }
+
+        function formatPrettyDate(d) {
+            if (!d) return '';
+            const months = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+            return String(d.getDate()) + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+        }
+
+        if (addDeliveryBtn) {
+            addDeliveryBtn.addEventListener('click', function () {
+                if (!currentPlan) return;
+                const info = computeNextDeliveryDates();
+                if (!info) { window.showToast('Nessuna consegna pendente da marcare', 'warning'); return; }
+                const dn = info.delivery_number;
+                const dates = info.dates || [];
+                const pretty = dates.length ? dates.map(d => formatPrettyDate(d)).join(', ') : '(nessuna data prevista)';
+                const msg = `Consegna #${dn} — ${pretty}`;
+                if (!confirm(msg + "\n\nConfermi di marcare questa consegna come ricevuta?")) return;
+                try { if (addDeliverySpinner) addDeliverySpinner.classList.remove('d-none'); } catch(e){}
+                try { if (addDeliveryText) { addDeliveryText.textContent = 'Invio...'; addDeliveryText.classList.remove('d-none'); } } catch(e){}
+                addDeliveryBtn.disabled = true;
                 fetch('/sanita/api/delivery/next/mark', { method: 'POST' })
                     .then(r => r.json())
                     .then(js => {
-                        if (js.error) {
-                            window.showToast('Errore marcatura consegna', 'danger');
-                            return;
-                        }
+                        if (js.error) { window.showToast('Errore marcatura consegna', 'danger'); return; }
                         currentPlan = js.plan;
                         displayedDeliveries = currentPlan.deliveries || [];
                         renderDeliveries(displayedDeliveries);
@@ -712,18 +524,82 @@
                         window.showToast('Prossima consegna marcata come ricevuta', 'success');
                     }).catch(() => { window.showToast('Errore marcatura', 'danger'); })
                     .finally(() => {
-                        // hide feedback and restore state; updateButtonStates will re-disable if needed
-                        try { if (markNextSpinner) markNextSpinner.classList.add('d-none'); } catch(e){}
-                        try { if (markNextText) { markNextText.classList.add('d-none'); markNextText.textContent = ''; } } catch(e){}
-                        if (markNextCb) { markNextCb.checked = false; }
-                        // Let updateButtonStates determine whether checkbox should be enabled
-                        try { updateButtonStates(); } catch(e) { if (markNextCb) markNextCb.disabled = false; }
+                        try { if (addDeliverySpinner) addDeliverySpinner.classList.add('d-none'); } catch(e){}
+                        try { if (addDeliveryText) { addDeliveryText.classList.add('d-none'); addDeliveryText.textContent = ''; } } catch(e){}
+                        addDeliveryBtn.disabled = false;
+                        try { updateButtonStates(); } catch(e) { /* ignore */ }
                     });
             });
         }
 
+        // Click handler for day cells: allow marking a specific scheduled date as administered
+        function onCalendarDayClick(ev) {
+            const target = ev.target.closest('.day');
+            if (!target || target.classList.contains('empty')) return;
+            const key = target.getAttribute('data-date');
+            if (!key) return;
+            // Only act on scheduled dates (marked)
+            if (!target.classList.contains('marked')) {
+                // not a scheduled date
+                return;
+            }
+            // If already administered, do not allow re-marking
+            if (target.classList.contains('administered')) {
+                window.showToast('Questa data è già marcata come somministrazione.', 'info');
+                return;
+            }
+            // Only allow marking when the date is covered (delivery received)
+            if (!target.classList.contains('covered')) {
+                window.showToast('La data selezionata non è coperta da una fornitura ricevuta; non è possibile marcare la somministrazione.', 'warning');
+                return;
+            }
+            // Confirm with the user
+            const pretty = formatPrettyDate(new Date(key));
+            if (!confirm('Vuoi marcare la somministrazione per il ' + pretty + ' ?')) return;
+            // Call backend to mark the delivery that covers this date
+            fetch('/sanita/api/delivery/mark_date', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: key }) })
+                .then(r => r.json())
+                .then(js => {
+                    if (js.error) {
+                            const msg = js.message || js.error;
+                            if (js.error === 'already_received') {
+                                window.showToast(msg || 'Questa somministrazione è già stata marcata.', 'info');
+                            } else if (js.error === 'date_not_scheduled') {
+                                window.showToast(msg || 'La data selezionata non corrisponde a una somministrazione programmata.', 'warning');
+                            } else if (js.error === 'not_covered') {
+                                window.showToast(msg || 'La consegna non è ancora stata ricevuta. Aggiungi la consegna prima di marcare la somministrazione.', 'warning');
+                            } else if (js.error === 'order_violation') {
+                                // If server suggests a required_date, show it nicely
+                                if (js.required_date) {
+                                    const rd = js.required_date;
+                                    const prettyReq = formatDisplayDate(new Date(rd));
+                                    window.showToast((msg || 'Devi prima marcare la prima dose della consegna.') + ' Data suggerita: ' + prettyReq, 'warning');
+                                } else {
+                                    window.showToast(msg || 'Devi prima marcare la prima dose della consegna.', 'warning');
+                                }
+                            } else {
+                                window.showToast(msg || 'Errore marcatura data', 'danger');
+                            }
+                        return;
+                    }
+                    // Update local state and UI
+                    currentPlan = js.plan;
+                    displayedDeliveries = currentPlan.deliveries || [];
+                    renderDeliveries(displayedDeliveries);
+                    updateButtonStates();
+                    refresh();
+                    window.showToast('Somministrazione registrata', 'success');
+                }).catch(() => { window.showToast('Errore marcatura', 'danger'); });
+        }
+
+        // Attach delegated listener to both year containers
+        const calendarYearEls = [document.getElementById('calendarYear1'), document.getElementById('calendarYear2')];
+        calendarYearEls.forEach(yr => { if (yr) yr.addEventListener('click', onCalendarDayClick); });
+
         loadPlan();
         refresh();
+        // Ensure add-delivery preview is initialized after load
+        try { updateAddDeliveryPreview(); } catch (e) { /* ignore */ }
     });
 </script>
 

@@ -104,10 +104,7 @@
         </div>
     </nav>
 
-    <!-- Toast container per notifiche client-side (usare showToast(msg, type)) -->
-    <div aria-live="polite" aria-atomic="true" class="toast-area">
-        <div id="toast-container" class="toast-inner"></div>
-    </div>
+    <!-- (Toast container rimosso: le notifiche usano modali ora) -->
 
     <!-- Global confirmation modal to avoid native browser confirm dialogs (Firefox suppress checkbox) -->
     <div class="modal fade" id="globalConfirmModal" tabindex="-1" aria-hidden="true">
@@ -123,6 +120,24 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="globalConfirmCancel">Annulla</button>
                     <button type="button" class="btn btn-danger" id="globalConfirmOk">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global message modal: used instead of toasts for prominent notifications -->
+    <div class="modal fade" id="globalMessageModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div id="globalMessageHeader" class="modal-header">
+                    <h5 id="globalMessageTitle" class="modal-title">Messaggio</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="globalMessageBody"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
                 </div>
             </div>
         </div>
@@ -161,22 +176,39 @@
         });
     </script>
     <script>
-        // Helper per mostrare toasts consistenti
+        // Helper per mostrare messaggi prominenti mediante modal (sostituisce i toast)
         window.showToast = function(message, type) {
             try {
-                var container = document.getElementById('toast-container');
-                if (!container) return; 
-                var toastEl = document.createElement('div');
-                toastEl.className = 'toast align-items-center text-white bg-' + (type === 'success' ? 'success' : type === 'warning' ? 'warning' : type === 'info' ? 'info' : 'danger') + ' border-0';
-                toastEl.setAttribute('role','alert'); toastEl.setAttribute('aria-live','assertive'); toastEl.setAttribute('aria-atomic','true');
-                toastEl.style.minWidth = '240px'; toastEl.style.marginTop = '0.5rem';
-                toastEl.innerHTML = '<div class="d-flex"><div class="toast-body">' + message + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div>';
-                container.appendChild(toastEl);
-                var bst = new bootstrap.Toast(toastEl, { delay: 5000 });
-                bst.show();
-                // remove from DOM after hidden
-                toastEl.addEventListener('hidden.bs.toast', function(){ try{ container.removeChild(toastEl); } catch(e){} });
-            } catch(e) { console && console.error && console.error('showToast error', e); }
+                var modalEl = document.getElementById('globalMessageModal');
+                var titleEl = document.getElementById('globalMessageTitle');
+                var headerEl = document.getElementById('globalMessageHeader');
+                var bodyEl = document.getElementById('globalMessageBody');
+                if (!modalEl || !titleEl || !bodyEl) return;
+
+                // Determine style and title based on type
+                var title = 'Messaggio';
+                var headerClass = '';
+                var iconClass = '';
+                if (type === 'success') { title = 'Successo'; headerClass = 'bg-success text-white'; iconClass = 'fa-check-circle'; }
+                else if (type === 'warning') { title = 'Attenzione'; headerClass = 'bg-warning text-dark'; iconClass = 'fa-exclamation-circle'; }
+                else if (type === 'info') { title = 'Informazione'; headerClass = 'bg-info text-white'; iconClass = 'fa-info-circle'; }
+                else { title = 'Errore'; headerClass = 'bg-danger text-white'; iconClass = 'fa-exclamation-triangle'; }
+
+                // Apply header class
+                headerEl.className = 'modal-header ' + headerClass;
+                titleEl.textContent = title;
+
+                // Insert icon + message
+                bodyEl.innerHTML = '<div class="d-flex align-items-start"><i class="fas ' + iconClass + ' fa-2x me-3" aria-hidden="true"></i><div>' + message + '</div></div>';
+
+                // Show modal (modal will be dismissed via OK button or auto-closed for success/info)
+                var bsModal = new bootstrap.Modal(modalEl, { backdrop: 'static' });
+                bsModal.show();
+                // Auto-close for non-critical messages
+                if (type === 'success' || type === 'info') {
+                    setTimeout(function() { try { bsModal.hide(); } catch (e) {} }, 3000);
+                }
+            } catch (e) { console && console.error && console.error('showToast(modal) error', e); }
         };
     </script>
     

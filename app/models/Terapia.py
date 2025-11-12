@@ -28,6 +28,9 @@ class TerapiaDelivery(db.Model):
     delivery_number = db.Column(db.Integer, nullable=False)  # Progressive number within the plan
     quantity = db.Column(db.Integer, nullable=False, default=2)
     received = db.Column(db.Boolean, nullable=False, default=False)
+    # Track individual doses inside a delivery (typically 2 doses)
+    dose1 = db.Column(db.Boolean, nullable=False, default=False)
+    dose2 = db.Column(db.Boolean, nullable=False, default=False)
 
     def to_dict(self):
         return {
@@ -35,5 +38,7 @@ class TerapiaDelivery(db.Model):
             'plan_id': self.plan_id,
             'delivery_number': self.delivery_number,
             'quantity': self.quantity,
-            'received': bool(self.received)
+            'received': bool(self.received),
+            'dose1': bool(self.dose1),
+            'dose2': bool(self.dose2)
         }
