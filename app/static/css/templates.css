@@ -219,6 +219,82 @@ body.setup-required { display: flex; align-items: center; justify-content: cente
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ------------------------------------------------------------------
+   Terapia Biologica - calendar & delivery styles
+   Moved here from app/templates/sanita/terapia_biologica.html to central
+   stylesheet so styles are not duplicated and can be cached.
+   ------------------------------------------------------------------ */
+
+/* Minimal calendar styles (copied from terapia_biologica.html) */
+.calendar-year {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(6, 1fr);
+  width: 100%;
+  justify-items: stretch;
+  align-items: start;
+}
+
+@media (max-width: 1199px) {
+  .calendar-year {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  }
+}
+
+.month {
+  width: auto;
+  border: 1px solid #e6e6e6;
+  padding: 6px 8px 12px;
+  border-radius: 6px;
+  margin: 0;
+  box-sizing: border-box;
+  min-height: 120px;
+}
+
+.month .month-title { font-weight: 600; text-align: center; margin-bottom: 6px; }
+.weekdays, .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.weekday { font-size: 0.8rem; color: #666; text-align: center; }
+.day { height: 24px; text-align: center; line-height: 24px; border-radius: 4px; font-size: 0.92rem; padding: 0 2px; }
+.empty { background: transparent; }
+.marked { background: #6c757d; color: #fff; position: relative; }
+
+/* Administered (somministrazione) - purple variant */
+.administered { background: #6f42c1 !important; color: #fff; }
+.badge.bg-somministrazione { background-color: #6f42c1 !important; color: #fff !important; }
+.covered { background: #198754 !important; color: #fff; }
+.uncovered { background: #dc3545 !important; color: #fff; }
+.today { box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.12) inset; }
+.day[data-date] { cursor: default; }
+
+/* Inline numbered consegne styles */
+.inline-consegne-container { display: flex; gap: 0.5rem; align-items: center; }
+.inline-consegna { display: flex; align-items: center; gap: 8px; min-width: 56px; height: 40px; padding: 4px 8px; border-radius: 6px; border: 1px solid #ddd; background: #fff; box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); transition: all .12s ease-in-out; }
+.inline-consegna .form-check-input { width: 16px; height: 16px; margin: 0; }
+.inline-consegna .consegna-label { font-size: 0.95rem; font-weight: 600; margin: 0; user-select: none; }
+.inline-consegna:hover { transform: translateY(-2px); border-color: #b3b3b3; }
+.inline-consegna.checked { background: #e9f7ef; border-color: #198754; }
+.inline-consegna .form-check-input:focus { outline: 2px solid rgba(13, 110, 253, 0.12); }
+.inline-consegne-scroll { overflow-x: auto; padding-bottom: 2px; }
+
+.consegna-inline, .inline-consegna { display: inline-flex; align-items: center; gap: 10px; min-width: 64px; height: 40px; padding: 6px 10px; border-radius: 8px; border: 1px solid #ddd; background: #fff; box-shadow: 0 0 0 0 rgba(0,0,0,0); transition: all .12s ease-in-out; font-size: 1rem; }
+.consegna-inline input[type="checkbox"], .inline-consegna input[type="checkbox"] { width: 28px; height: 28px; margin: 0; transform: none; vertical-align: middle; }
+.consegna-inline .consegna-label, .inline-consegna .consegna-label { font-size: 1.05rem; font-weight: 700; margin: 0; user-select: none; }
+.consegna-inline.checked, .inline-consegna.checked { background: #e9f7ef; border-color: #198754; }
+
+.terapia-content { padding-top: 8px; }
+.terapia-legend-inline { display: flex; align-items: center; gap: 0.5rem; }
+
+#markNextDeliveryArea .form-check { display: inline-flex; align-items: center; gap: 0.5rem; }
+#markNextDeliveryCb { width: 20px; height: 20px; margin: 0; transform: none; vertical-align: middle; cursor: pointer; }
+#markNextDeliveryArea .form-check-label { margin-bottom: 0; margin-left: 6px; font-size: 1rem; user-select: none; cursor: pointer; }
+
+@media (max-width: 479px) {
+  #markNextDeliveryCb { width: 18px; height: 18px; }
+  #markNextDeliveryArea .form-check-label { font-size: 0.95rem; }
+}
+
+/* End Terapia Biologica CSS */
 @keyframes fadeOut {
   from { opacity: 1; transform: translateY(0); }
   to { opacity: 0; transform: translateY(-4px); }
