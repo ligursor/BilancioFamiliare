@@ -109,6 +109,12 @@
                     } else {
                         if (meta.covered) cell.classList.add('covered'); else cell.classList.add('uncovered');
                         cell.title = meta.title || (meta.covered ? 'Coperto' : 'Scoperto');
+                        // if server/client flagged this scheduled date as the earliest pending, make it clickable
+                        if (meta.allowed) {
+                            cell.classList.add('clickable');
+                            // ensure visual hint
+                            cell.title = (cell.title ? cell.title + ' ' : '') + '(Questa è la prossima somministrazione da marcare)';
+                        }
                     }
                 }
                 const t = new Date(); if (datesEqual(t, dt)) cell.classList.add('today');
@@ -155,6 +161,7 @@
         // - 'administered' if that specific dose (dose1/dose2) was recorded true
         const dl = (deliveries || []).slice().sort((a, b) => a.delivery_number - b.delivery_number);
         let idx = 0;
+        let earliest_pending_idx = null;
         for (const d of dl) {
             const qty = parseInt(d.quantity || 0, 10) || 0;
             for (let j = 0; j < qty && idx < marked.length; j++, idx++) {
@@ -166,6 +173,17 @@
                 if (j === 0) obj.administered = !!d.dose1; else obj.administered = !!d.dose2;
                 obj.delivery_id = d.id || 'local';
                 obj.delivery_number = d.delivery_number;
+
+                // Track earliest pending dose among RECEIVED deliveries
+                try {
+                    if (d.received) {
+                        const isAdmin = (j === 0) ? !!d.dose1 : !!d.dose2;
+                        if (!isAdmin && earliest_pending_idx === null) {
+                            earliest_pending_idx = idx;
+                        }
+                    }
+                } catch (e) { /* ignore */ }
+
                 // Add a helpful title/tooltip explaining state and dose order
                 if (obj.administered) {
                     // indicate which dose was administered
@@ -193,6 +211,18 @@
                 map.set(key, obj);
             }
         }
+
+        // If we found an earliest pending index, mark that scheduled date as allowed
+        try {
+            if (earliest_pending_idx !== null && earliest_pending_idx >= 0 && earliest_pending_idx < marked.length) {
+                const k = formatISO(marked[earliest_pending_idx]);
+                const o = map.get(k) || { covered: false, administered: false, date: new Date(marked[earliest_pending_idx]) };
+                o.allowed = true;
+                // augment title to invite click
+                o.title = (o.title ? o.title + ' — ' : '') + 'Clicca per marcare questa somministrazione.';
+                map.set(k, o);
+            }
+        } catch (e) { /* ignore */ }
         return map;
     }
 
@@ -541,6 +571,17 @@
             // Only act on scheduled dates (marked)
             if (!target.classList.contains('marked')) {
                 // not a scheduled date
+                return;
+            }
+            // Only allow clicking the earliest pending scheduled dose: client-side guard.
+            if (!target.classList.contains('clickable')) {
+                const req = document.querySelector('.day.clickable');
+                if (req && req.getAttribute) {
+                    const rd = req.getAttribute('data-date');
+                    try { window.showToast('Devi prima marcare la somministrazione del ' + formatDisplayDate(new Date(rd)), 'warning'); } catch(e) { window.showToast('Devi prima marcare la somministrazione precedente.','warning'); }
+                } else {
+                    window.showToast('Questa data non è cliccabile in questo momento.', 'warning');
+                }
                 return;
             }
             // If already administered, do not allow re-marking

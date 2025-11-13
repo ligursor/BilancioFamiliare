@@ -224,6 +224,41 @@ def mark_delivery_by_date():
             current_app.logger.info('mark_delivery_by_date: invalid_dose_index dose_index=%s qty=%s', dose_index, found.quantity)
             return jsonify({'error': 'invalid_dose_index', 'message': 'Indice dose non valido.'}), 400
 
+        # Enforce global ordering across received deliveries:
+        # only the earliest (in delivery_number order) dose that belongs to a received delivery
+        # and that is not yet administered can be marked. Compute its schedule index.
+        try:
+            global_idx = 0
+            earliest_pending_idx = None
+            for d_iter in deliveries:
+                q = int(d_iter.quantity or 0)
+                for j in range(q):
+                    # consider only doses from deliveries that have been received
+                    if d_iter.received:
+                        is_administered = True
+                        if j == 0:
+                            is_administered = bool(d_iter.dose1)
+                        else:
+                            is_administered = bool(d_iter.dose2)
+                        if not is_administered:
+                            earliest_pending_idx = global_idx
+                            break
+                    global_idx += 1
+                if earliest_pending_idx is not None:
+                    break
+        except Exception:
+            earliest_pending_idx = None
+
+        # If there is an earlier pending dose (in a received delivery) and the user
+        # is trying to mark a different later scheduled date, reject and suggest the required date.
+        if earliest_pending_idx is not None and idx != earliest_pending_idx:
+            try:
+                required_iso = schedules[earliest_pending_idx].isoformat()
+            except Exception:
+                required_iso = None
+            current_app.logger.info('mark_delivery_by_date: global_order_violation target_idx=%s required_idx=%s', idx, earliest_pending_idx)
+            return jsonify({'error': 'order_violation', 'message': 'Devi marcare prima le somministrazioni in ordine cronologico: marcare prima le dosi non registrate della consegna più vecchia.', 'required_date': required_iso}), 400
+
         # Check whether the corresponding dose is already recorded
         already = False
         if dose_index == 0:
