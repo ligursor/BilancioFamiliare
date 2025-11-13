@@ -24,6 +24,27 @@
         return tr;
     }
 
+    function createPendingTransactionRow(tx, cfg){
+        // Create row for "Transazioni in Attesa" table (only amount shown, no +/-)
+        var tr = document.createElement('tr');
+        var descr = document.createElement('td'); descr.className='text-start'; descr.textContent = tx.descrizione || '';
+        var dataTd = document.createElement('td'); dataTd.className='text-center'; dataTd.textContent = tx.data ? new Date(tx.data).toLocaleDateString('it-IT') : '';
+        var catTd = document.createElement('td'); catTd.className='text-center'; var spanCat = document.createElement('span'); spanCat.className = 'badge ' + (tx.tipo==='entrata' ? 'bg-success' : 'bg-danger'); var catName = tx.categoria_nome || tx.categoria || ''; spanCat.textContent = catName; catTd.appendChild(spanCat);
+        var tipoTd = document.createElement('td'); tipoTd.className='text-center'; tipoTd.innerHTML = tx.tipo==='entrata' ? '<span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>' : '<span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>';
+        var importoTd = document.createElement('td'); importoTd.className='text-center ' + (tx.tipo==='entrata' ? 'text-success' : 'text-danger'); importoTd.textContent = formatEuro(Number(tx.importo||0));
+        var azTd = document.createElement('td'); azTd.className='text-center';
+        var btnGroup = document.createElement('div'); btnGroup.className='btn-group btn-group-sm'; btnGroup.setAttribute('role','group');
+        var editBtn = document.createElement('button'); editBtn.className='btn btn-outline-primary btn-sm'; editBtn.setAttribute('title','Modifica transazione'); editBtn.setAttribute('data-id', tx.id); editBtn.setAttribute('data-descrizione', JSON.stringify(tx.descrizione||'')); editBtn.setAttribute('data-importo', tx.importo); editBtn.setAttribute('data-data', JSON.stringify(tx.data||'')); editBtn.setAttribute('data-categoria', tx.categoriaId || tx.categoria_id || tx.categoria || ''); editBtn.setAttribute('data-action','modifica-transazione-attr'); editBtn.innerHTML = '<i class="fas fa-edit" aria-hidden="true"></i>';
+        btnGroup.appendChild(editBtn);
+        var delForm = document.createElement('form'); delForm.method='POST'; delForm.style.display='inline'; delForm.setAttribute('action', '/dettaglio/' + encodeURIComponent(cfg.start_date) + '/' + encodeURIComponent(cfg.end_date) + '/elimina_transazione/' + encodeURIComponent(tx.id)); delForm.setAttribute('data-action','confirm-delete'); delForm.setAttribute('data-message','Sei sicuro di voler eliminare questa transazione?');
+        var delBtn = document.createElement('button'); delBtn.type='submit'; delBtn.className='btn btn-outline-danger btn-sm'; delBtn.setAttribute('title','Elimina transazione'); delBtn.innerHTML = '<i class="fas fa-trash" aria-hidden="true"></i>';
+        delForm.appendChild(delBtn);
+        btnGroup.appendChild(delForm);
+        azTd.appendChild(btnGroup);
+        tr.appendChild(descr); tr.appendChild(dataTd); tr.appendChild(catTd); tr.appendChild(tipoTd); tr.appendChild(importoTd); tr.appendChild(azTd);
+        return tr;
+    }
+
     function updateBudgetItems(items){
         try{
             (items || []).forEach(function(b){
@@ -85,7 +106,53 @@
                 var url = '/dettaglio/' + encodeURIComponent(cfg.start_date) + '/' + encodeURIComponent(cfg.end_date) + '/aggiungi_transazione';
                 fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(function(resp){ if (!resp.ok) throw new Error('Server error'); return resp.json(); })
-                .then(function(json){ if (!json || json.status !== 'ok') throw new Error('Errore creazione transazione'); if (json.summary) applySummary(json.summary); if (json.transazione) { var tbody = document.querySelector('#tabella-transazioni table tbody'); if (tbody) { tbody.insertBefore(createTransactionRow(json.transazione, cfg), tbody.firstChild); } } var inlineBox = document.getElementById('inline-add-transaction'); if (inlineBox) inlineBox.classList.add('d-none'); clone.reset(); showToast('Transazione aggiunta', 'success'); })
+                .then(function(json){ 
+                    if (!json || json.status !== 'ok') throw new Error('Errore creazione transazione'); 
+                    if (json.summary) applySummary(json.summary); 
+                    if (json.transazione) { 
+                        // Determine if this is a pending transaction (future date) or executed transaction
+                        var txDate = json.transazione.data || '';
+                        var today = new Date();
+                        today.setHours(0,0,0,0);
+                        var transactionDate = new Date(txDate);
+                        transactionDate.setHours(0,0,0,0);
+                        var isPending = transactionDate > today;
+                        
+                        if (isPending) {
+                            // Add to pending transactions section
+                            var pendingSection = document.querySelector('.mt-3 h5 .fa-clock');
+                            if (pendingSection) {
+                                // Pending section exists, find the table
+                                var pendingTable = pendingSection.closest('.mt-3').querySelector('table tbody');
+                                if (pendingTable) {
+                                    pendingTable.insertBefore(createPendingTransactionRow(json.transazione, cfg), pendingTable.firstChild);
+                                }
+                            } else {
+                                // Pending section doesn't exist yet - need to create it
+                                // Find the insertion point (after transazioni-sections div)
+                                var sectionsDiv = document.getElementById('transazioni-sections');
+                                if (sectionsDiv) {
+                                    var newSection = document.createElement('div');
+                                    newSection.className = 'mt-3';
+                                    newSection.innerHTML = '<h5 class="mb-3"><i class="fas fa-clock text-warning me-2"></i>Transazioni in Attesa</h5><div class="table-responsive"><table class="table table-striped table-sm det-mese-table"><thead><tr><th class="text-center">Descrizione</th><th class="text-center">Data Programmata</th><th class="text-center">Categoria</th><th class="text-center">Tipo</th><th class="text-center">Importo</th><th class="text-center">Azioni</th></tr></thead><tbody></tbody></table></div>';
+                                    sectionsDiv.appendChild(newSection);
+                                    var tbody = newSection.querySelector('tbody');
+                                    if (tbody) tbody.appendChild(createPendingTransactionRow(json.transazione, cfg));
+                                }
+                            }
+                        } else {
+                            // Add to executed transactions table
+                            var tbody = document.querySelector('#tabella-transazioni table tbody'); 
+                            if (tbody) { 
+                                tbody.insertBefore(createTransactionRow(json.transazione, cfg), tbody.firstChild); 
+                            }
+                        }
+                    } 
+                    var inlineBox = document.getElementById('inline-add-transaction'); 
+                    if (inlineBox) inlineBox.classList.add('d-none'); 
+                    clone.reset(); 
+                    showToast('Transazione aggiunta', 'success'); 
+                })
                 .catch(function(e){ console.error(e); showToast('Errore durante l\'inserimento. Riprova.','danger'); });
             });
             var cancel = document.getElementById('inline_add_cancel'); if (cancel) cancel.addEventListener('click', function(){ var inlineBox = document.getElementById('inline-add-transaction'); if (inlineBox) inlineBox.classList.add('d-none'); });
@@ -205,6 +272,7 @@
             // expose helpers globally that templates may call
             window.applySummary = applySummary;
             window.createTransactionRow = function(tx){ return createTransactionRow(tx, cfg); };
+            window.createPendingTransactionRow = function(tx){ return createPendingTransactionRow(tx, cfg); };
             // init pieces
             bindDelegatedHandlers(cfg);
             bindInlineAdd(cfg);
