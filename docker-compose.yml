@@ -1,6 +1,7 @@
 services:
   bilancio-app:
     build: .
+    container_name: bilancio-app
     ports:
       - "5001:5001"
     volumes:
@@ -14,4 +15,19 @@ services:
       - ./scripts:/app/scripts:rw
     environment:
       - FLASK_ENV=production
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: bilancio-watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_SCHEDULE=0 0 3 * * *  # Riavvio ogni giorno alle 3:00 AM
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_INCLUDE_STOPPED=false
+      - WATCHTOWER_NO_PULL=true  # Non fare pull di nuove immagini, solo restart
     restart: unless-stopped
