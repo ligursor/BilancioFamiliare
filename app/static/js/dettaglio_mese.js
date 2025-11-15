@@ -149,13 +149,13 @@
                         }
                     } 
                     var inlineBox = document.getElementById('inline-add-transaction'); 
-                    if (inlineBox) inlineBox.classList.add('d-none'); 
+                    if (inlineBox) inlineBox.style.display = 'none'; 
                     clone.reset(); 
                     showToast('Transazione aggiunta', 'success'); 
                 })
                 .catch(function(e){ console.error(e); showToast('Errore durante l\'inserimento. Riprova.','danger'); });
             });
-            var cancel = document.getElementById('inline_add_cancel'); if (cancel) cancel.addEventListener('click', function(){ var inlineBox = document.getElementById('inline-add-transaction'); if (inlineBox) inlineBox.classList.add('d-none'); });
+            var cancel = document.getElementById('inline_add_cancel'); if (cancel) cancel.addEventListener('click', function(){ var inlineBox = document.getElementById('inline-add-transaction'); if (inlineBox) inlineBox.style.display = 'none'; });
         }catch(e){ console && console.error && console.error('bindInlineAdd error', e); }
     }
 
@@ -246,6 +246,10 @@
     // sorting removed — UI no longer exposes sort controls for Data/Importo
 
     function bindDelegatedHandlers(cfg){
+        // avoid binding multiple times if initDettaglio is called repeatedly
+        if (window._dettaglio_delegated_bound) return;
+        window._dettaglio_delegated_bound = true;
+
         document.addEventListener('submit', function(e){
             var form = e.target; if (!form) return;
             var act = form.getAttribute('action') || form.action || '';

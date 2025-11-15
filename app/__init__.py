@@ -176,6 +176,11 @@ def create_app(config_name='default'):
     app.register_blueprint(veicoli_bp, url_prefix='/veicoli')
     app.register_blueprint(ppay_bp, url_prefix='/ppay_evolution')
     app.register_blueprint(libretto_bp, url_prefix='/libretto')
+    
+    # Storico transazioni archiviate
+    from app.views.transazioni.storico import storico_bp
+    app.register_blueprint(storico_bp, url_prefix='/storico')
+    
     if sanita_bp:
         app.register_blueprint(sanita_bp, url_prefix='/sanita')
     if passwd_bp:

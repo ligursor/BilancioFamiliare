@@ -12,10 +12,31 @@
   font-weight: 600;
   padding: .35rem .6rem;
   transition: background-color .12s ease, color .12s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  line-height: 1;
 }
 .navbar .nav-link .fas, .navbar .nav-link .fab {
   opacity: 0.98;
   font-size: 1.05em;
+}
+
+/* Ensure dropdown toggles in the navbar share the same visual sizing
+   (useful for items like 'Sezioni' and 'Gestione') */
+.navbar .nav-link.dropdown-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem; /* spacing between icon and text */
+  line-height: 1; /* avoid vertical size differences caused by icons */
+  min-width: 5.2rem; /* ensure a consistent clickable area */
+  justify-content: center;
+}
+
+/* Slightly normalize icon sizing inside navbar links so different FA glyphs appear similar */
+.navbar .nav-link .fas, .navbar .nav-link .fab {
+  font-size: 1.05em;
+  line-height: 1;
 }
 .navbar .nav-link:hover, .navbar .nav-link:focus {
   color: #ffffff !important;
@@ -31,6 +52,13 @@
   color: #fff !important;
 }
 .navbar .logout-btn:hover { background: rgba(255,255,255,0.16); color: #fff !important; }
+/* Make logout button visually align with navbar links */
+.navbar .logout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  line-height: 1;
+}
 .navbar .dropdown-menu { min-width: 12rem; }
 
 /* ---------- Password Manager layout (from passwd_manager/index.html) ---------- */
@@ -44,6 +72,30 @@
 }
 .category-col {
   flex: 0 0 auto;
+
+/* ------------------------------------------------------------------
+   Global button normalization: make buttons, navbar links and header
+   action buttons visually consistent (icon alignment, height, padding)
+   ------------------------------------------------------------------ */
+.btn, .navbar .btn, .navbar .nav-link, .card .card-header .btn, .btn-group .btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: .35rem !important;
+  line-height: 1 !important;
+}
+
+/* Small buttons: normalize padding so sizes match across contexts */
+.btn-sm {
+  padding: .25rem .5rem !important;
+  font-size: .85rem !important;
+}
+
+/* Ensure icons inside buttons don't introduce extra height */
+.btn i, .nav-link i { line-height: 1; }
+
+/* Card header action area: align to center vertically */
+.card .card-header { display: flex; align-items: center; justify-content: space-between; }
+.card .card-header .btn { margin: 0; }
   width: 11rem;
 }
 @media (min-width: 992px) {

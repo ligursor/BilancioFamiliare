@@ -71,9 +71,50 @@ def do_monthly_rollover(force=False, months=1, base_date=None):
         new_seed_saldo = saldo_finale_prev + result['total_budget_residui']
         result['seed_saldo_iniziale'] = float(new_seed_saldo)
         
-        # STEP 3: Elimina transazioni del mese precedente (pulizia storico)
+        # STEP 3: Archivia ed elimina transazioni del mese precedente (pulizia storico)
         try:
             from app.models.Transazioni import Transazioni
+            from app.models.TransazioniArchivio import TransazioniArchivio
+            from app.models.Categorie import Categorie
+            
+            # Recupera tutte le transazioni del mese precedente
+            old_transactions = db.session.query(Transazioni).filter(
+                Transazioni.data < current_month_start
+            ).all()
+            
+            archived_count = 0
+            # Archivia ogni transazione prima di eliminarla
+            for tx in old_transactions:
+                # Recupera il nome della categoria per denormalizzazione
+                categoria_nome = None
+                if tx.categoria_id:
+                    cat = db.session.query(Categorie).filter_by(id=tx.categoria_id).first()
+                    if cat:
+                        categoria_nome = cat.nome
+                
+                # Crea record di archivio
+                archived_tx = TransazioniArchivio(
+                    transazione_id=tx.id,
+                    data=tx.data,
+                    data_effettiva=tx.data_effettiva,
+                    descrizione=tx.descrizione,
+                    importo=tx.importo,
+                    categoria_id=tx.categoria_id,
+                    categoria_nome=categoria_nome,
+                    id_periodo=tx.id_periodo,
+                    tipo=tx.tipo,
+                    tx_ricorrente=tx.tx_ricorrente,
+                    id_recurring_tx=tx.id_recurring_tx,
+                    tx_modificata=tx.tx_modificata
+                )
+                db.session.add(archived_tx)
+                archived_count += 1
+            
+            # Commit dell'archiviazione
+            db.session.commit()
+            result['archived_transactions'] = archived_count
+            
+            # Ora elimina le transazioni archiviate
             deleted_old = db.session.query(Transazioni).filter(
                 Transazioni.data < current_month_start
             ).delete(synchronize_session=False)

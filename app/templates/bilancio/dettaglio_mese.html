@@ -650,7 +650,10 @@ function modificaMonthlyBudget(btn) {
         try {
             var box = document.getElementById('inline-add-transaction');
             if (!box) return false;
-            if (box.style.display === 'none' || box.style.display === '') {
+            var isHidden = box.classList.contains('d-none') || box.style.display === 'none' || box.style.display === '';
+            if (isHidden) {
+                // ensure both class-based and style-based hidden states are cleared
+                box.classList.remove('d-none');
                 box.style.display = 'block';
                 // ensure inline handlers are bound (initDettaglio binds them on DOMContentLoaded)
                 try { if (typeof initDettaglio === 'function') { initDettaglio(DETTAGLIO_CONFIG); } } catch(e){}
@@ -679,7 +682,9 @@ function modificaMonthlyBudget(btn) {
                     }
                 } catch(e) { console && console.error && console.error('inline add defaults error', e); }
             } else {
+                // hide using inline style for consistency with bindInlineAdd
                 box.style.display = 'none';
+                box.classList.remove('d-none');
             }
             return true;
         } catch (e) { console && console.error && console.error('toggleInlineAddTransaction error', e); return false; }

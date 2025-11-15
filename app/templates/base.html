@@ -18,8 +18,12 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <!-- Indicatore sezione attiva a sinistra -->
+                <!-- Indicatore sezione attiva a sinistra (con quick-home link prima del badge) -->
                 <div class="d-none d-lg-flex align-items-center me-3">
+                    <!-- Icona rapida per tornare alla Panoramica Bilancio -->
+                    <a href="{{ url_for('main.index') }}" class="btn btn-sm btn-outline-light me-2" title="Panoramica Bilancio">
+                        <i class="fas fa-home" aria-hidden="true"></i>
+                    </a>
                     <div class="active-section-indicator">
                         <i class="{{ active_section.icon }} me-2"></i>
                         <span>{{ active_section.name }}</span>
