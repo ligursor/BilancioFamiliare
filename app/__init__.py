@@ -65,6 +65,7 @@ def create_app(config_name='default'):
             'paypal.dashboard': {'name': 'PayPal', 'icon': 'fab fa-paypal'},
             'ppay.evolution': {'name': 'PPay Evolution', 'icon': 'fas fa-credit-card'},
             'libretto.dashboard': {'name': 'Libretto Smart', 'icon': 'fas fa-book'},
+            'storico.index': {'name': 'Storico', 'icon': 'fas fa-archive'},
             'veicoli.garage': {'name': 'Garage', 'icon': 'fas fa-car'},
             'sanita.terapia': {'name': 'Sanità', 'icon': 'fas fa-notes-medical'},
             'passwd.index': {'name': 'Password Manager', 'icon': 'fas fa-key'},
