@@ -22,6 +22,25 @@
   font-size: 1.05em;
 }
 
+/* Active section badge style used in the header (and for the quick-home link) */
+.active-section-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .25rem .5rem;
+  border-radius: .35rem;
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+.active-section-indicator i { opacity: 0.95; color: #fff !important; }
+.active-section-indicator span { color: #fff !important; }
+.active-section-indicator:hover { background: rgba(255,255,255,0.10); text-decoration: none; }
+
+/* Placeholder used when quick-home is not shown; keep layout but hide visually */
+.home-placeholder { visibility: hidden; pointer-events: none; }
+
 /* Ensure dropdown toggles in the navbar share the same visual sizing
    (useful for items like 'Sezioni' and 'Gestione') */
 .navbar .nav-link.dropdown-toggle {
@@ -96,6 +115,43 @@
 /* Card header action area: align to center vertically */
 .card .card-header { display: flex; align-items: center; justify-content: space-between; }
 .card .card-header .btn { margin: 0; }
+
+/* ------------------------------------------------------------------
+   Force all buttons to use primary color/shape (make them appear as
+   if they had the `btn-primary` class). This overrides other
+   contextual classes so that the app has a uniform action style.
+   ------------------------------------------------------------------ */
+.btn {
+  background-color: var(--bs-primary) !important;
+  color: #fff !important;
+  border-color: var(--bs-primary) !important;
+  box-shadow: none !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  padding: .35rem .6rem !important;
+  border-radius: .35rem !important;
+}
+
+.btn:hover, .btn:focus, .btn:active {
+  background-color: #0b5ed7 !important; /* slightly darker */
+  border-color: #0a58ca !important;
+  color: #fff !important;
+  text-decoration: none !important;
+}
+
+/* Keep disabled buttons visually muted while respecting primary shape */
+.btn:disabled, .btn[disabled], fieldset[disabled] .btn {
+  opacity: 0.65 !important;
+  pointer-events: none !important;
+}
+
+/* Ensure outline variants also appear as filled primary (if present) */
+.btn-outline-primary, .btn-outline-light, .btn-outline-secondary, .btn-outline-danger, .btn-outline-success {
+  background-color: var(--bs-primary) !important;
+  color: #fff !important;
+  border-color: var(--bs-primary) !important;
+}
+
   width: 11rem;
 }
 @media (min-width: 992px) {

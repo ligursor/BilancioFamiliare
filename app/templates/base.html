@@ -20,11 +20,18 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <!-- Indicatore sezione attiva a sinistra (con quick-home link prima del badge) -->
                 <div class="d-none d-lg-flex align-items-center me-3">
-                    <!-- Icona rapida per tornare alla Panoramica Bilancio -->
-                    <a href="{{ url_for('main.index') }}" class="btn btn-sm btn-outline-light me-2" title="Panoramica Bilancio">
-                        <i class="fas fa-home" aria-hidden="true"></i>
+                    <!-- Icona rapida per tornare alla Panoramica Bilancio: nascondila se la sezione attiva è già la Panoramica -->
+                    {% if not (active_section and ( 'Panoramica' in (active_section.name or '') or 'Dashboard' in (active_section.name or '') )) %}
+                    <a href="{{ url_for('main.index') }}" class="active-section-indicator me-2" title="Panoramica Bilancio">
+                        <i class="fas fa-home me-2" aria-hidden="true"></i>
                     </a>
-                    <div class="active-section-indicator">
+                    {% else %}
+                    {# Placeholder element keeps the same sizing so the badge doesn't shift when the anchor is hidden #}
+                    <span class="active-section-indicator me-2 home-placeholder" aria-hidden="true" title="Panoramica Bilancio">
+                        <i class="fas fa-home me-2" aria-hidden="true"></i>
+                    </span>
+                    {% endif %}
+                    <div class="active-section-indicator" role="status" aria-hidden="true">
                         <i class="{{ active_section.icon }} me-2"></i>
                         <span>{{ active_section.name }}</span>
                     </div>
