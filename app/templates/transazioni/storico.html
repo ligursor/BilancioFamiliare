@@ -3,7 +3,7 @@
 {% block title %}Storico Transazioni - Gestione Bilancio Familiare{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-4 page-ricorrenti">
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -67,11 +67,11 @@
                     {% if transazioni %}
                     <!-- Tabella transazioni -->
                     <div class="table-responsive">
-                        <table class="table table-striped table-sm">
+                        <table id="table-storico" class="table table-striped table-sm det-mese-table" data-page-size="5" tabindex="-1">
                             <thead>
                                 <tr>
+                                    <th class="text-center">Descrizione</th>
                                     <th class="text-center">Data</th>
-                                    <th>Descrizione</th>
                                     <th class="text-center">Categoria</th>
                                     <th class="text-center">Tipo</th>
                                     <th class="text-center">Importo</th>
@@ -80,9 +80,9 @@
                             <tbody>
                                 {% for tx in transazioni %}
                                 <tr>
-                                    <td class="text-center">{{ tx.data.strftime('%d/%m/%Y') }}</td>
-                                    <td>{{ tx.descrizione }}</td>
-                                    <td class="text-center">
+                                    <td class="text-left align-middle">{{ tx.descrizione }}</td>
+                                    <td class="text-center align-middle">{{ tx.data.strftime('%d/%m/%Y') }}</td>
+                                    <td class="text-center align-middle">
                                         {% if tx.categoria_nome %}
                                         <span class="badge {% if tx.tipo == 'entrata' %}bg-success{% else %}bg-danger{% endif %}">
                                             {{ tx.categoria_nome }}
@@ -91,15 +91,15 @@
                                         <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
-                                    <td class="text-center">
+                                    <td class="text-center align-middle">
                                         {% if tx.tipo == 'entrata' %}
                                         <span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>
                                         {% else %}
                                         <span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>
                                         {% endif %}
                                     </td>
-                                    <td class="text-center {% if tx.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
-                                        {{ "+" if tx.tipo == 'entrata' else "-" }}€ {{ "%.2f"|format(tx.importo) }}
+                                    <td class="text-center align-middle {% if tx.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
+                                        {{ "%.2f"|format(tx.importo) }}
                                     </td>
                                 </tr>
                                 {% endfor %}

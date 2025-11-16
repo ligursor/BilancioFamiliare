@@ -361,8 +361,19 @@ a.text-decoration-none:active {
     line-height: 1.15;
 }
 .det-mese-table thead th { padding-top: .5rem; padding-bottom: .5rem; }
-.det-mese-table tbody tr { /* ensure a minimum row height */
-    min-height: 42px;
+.det-mese-table tbody tr { /* enforce uniform row height across dettaglio tables */
+    height: 44px; /* fixed row height to match action-button rows in ricorrenti */
+}
+
+/* Specific styling for storico table to avoid wrapped descriptions and force uniform row heights */
+#table-storico {
+    table-layout: fixed; /* allow column width constraints and stable row heights */
+}
+#table-storico td:nth-child(2) {
+    max-width: 50%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Reduce vertical spacing between the budget and transactions tables */
