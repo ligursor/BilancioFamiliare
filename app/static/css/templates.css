@@ -91,6 +91,9 @@
 }
 .category-col {
   flex: 0 0 auto;
+  /* default compact width for small screens */
+  width: 11rem;
+}
 
 /* ------------------------------------------------------------------
    Global button normalization: make buttons, navbar links and header
@@ -150,9 +153,6 @@
   background-color: var(--bs-primary) !important;
   color: #fff !important;
   border-color: var(--bs-primary) !important;
-}
-
-  width: 11rem;
 }
 @media (min-width: 992px) {
   .category-col {
