@@ -2,7 +2,7 @@
 (function(window){
     'use strict';
 
-    function formatEuro(v){ return '€ ' + Number(v || 0).toFixed(2); }
+    var formatEuro = window.formatEuro || function(v){ return '€ ' + Number(v || 0).toFixed(2); };
 
     function createTransactionRow(tx, cfg){
         var tr = document.createElement('tr');

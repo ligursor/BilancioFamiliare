@@ -73,8 +73,8 @@ class Veicoli(db.Model):
     @property
     def nome_completo(self):
         """Restituisce nome completo del veicoli"""
-    # Display only the modello
-    return f"{self.modello}"
+        # Display only the modello
+        return f"{self.modello}"
 
     @property
     def bollo_scaduto(self):

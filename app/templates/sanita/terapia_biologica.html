@@ -74,7 +74,7 @@
 <script>
     // Helper date utilities
     function parseDateInput(v) { if (!v) return null; let parts = v.split('-'); return new Date(parts[0], parseInt(parts[1], 10) - 1, parts[2]); }
-    function formatISO(d) { if (!d) return ''; return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    var formatISO = window.formatISO || function(d) { try { if (!d) return ''; var dt = (d instanceof Date) ? d : new Date(d); if (isNaN(dt)) return ''; return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'); } catch(e) { return ''; } };
     function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
     function addDays(d, n) { let r = new Date(d); r.setDate(r.getDate() + n); return r; }
     function datesEqual(a, b) { if (!a || !b) return false; return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
@@ -518,16 +518,9 @@
             return { delivery_number: next.delivery_number, dates: res };
         }
 
-        function formatDisplayDate(d) {
-            if (!d) return '';
-            return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
-        }
+        var formatDisplayDate = window.formatDisplayDate || function(d) { try { if (!d) return ''; var dt = (d instanceof Date) ? d : new Date(d); if (isNaN(dt)) return ''; return String(dt.getDate()).padStart(2,'0') + '/' + String(dt.getMonth() + 1).padStart(2,'0') + '/' + dt.getFullYear(); } catch(e) { return ''; } };
 
-        function formatPrettyDate(d) {
-            if (!d) return '';
-            const months = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
-            return String(d.getDate()) + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
-        }
+        var formatPrettyDate = window.formatPrettyDate || function(d) { try { if (!d) return ''; var dt = (d instanceof Date) ? d : new Date(d); if (isNaN(dt)) return ''; const months = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic']; return String(dt.getDate()) + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear(); } catch(e) { return ''; } };
 
         if (addDeliveryBtn) {
             addDeliveryBtn.addEventListener('click', function () {

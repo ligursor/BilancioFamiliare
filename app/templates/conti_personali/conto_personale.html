@@ -218,9 +218,9 @@ document.addEventListener('DOMContentLoaded', function() {
     var saldoAttuale = parseFloat(__obj.saldo_iniziale || 0);
     var saldoCorrente = parseFloat(__obj.saldo_corrente || 0);
 
-        function formatEuro(amount) {
-            return '€ ' + amount.toFixed(2);
-        }
+        var formatEuro = window.formatEuro || function(amount) {
+            try { return '€ ' + Number(amount || 0).toFixed(2); } catch(e) { return '€ 0.00'; }
+        };
 
         function aggiornaAnteprima() {
             const nuovoSaldo = parseFloat(nuovoSaldoField.value) || 0;
