@@ -290,11 +290,18 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (btnNuovoDeposito && inlineDepositoContainer) {
         btnNuovoDeposito.addEventListener('click', function() {
-            // Verifica se il form è già presente
-            if (document.querySelector('.form-nuovo-deposito')) {
-                const firstInput = document.querySelector('.form-nuovo-deposito input');
-                if (firstInput) firstInput.focus();
-                return;
+            // If an inline card exists: focus it if it's the same type, otherwise remove it
+            const existingCard = document.querySelector('.inline-inserted');
+            if (existingCard) {
+                try {
+                    if (existingCard.dataset && existingCard.dataset.type === 'deposito') {
+                        const firstInput = existingCard.querySelector('input');
+                        if (firstInput) firstInput.focus();
+                        return;
+                    }
+                    // different inline type -> remove and continue to insert
+                    existingCard.remove();
+                } catch (e) {}
             }
             
             // Clona il template
@@ -307,10 +314,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Trova il card e il form inseriti
             const insertedCard = inlineDepositoContainer.querySelector('.card');
-            if (insertedCard) {
+                if (insertedCard) {
                 // Rimuovi gli id per evitare duplicati
                 insertedCard.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
                 insertedCard.classList.add('inline-inserted');
+                    try { insertedCard.dataset.type = 'deposito'; } catch(e) {}
             }
             
             const insertedForm = inlineDepositoContainer.querySelector('form');

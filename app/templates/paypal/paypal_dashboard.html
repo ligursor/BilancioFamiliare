@@ -315,7 +315,12 @@ document.addEventListener('DOMContentLoaded', function(){
 
     function ensureCardPresent() {
         var existing = document.getElementById('card-nuovo-piano');
-        if (existing) return existing;
+        if (existing) {
+            try {
+                if (existing.dataset && existing.dataset.type === 'piano') return existing;
+                existing.remove();
+            } catch(e) {}
+        }
         if (!template) return null;
         var cardArea = document.querySelector('.card.mb-4'); // insert at top of the piani card
         var clone = template.content.cloneNode(true);
@@ -332,6 +337,7 @@ document.addEventListener('DOMContentLoaded', function(){
             var hdr = created.querySelector('.card-header h5');
             if (hdr) created.dataset.defaultTitle = hdr.innerHTML || 'Nuovo Piano';
         } catch(e){}
+        try { if (created) created.dataset.type = 'piano'; } catch(e) {}
         return created;
     }
 

@@ -156,15 +156,18 @@
                                 <div class="card-footer">
                                     <div class="inline-footer-buttons w-100">
                                         {%- if veicolo.tipo in ['auto','moto'] -%}
-                                        <button type="button" class="btn btn-sm btn-success w-100" data-action="open-inline-bollo" data-id="{{ veicolo.id }}" data-name="{{ veicolo.nome_completo }}">
-                                            <i class="fas fa-receipt"></i> <br/>Bollo
+                                        <button type="button" class="btn btn-sm btn-success w-100 d-flex flex-column align-items-center py-2" data-action="open-inline-bollo" data-id="{{ veicolo.id }}" data-name="{{ veicolo.nome_completo }}">
+                                            <i class="fas fa-receipt"></i>
+                                            <span class="d-block small mt-1">Bollo</span>
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-info w-100" data-action="open-inline-assicurazione" data-id="{{ veicolo.id }}" data-name="{{ veicolo.nome_completo }}">
-                                            <i class="fas fa-shield-alt"></i> Assicurazione
+                                        <button type="button" class="btn btn-sm btn-info w-100 d-flex flex-column align-items-center py-2" data-action="open-inline-assicurazione" data-id="{{ veicolo.id }}" data-name="{{ veicolo.nome_completo }}">
+                                            <i class="fas fa-shield-alt"></i>
+                                            <span class="d-block small mt-1">Assicurazione</span>
                                         </button>
                                         {%- endif -%}
-                                        <button type="button" class="btn btn-sm btn-warning w-100" data-action="open-inline-manutenzione" data-id="{{ veicolo.id }}" data-name="{{ veicolo.nome_completo }}">
-                                            <i class="fas fa-wrench"></i> Manutenzione
+                                        <button type="button" class="btn btn-sm btn-warning w-100 d-flex flex-column align-items-center py-2" data-action="open-inline-manutenzione" data-id="{{ veicolo.id }}" data-name="{{ veicolo.nome_completo }}">
+                                            <i class="fas fa-wrench"></i>
+                                            <span class="d-block small mt-1">Manutenzione</span>
                                         </button>
                                     </div>
                                 </div>

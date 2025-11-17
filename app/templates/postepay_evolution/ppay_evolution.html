@@ -566,11 +566,19 @@ document.addEventListener('DOMContentLoaded', function(){
     }
 
     function insertTemplateAtTop(tmplId, formClass) {
-        if (hasInlineCard()) {
-            const existing = document.querySelector('.form-nuovo-movimento, .form-nuovo-abbonamento');
-            const first = existing.querySelector('input, select, textarea');
-            if (first) first.focus();
-            return;
+        // If there's already an inline card inserted, either focus it (if same type)
+        // or remove it so we can insert the requested form type.
+        const existingCard = document.querySelector('.inline-inserted');
+        if (existingCard) {
+            const existingForm = existingCard.querySelector('form');
+            if (existingForm && existingForm.classList.contains(formClass)) {
+                // same form type already open -> focus first input and skip insertion
+                const first = existingCard.querySelector('input, select, textarea');
+                if (first) first.focus();
+                return;
+            }
+            // different form type -> remove existing so we can open the new one
+            existingCard.remove();
         }
         const tmpl = document.getElementById(tmplId);
         if (!tmpl) return;

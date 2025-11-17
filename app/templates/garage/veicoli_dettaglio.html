@@ -385,13 +385,25 @@ document.addEventListener('click', function(evt){
 		if (!tplId) return;
 		var tpl = document.getElementById(tplId);
 		if (!tpl) return;
-		// avoid duplicates: if already present, focus
+		// avoid duplicates: if already present, focus if same type or replace if different
 		var existing = document.querySelector('.inline-add-box');
-		if (existing) { var first = existing.querySelector('input,textarea,select'); if (first) first.focus(); return; }
+		var actionType = (action === 'open-inline-bollo') ? 'bollo' : (action === 'open-inline-manutenzione' ? 'manutenzione' : '');
+		if (existing) {
+			try {
+				if (existing.dataset && existing.dataset.type === actionType) {
+					var first = existing.querySelector('input,textarea,select'); if (first) first.focus(); return;
+				}
+				// different type -> remove existing and continue to insert new
+				existing.remove();
+			} catch(e) {}
+		}
 		var clone = tpl.content.cloneNode(true);
 		// insert after the main header card
 		var header = document.querySelector('.container-fluid');
 		if (header) header.insertAdjacentElement('afterbegin', clone.firstElementChild);
+		// mark the inserted node with its action type so subsequent opens can compare
+		var insertedNode = document.querySelector('.inline-add-box');
+		if (insertedNode) try { insertedNode.dataset.type = actionType; } catch(e) {}
 		// wire cancel and submit similar to garage
 		var node = document.querySelector('.inline-add-box');
 		if (!node) return;

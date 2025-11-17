@@ -180,6 +180,14 @@
 }
 #card-nuovo-versamento input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
+/* Remove number input spinners globally for all forms/inputs */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
 /* Equal-height utility used by vehicle detail page */
 .equal-height { min-height: 100%; display: flex; flex-direction: column; }
 .card.equal-height { flex: 1 1 auto; }

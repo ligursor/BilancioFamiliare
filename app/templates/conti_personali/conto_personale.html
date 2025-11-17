@@ -266,7 +266,15 @@ document.addEventListener('DOMContentLoaded', function(){
     var template = document.getElementById('tmpl-nuovo-versamento');
     function ensureCardPresent() {
         var existing = document.getElementById('card-nuovo-versamento');
-        if (existing) return existing;
+        if (existing) {
+            try {
+                if (existing.dataset && existing.dataset.type === 'versamento') {
+                    return existing;
+                }
+                // different inline type -> remove it so we can insert ours
+                existing.remove();
+            } catch (e) {}
+        }
         if (!template) return null;
         // insert the cloned template just above the Versamenti card
         var versamentiCard = document.getElementById('table-versamenti') ? document.getElementById('table-versamenti').closest('.card') : null;
@@ -277,7 +285,9 @@ document.addEventListener('DOMContentLoaded', function(){
             // fallback: append to main container
             document.querySelector('main .container')?.appendChild(clone);
         }
-        return document.getElementById('card-nuovo-versamento');
+        var created = document.getElementById('card-nuovo-versamento');
+        try { if (created) created.dataset.type = 'versamento'; } catch(e) {}
+        return created;
     }
     // Attach click handler to show the inline Nuovo Versamento card
     if (btnShow) {

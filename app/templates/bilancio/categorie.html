@@ -169,6 +169,12 @@
         document.addEventListener('DOMContentLoaded', function(){
             function removeExistingInline(){
                 var ex = document.getElementById('card-nuova-categoria');
+                try {
+                    // if an existing inline exists and it's the same logical type, focus it
+                    if (ex && ex.dataset && ex.dataset.type === 'categoria') {
+                        var first = ex.querySelector('input,select,textarea'); if (first) first.focus(); return;
+                    }
+                } catch(e) {}
                 if (ex) ex.remove();
             }
 
@@ -182,6 +188,7 @@
                 if (cardArea && cardArea.parentNode) cardArea.parentNode.insertBefore(clone, cardArea);
                 var card = document.getElementById('card-nuova-categoria');
                 if (!card) return;
+                try { if (card) card.dataset.type = 'categoria'; } catch(e) {}
                 var form = card.querySelector('form');
                 if (asEdit){
                     form.action = opts.editUrl || form.action;
