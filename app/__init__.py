@@ -122,10 +122,35 @@ def create_app(config_name='default'):
         
         return {'active_section': active_section}
 
+    @app.context_processor
+    def inject_asset_version():
+        """Inietta ASSET_VERSION e helper `asset_url(path)` per aggiungere automaticamente il versioning alle risorse statiche."""
+        try:
+            from flask import url_for
+            v = app.config.get('ASSET_VERSION') or os.environ.get('ASSET_VERSION') or '2'
+            def asset_url(path):
+                try:
+                    return url_for('static', filename=path) + '?v=' + str(v)
+                except Exception:
+                    return url_for('static', filename=path)
+            return {'ASSET_VERSION': v, 'asset_url': asset_url}
+        except Exception:
+            return {'ASSET_VERSION': '2', 'asset_url': lambda p: p}
+
     # Jinja filter: format_currency (re-uses helper in app.utils.formatting)
     try:
         from app.utils.formatting import format_currency as format_currency_helper
         app.jinja_env.filters['format_currency'] = format_currency_helper
+        try:
+            from app.utils.formatting import format_decimal as format_decimal_helper
+            app.jinja_env.filters['format_decimal'] = format_decimal_helper
+            try:
+                from app.utils.formatting import format_number as format_number_helper
+                app.jinja_env.filters['format_number'] = format_number_helper
+            except Exception:
+                pass
+        except Exception:
+            pass
     except Exception:
         # Fallback: register a minimal local formatter if the helper cannot be imported
         def _fc(value):

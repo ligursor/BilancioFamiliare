@@ -7,8 +7,8 @@
                 return window.showGlobalConfirm(message);
             }
         } catch (e) {}
-        // If modal helper not available, treat as not confirmed to avoid native browser confirm
-        return Promise.resolve(false);
+        // If modal helper not available, fall back to native confirm wrapped in a Promise
+        try { return Promise.resolve(confirm(message)); } catch (e) { return Promise.resolve(false); }
     }
 
     function navigateMonth(direction) {

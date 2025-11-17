@@ -2,18 +2,19 @@
 (function(window){
     'use strict';
 
-    var formatEuro = window.formatEuro || function(v){ return '€ ' + Number(v || 0).toFixed(2); };
+    // Use centralized formatter from utils-format.js (loaded in <head>)
+    // keep code simple: rely on global `formatEuro` exposed by utils-format.js
 
     function createTransactionRow(tx, cfg){
         var tr = document.createElement('tr');
         var descr = document.createElement('td'); descr.className='text-start'; descr.textContent = tx.descrizione || '';
-        var dataTd = document.createElement('td'); dataTd.className='text-center'; dataTd.textContent = tx.data ? new Date(tx.data).toLocaleDateString('it-IT') : '';
+    var dataTd = document.createElement('td'); dataTd.className='text-center'; dataTd.textContent = tx.data ? formatDisplayDate(tx.data) : '';
     var catTd = document.createElement('td'); catTd.className='text-center'; var spanCat = document.createElement('span'); spanCat.className = 'badge ' + (tx.tipo==='entrata' ? 'bg-success' : 'bg-danger'); var catName = tx.categoria_nome || tx.categoria || ''; spanCat.textContent = catName; catTd.appendChild(spanCat);
         var tipoTd = document.createElement('td'); tipoTd.className='text-center'; tipoTd.innerHTML = tx.tipo==='entrata' ? '<span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>' : '<span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>';
         var importoTd = document.createElement('td'); importoTd.className='text-center ' + (tx.tipo==='entrata' ? 'text-success' : 'text-danger'); importoTd.textContent = (tx.tipo==='entrata' ? '+' : '-') + formatEuro(Number(tx.importo||0));
         var azTd = document.createElement('td'); azTd.className='text-center';
         var btnGroup = document.createElement('div'); btnGroup.className='btn-group btn-group-sm'; btnGroup.setAttribute('role','group');
-    var editBtn = document.createElement('button'); editBtn.className='btn btn-outline-primary btn-sm'; editBtn.setAttribute('title','Modifica transazione'); editBtn.setAttribute('data-id', tx.id); editBtn.setAttribute('data-descrizione', JSON.stringify(tx.descrizione||'')); editBtn.setAttribute('data-importo', tx.importo); editBtn.setAttribute('data-data', JSON.stringify(tx.data||'')); editBtn.setAttribute('data-categoria', tx.categoriaId || tx.categoria_id || tx.categoria || ''); editBtn.setAttribute('data-action','modifica-transazione-attr'); editBtn.innerHTML = '<i class="fas fa-edit" aria-hidden="true"></i>';
+    var editBtn = document.createElement('button'); editBtn.className='btn btn-outline-primary btn-sm'; editBtn.setAttribute('title','Modifica transazione'); editBtn.setAttribute('data-id', tx.id); editBtn.setAttribute('data-descrizione', JSON.stringify(tx.descrizione||'')); editBtn.setAttribute('data-importo', (tx.importo !== undefined && tx.importo !== null) ? Number(tx.importo).toFixed(2) : '0.00'); editBtn.setAttribute('data-data', JSON.stringify(tx.data||'')); editBtn.setAttribute('data-categoria', tx.categoriaId || tx.categoria_id || tx.categoria || ''); editBtn.setAttribute('data-action','modifica-transazione-attr'); editBtn.innerHTML = '<i class="fas fa-edit" aria-hidden="true"></i>';
         btnGroup.appendChild(editBtn);
         var delForm = document.createElement('form'); delForm.method='POST'; delForm.style.display='inline'; delForm.setAttribute('action', '/dettaglio/' + encodeURIComponent(cfg.start_date) + '/' + encodeURIComponent(cfg.end_date) + '/elimina_transazione/' + encodeURIComponent(tx.id)); delForm.setAttribute('data-action','confirm-delete'); delForm.setAttribute('data-message','Sei sicuro di voler eliminare questa transazione?');
         var delBtn = document.createElement('button'); delBtn.type='submit'; delBtn.className='btn btn-outline-danger btn-sm'; delBtn.setAttribute('title','Elimina transazione'); delBtn.innerHTML = '<i class="fas fa-trash" aria-hidden="true"></i>';
@@ -28,13 +29,13 @@
         // Create row for "Transazioni in Attesa" table (only amount shown, no +/-)
         var tr = document.createElement('tr');
         var descr = document.createElement('td'); descr.className='text-start'; descr.textContent = tx.descrizione || '';
-        var dataTd = document.createElement('td'); dataTd.className='text-center'; dataTd.textContent = tx.data ? new Date(tx.data).toLocaleDateString('it-IT') : '';
+    var dataTd = document.createElement('td'); dataTd.className='text-center'; dataTd.textContent = tx.data ? formatDisplayDate(tx.data) : '';
         var catTd = document.createElement('td'); catTd.className='text-center'; var spanCat = document.createElement('span'); spanCat.className = 'badge ' + (tx.tipo==='entrata' ? 'bg-success' : 'bg-danger'); var catName = tx.categoria_nome || tx.categoria || ''; spanCat.textContent = catName; catTd.appendChild(spanCat);
         var tipoTd = document.createElement('td'); tipoTd.className='text-center'; tipoTd.innerHTML = tx.tipo==='entrata' ? '<span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>' : '<span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>';
         var importoTd = document.createElement('td'); importoTd.className='text-center ' + (tx.tipo==='entrata' ? 'text-success' : 'text-danger'); importoTd.textContent = formatEuro(Number(tx.importo||0));
         var azTd = document.createElement('td'); azTd.className='text-center';
         var btnGroup = document.createElement('div'); btnGroup.className='btn-group btn-group-sm'; btnGroup.setAttribute('role','group');
-        var editBtn = document.createElement('button'); editBtn.className='btn btn-outline-primary btn-sm'; editBtn.setAttribute('title','Modifica transazione'); editBtn.setAttribute('data-id', tx.id); editBtn.setAttribute('data-descrizione', JSON.stringify(tx.descrizione||'')); editBtn.setAttribute('data-importo', tx.importo); editBtn.setAttribute('data-data', JSON.stringify(tx.data||'')); editBtn.setAttribute('data-categoria', tx.categoriaId || tx.categoria_id || tx.categoria || ''); editBtn.setAttribute('data-action','modifica-transazione-attr'); editBtn.innerHTML = '<i class="fas fa-edit" aria-hidden="true"></i>';
+    var editBtn = document.createElement('button'); editBtn.className='btn btn-outline-primary btn-sm'; editBtn.setAttribute('title','Modifica transazione'); editBtn.setAttribute('data-id', tx.id); editBtn.setAttribute('data-descrizione', JSON.stringify(tx.descrizione||'')); editBtn.setAttribute('data-importo', (tx.importo !== undefined && tx.importo !== null) ? Number(tx.importo).toFixed(2) : '0.00'); editBtn.setAttribute('data-data', JSON.stringify(tx.data||'')); editBtn.setAttribute('data-categoria', tx.categoriaId || tx.categoria_id || tx.categoria || ''); editBtn.setAttribute('data-action','modifica-transazione-attr'); editBtn.innerHTML = '<i class="fas fa-edit" aria-hidden="true"></i>';
         btnGroup.appendChild(editBtn);
         var delForm = document.createElement('form'); delForm.method='POST'; delForm.style.display='inline'; delForm.setAttribute('action', '/dettaglio/' + encodeURIComponent(cfg.start_date) + '/' + encodeURIComponent(cfg.end_date) + '/elimina_transazione/' + encodeURIComponent(tx.id)); delForm.setAttribute('data-action','confirm-delete'); delForm.setAttribute('data-message','Sei sicuro di voler eliminare questa transazione?');
         var delBtn = document.createElement('button'); delBtn.type='submit'; delBtn.className='btn btn-outline-danger btn-sm'; delBtn.setAttribute('title','Elimina transazione'); delBtn.innerHTML = '<i class="fas fa-trash" aria-hidden="true"></i>';
@@ -104,8 +105,7 @@
                 var d = fd.get('data');
                 if (!d || d < cfg.start_date || d > cfg.end_date) { showToast('La data deve essere compresa nel periodo ' + cfg.start_date + ' - ' + cfg.end_date, 'warning'); return; }
                 var url = '/dettaglio/' + encodeURIComponent(cfg.start_date) + '/' + encodeURIComponent(cfg.end_date) + '/aggiungi_transazione';
-                fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(function(resp){ if (!resp.ok) throw new Error('Server error'); return resp.json(); })
+                postForm(url, fd)
                 .then(function(json){ 
                     if (!json || json.status !== 'ok') throw new Error('Errore creazione transazione'); 
                     if (json.summary) applySummary(json.summary); 
@@ -178,7 +178,7 @@
                 var total = data.reduce(function(acc, v){ return acc + (Number(v)||0); }, 0) || 0;
                 var percentages = data.map(function(v){ return total ? (Number(v)/total * 100) : 0; });
                 // create legend labels with percentages (e.g. "Spesa (23.4%)")
-                var labelsWithPct = labels.map(function(l, i){ return l + ' (' + (percentages[i] ? percentages[i].toFixed(1) : '0.0') + '%)'; });
+                var labelsWithPct = labels.map(function(l, i){ return l + ' (' + (percentages[i] ? formatNumber(percentages[i], 1) : '0.0') + '%)'; });
             var palette = ['#3366CC','#DC3912','#FF9900','#109618','#990099','#0099C6','#DD4477','#66AA00','#B82E2E','#316395'];
             var bg = labels.map(function(_,i){ return palette[i % palette.length]; });
             var ctx = canvas.getContext('2d');
@@ -199,7 +199,7 @@
                                     label: function(ctx) {
                                         var v = ctx.parsed || 0;
                                         var pct = total ? (v / total * 100) : 0;
-                                        return ctx.label.split(' (')[0] + ': ' + v.toFixed(2) + ' € (' + pct.toFixed(1) + '%)';
+                                        return ctx.label.split(' (')[0] + ': ' + formatEuro(v) + ' (' + formatNumber(pct, 1) + '%)';
                                     }
                                 }
                             },
@@ -207,7 +207,7 @@
                                 color: '#ffffff',
                                 formatter: function(value, ctx) {
                                     var pct = total ? (value / total * 100) : 0;
-                                    return pct > 0 ? pct.toFixed(1) + '%' : '';
+                                    return pct > 0 ? formatNumber(pct, 1) + '%' : '';
                                 },
                                 font: { weight: '600', size: 12 },
                                 anchor: 'center',
@@ -255,17 +255,17 @@
             var act = form.getAttribute('action') || form.action || '';
             if (act && act.indexOf('/modifica_transazione/') !== -1) {
                 e.preventDefault(); var fd = new FormData(form);
-                fetch(act, { method:'POST', body:fd, credentials:'same-origin', headers:{ 'X-Requested-With':'XMLHttpRequest' } }).then(function(resp){ if (!resp.ok) throw new Error('Server error'); return resp.json(); }).then(function(json){ if (json && json.status==='ok') { if (json.summary) applySummary(json.summary); } else { throw new Error('Update error'); } }).catch(function(err){ console.error('Errore modifica inline', err); showToast('Errore nel salvataggio. Riprova.','danger'); });
+                postForm(act, fd).then(function(json){ if (json && json.status==='ok') { if (json.summary) applySummary(json.summary); } else { throw new Error('Update error'); } }).catch(function(err){ console.error('Errore modifica inline', err); showToast('Errore nel salvataggio. Riprova.','danger'); });
                 return false;
             }
             if (form.getAttribute && form.getAttribute('data-action') === 'confirm-delete') {
                 e.preventDefault(); e.stopPropagation();
                 var msg = form.getAttribute('data-message') || 'Sei sicuro di voler procedere?';
-                var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ return Promise.resolve(false); };
+                var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ try { return Promise.resolve(confirm(m)); } catch(e) { return Promise.resolve(false); } };
                 confirmFn(msg).then(function(ok){
                     if (!ok) return;
                     var action = form.getAttribute('action') || form.action;
-                    fetch(action, { method: 'POST', credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(function(resp){ if (!resp.ok) throw new Error('Server error'); return resp.json(); }).then(function(json){ if (!json || json.status !== 'ok') throw new Error('Errore cancellazione'); if (json.summary) applySummary(json.summary); var row = form.closest('tr'); if (row) row.parentNode.removeChild(row); }).catch(function(err){ console.error('Errore cancellazione transazione', err); showToast('Errore durante la cancellazione. Riprova.','danger'); });
+                        postForm(action, null).then(function(json){ if (!json || json.status !== 'ok') throw new Error('Errore cancellazione'); if (json.summary) applySummary(json.summary); var row = form.closest('tr'); if (row) row.parentNode.removeChild(row); }).catch(function(err){ console.error('Errore cancellazione transazione', err); showToast('Errore durante la cancellazione. Riprova.','danger'); });
                 }).catch(function(){ /* ignore */ });
             }
         });

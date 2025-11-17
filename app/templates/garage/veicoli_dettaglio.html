@@ -240,7 +240,7 @@
 										</span>
 									</td>
 									<td class="text-center">{{ manutenzione.data_intervento.strftime('%d/%m/%Y') }}</td>
-									<td class="text-center">{{ "{:,}".format(manutenzione.km_intervento).replace(',', '.') }}</td>
+									<td class="text-center">{{ manutenzione.km_intervento | format_number }}</td>
 									<td class="text-center">{{ (manutenzione.costo or 0) | format_currency }}</td>
 									<td class="text-center">
 										<form method="POST" action="{{ url_for('veicoli.elimina_manutenzione', manutenzione_id=manutenzione.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa manutenzione?">
@@ -403,8 +403,8 @@ document.addEventListener('click', function(evt){
 				if (form.dataset.submitting === '1') return;
 				form.dataset.submitting = '1';
 				var fd = new FormData(form);
-				fetch(form.getAttribute('action')||window.location.href, { method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'} })
-				.then(function(resp){ if (!resp.ok) throw new Error('Errore: ' + resp.status); return fetch(window.location.href); })
+				postForm(form.getAttribute('action')||window.location.href, fd, { expect: 'raw' })
+				.then(function(resp){ if (!resp.ok) throw new Error('Errore: ' + resp.status); return postForm(window.location.href, null, { method: 'GET', expect: 'raw' }); })
 				.then(function(r){ if (!r.ok) throw new Error('Errore refresh: ' + r.status); return r.text(); })
 				.then(function(html){ var parser=new DOMParser(); var doc=parser.parseFromString(html,'text/html');
 					var newContent = doc.querySelector('.container-fluid'); var old = document.querySelector('.container-fluid'); if (newContent && old) old.replaceWith(newContent);

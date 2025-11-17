@@ -305,7 +305,7 @@
                                     <tr>
                                         <td class="text-start">{{ manutenzione.veicolo.nome_completo }}</td>
                                         <td class="text-center">{{ manutenzione.data_intervento.strftime('%d/%m/%Y') }}</td>
-                                        <td class="text-start">{{ manutenzione.tipo_intervento }}<br><small class="text-muted">{{ manutenzione.officina }} - KM {{ "{:,}".format(manutenzione.km_intervento).replace(',', '.') }}</small></td>
+                                        <td class="text-start">{{ manutenzione.tipo_intervento }}<br><small class="text-muted">{{ manutenzione.officina }} - KM {{ manutenzione.km_intervento | format_number }}</small></td>
                                         <td class="text-center">{{ (manutenzione.costo) | format_currency }}</td>
                                         <td class="text-center">
                                             <form method="POST" action="{{ url_for('veicoli.elimina_manutenzione', manutenzione_id=manutenzione.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa manutenzione?">
@@ -640,8 +640,8 @@ document.addEventListener('click', function(evt){
                             formReplace.dataset.submitting = '1';
                             var action = formReplace.getAttribute('action') || window.location.href;
                             var fd = new FormData(formReplace);
-                            fetch(action, { method: 'POST', body: fd, headers: { 'X-Requested-With':'XMLHttpRequest' } })
-                            .then(function(resp){ if (!resp.ok) throw new Error('Errore: ' + resp.status); return fetch(window.location.href); })
+                            postForm(action, fd, { expect: 'raw' })
+                            .then(function(resp){ if (!resp.ok) throw new Error('Errore: ' + resp.status); return postForm(window.location.href, null, { method: 'GET', expect: 'raw' }); })
                             .then(function(resp){ if (!resp.ok) throw new Error('Errore refresh: ' + resp.status); return resp.text(); })
                             .then(function(html){
                                 var parser = new DOMParser(); var doc = parser.parseFromString(html,'text/html');
@@ -711,8 +711,8 @@ document.addEventListener('click', function(evt){
                 form.dataset.submitting = '1';
                 var action = form.getAttribute('action') || window.location.href;
                 var fd = new FormData(form);
-                fetch(action, { method: 'POST', body: fd, headers: { 'X-Requested-With':'XMLHttpRequest' } })
-                .then(function(resp){ if (!resp.ok) throw new Error('Errore: ' + resp.status); return fetch(window.location.href); })
+                postForm(action, fd, { expect: 'raw' })
+                .then(function(resp){ if (!resp.ok) throw new Error('Errore: ' + resp.status); return postForm(window.location.href, null, { method: 'GET', expect: 'raw' }); })
                 .then(function(resp){ if (!resp.ok) throw new Error('Errore refresh: ' + resp.status); return resp.text(); })
                 .then(function(html){
                     var parser = new DOMParser(); var doc = parser.parseFromString(html,'text/html');
@@ -775,7 +775,7 @@ function calcolaRataMensile(context){
 
     if (costo > 0 && rate > 0 && rataEl) {
         var rataMensile = costo / rate;
-        rataEl.value = rataMensile.toFixed(2);
+    rataEl.value = formatNumber(rataMensile, 2);
     }
 }
 </script>
@@ -924,16 +924,10 @@ document.addEventListener('DOMContentLoaded', function(){
                     var action = form.getAttribute('action') || window.location.href;
                     var fd = new FormData(form);
 
-                    fetch(action, {
-                        method: 'POST',
-                        body: fd,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    }).then(function(resp){
+                    postForm(action, fd, { expect: 'raw' }).then(function(resp){
                         if (!resp.ok) throw new Error('Errore nella richiesta: ' + resp.status);
                         // refresh fragments by re-fetching the page and replacing fragments
-                        return fetch(window.location.href);
+                        return postForm(window.location.href, null, { method: 'GET', expect: 'raw' });
                     }).then(function(resp){
                         if (!resp.ok) throw new Error('Errore nel recupero della pagina: ' + resp.status);
                         return resp.text();

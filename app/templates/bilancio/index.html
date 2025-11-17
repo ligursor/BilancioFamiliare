@@ -36,21 +36,21 @@
                                     <div class="row text-center">
                                         <div class="col-6 mb-2">
                                             <small class="text-muted">Saldo Iniziale</small><br>
-                                                <span class="h6 text-info">€ {{ "%.2f"|format(mese.saldo_iniziale_mese) }}</span>
+                                                <span class="h6 text-info">{{ mese.saldo_iniziale_mese|format_currency }}</span>
                                         </div>
                                         <div class="col-6 mb-2">
                                             <small class="text-muted">Bilancio Mensile</small><br>
                                                 <span class="h6 {% if mese.bilancio >= 0 %}positive{% else %}negative{% endif %}">
-                                                    {% if mese.bilancio >= 0 %}+{% endif %}€ {{ "%.2f"|format(mese.bilancio) }}
+                                                    {% if mese.bilancio >= 0 %}+{% endif %}{{ mese.bilancio|format_currency }}
                                                 </span>
                                         </div>
                                         <div class="col-6 mb-2">
                                             <small class="text-muted">Entrate</small><br>
-                                                <span class="h5 positive">€ {{ "%.2f"|format(mese.entrate) }}</span>
+                                                <span class="h5 positive">{{ mese.entrate|format_currency }}</span>
                                         </div>
                                         <div class="col-6 mb-2">
                                             <small class="text-muted">Uscite</small><br>
-                                                <span class="h5 negative">€ {{ "%.2f"|format(mese.uscite) }}</span>
+                                                <span class="h5 negative">{{ mese.uscite|format_currency }}</span>
                                         </div>
                                         <div class="col-12">
                                             <hr>
@@ -59,20 +59,20 @@
                                                 <div class="col-6">
                                                     <small class="text-muted"><i class="fas fa-calendar-day me-1"></i>Saldo Attuale</small><br>
                                                         <span class="h5 {% if mese.saldo_attuale_mese >= 0 %}text-primary{% else %}text-warning{% endif %} fw-bold">
-                                                            € {{ "%.2f"|format(mese.saldo_attuale_mese) }}
+                                                            {{ mese.saldo_attuale_mese|format_currency }}
                                                         </span>
                                                 </div>
                                                 <div class="col-6">
                                                     <small class="text-muted">Saldo Finale</small><br>
                                                         <span class="h4 {% if mese.saldo_finale_mese >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                                            € {{ "%.2f"|format(mese.saldo_finale_mese) }}
+                                                            {{ mese.saldo_finale_mese|format_currency }}
                                                         </span>
                                                 </div>
                                             </div>
                                             {% else %}
                                             <small class="text-muted">Saldo Finale</small><br>
                                                 <span class="h4 {% if mese.saldo_finale_mese >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                                    € {{ "%.2f"|format(mese.saldo_finale_mese) }}
+                                                    {{ mese.saldo_finale_mese|format_currency }}
                                                 </span>
                                             {% endif %}
                                         </div>

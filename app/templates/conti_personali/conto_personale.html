@@ -203,9 +203,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Aggiorna automaticamente la data di oggi
     const dataField = document.getElementById('data');
-    if (dataField && !dataField.value) {
-        const today = new Date().toISOString().split('T')[0];
-        dataField.value = today;
+        if (dataField && !dataField.value) {
+        dataField.value = formatISO(new Date());
     }
     
     // Gestione anteprima modifica saldo
@@ -218,9 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var saldoAttuale = parseFloat(__obj.saldo_iniziale || 0);
     var saldoCorrente = parseFloat(__obj.saldo_corrente || 0);
 
-        var formatEuro = window.formatEuro || function(amount) {
-            try { return '€ ' + Number(amount || 0).toFixed(2); } catch(e) { return '€ 0.00'; }
-        };
+        // Rely on global `formatEuro` provided by utils-format.js (loaded in <head>)
 
         function aggiornaAnteprima() {
             const nuovoSaldo = parseFloat(nuovoSaldoField.value) || 0;
@@ -288,10 +285,10 @@ document.addEventListener('DOMContentLoaded', function(){
             var c = ensureCardPresent();
             if (!c) return;
             // initialize fields if empty
-            try {
+                try {
                 var dataInput = c.querySelector('#data');
                 if (dataInput && !dataInput.value) {
-                    dataInput.value = new Date().toISOString().split('T')[0];
+                    dataInput.value = formatISO(new Date());
                 }
                 var descInput = c.querySelector('#descrizione');
                 if (descInput && !descInput.value) {
@@ -331,7 +328,7 @@ document.addEventListener('DOMContentLoaded', function(){
             if (form && form.classList && form.classList.contains('form-elimina-versamento')) {
                 e.preventDefault(); e.stopPropagation();
                 var msg = 'Sei sicuro di voler eliminare questo versamento? Questa operazione non è reversibile.';
-                var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ return Promise.resolve(false); };
+                var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ return Promise.resolve(confirm(m)); };
                 confirmFn(msg).then(function(ok){
                     if (!ok) return;
                     try {

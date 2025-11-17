@@ -5,13 +5,13 @@
 {% block content %}
 <div class="container mt-4 page-ricorrenti">
     <!-- Statistiche -->
-    <div class="alert alert-info alert-permanent d-flex align-items-center mb-4">
+            <div class="alert alert-info alert-permanent d-flex align-items-center mb-4">
         <i class="fas fa-arrow-down fa-2x me-3"></i>
         <div class="flex-grow-1">
             <strong>Uscite Ricorrenti:</strong> {{ stats.num_uscite|default(0) }} transazioni
         </div>
-        <div class="text-end">
-            <strong class="fs-5">€ {{ "%.2f"|format(stats.importo_uscite|default(0)) }}</strong>
+            <div class="text-end">
+            <strong class="fs-5">{{ stats.importo_uscite|default(0)|format_currency }}</strong>
             <div class="small">al mese</div>
         </div>
     </div>
@@ -194,8 +194,8 @@
                                     {{ ricorrente.tipo|title }}
                                 </span>
                             </td>
-                            <td class="text-center {% if ricorrente.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
-                                <strong>€ {{ "%.2f"|format(ricorrente.importo) }}</strong>
+                                <td class="text-center {% if ricorrente.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
+                                <strong>{{ ricorrente.importo|format_currency }}</strong>
                             </td>
                                 <td class="text-center align-middle">
                                 <div class="btn-group btn-group-sm" role="group">
@@ -286,7 +286,7 @@
 
     function confermaEliminazione(id, descrizione) {
         var msg = 'Sei sicuro di voler eliminare la transazione ricorrente "' + descrizione + '"?\n\nQuesta operazione non può essere annullata.';
-    var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ return Promise.resolve(false); };
+    var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ return Promise.resolve(confirm(m)); };
         confirmFn(msg).then(function(ok){
             if (!ok) return;
             const form = document.getElementById('formElimina');

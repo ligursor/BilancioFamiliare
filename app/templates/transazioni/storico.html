@@ -34,7 +34,7 @@
                             <div class="card bg-success text-white">
                                 <div class="card-body text-center">
                                     <h6>Entrate</h6>
-                                    <h4>€ {{ "%.2f"|format(totale_entrate) }}</h4>
+                                    <h4>{{ totale_entrate|format_currency }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -42,7 +42,7 @@
                             <div class="card bg-danger text-white">
                                 <div class="card-body text-center">
                                     <h6>Uscite</h6>
-                                    <h4>€ {{ "%.2f"|format(totale_uscite) }}</h4>
+                                    <h4>{{ totale_uscite|format_currency }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -50,7 +50,7 @@
                             <div class="card {% if bilancio >= 0 %}bg-primary{% else %}bg-warning{% endif %} text-white">
                                 <div class="card-body text-center">
                                     <h6>Bilancio</h6>
-                                    <h4>{{ "+" if bilancio >= 0 else "-" }}€ {{ "%.2f"|format(bilancio|abs) }}</h4>
+                                    <h4>{{ "+" if bilancio >= 0 else "-" }}{{ (bilancio|abs)|format_currency }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -99,7 +99,7 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-center align-middle {% if tx.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
-                                        {{ "%.2f"|format(tx.importo) }}
+                                        {{ tx.importo|format_currency }}
                                     </td>
                                 </tr>
                                 {% endfor %}

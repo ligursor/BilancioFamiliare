@@ -375,8 +375,7 @@
             try {
                 // Carica tutti i dati se non già caricati
                 if (allData.length === 0) {
-                    const response = await fetch('/passwd/api/search');
-                    allData = await response.json();
+                    allData = await postForm('/passwd/api/search', null, { method: 'GET', expect: 'json' });
                 }
 
                 // Filtra i servizi per la categoria selezionata
@@ -475,7 +474,7 @@
 
             } catch (error) {
                 console.error('Errore nel caricamento della categoria:', error);
-                alert('Errore nel caricamento della categoria');
+                    try { if (typeof showToast === 'function') showToast('Errore nel caricamento della categoria', 'danger'); else alert('Errore nel caricamento della categoria'); } catch(e) { alert('Errore nel caricamento della categoria'); }
             }
         }
 
@@ -500,9 +499,7 @@
             }
 
             try {
-                const resp = await fetch(`/passwd/api/search?q=${encodeURIComponent(currentSearchTerm)}`);
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                const results = await resp.json();
+                const results = await postForm(`/passwd/api/search?q=${encodeURIComponent(currentSearchTerm)}`, null, { method: 'GET', expect: 'json' });
 
                 // show results header
                 const header = document.getElementById('searchResultsHeader');
@@ -806,9 +803,7 @@
         async function forceDataReload() {
             try {
                 console.log('🔁 Forzando reload completo dei dati...');
-                const resp = await fetch('/passwd/api/search');
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                allData = await resp.json();
+                allData = await postForm('/passwd/api/search', null, { method: 'GET', expect: 'json' });
 
                 // ricava le categorie dai dati
                 const categoriesMap = {};
@@ -843,9 +838,7 @@
         async function loadAllData(force) {
             if (!force && allData && allData.length) return allData;
             try {
-                const resp = await fetch('/passwd/api/search');
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                allData = await resp.json();
+                allData = await postForm('/passwd/api/search', null, { method: 'GET', expect: 'json' });
                 return allData;
             } catch (e) {
                 console.error('loadAllData error', e);
@@ -938,10 +931,7 @@
         function editCredential(id) {
             if (!id) return;
             // Try to fetch decrypted credential from server
-            fetch(`/passwd/api/credentials/${id}/decrypted`).then(resp => {
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                return resp.json();
-            }).then(item => {
+            postForm(`/passwd/api/credentials/${id}/decrypted`, null, { expect: 'json', method: 'GET' }).then(item => {
                 document.getElementById('credentialId').value = item.id || id;
                 document.getElementById('modalCategoria').value = item.CATEGORIA || '';
                 document.getElementById('modalServizio').value = item.SERVIZIO || '';
@@ -953,7 +943,7 @@
                 modal.show();
             }).catch(err => {
                 console.error('Impossibile caricare credenziale', err);
-                alert('Impossibile caricare la credenziale per la modifica');
+                try { if (typeof showToast === 'function') showToast('Impossibile caricare la credenziale per la modifica', 'danger'); else alert('Impossibile caricare la credenziale per la modifica'); } catch(e) { alert('Impossibile caricare la credenziale per la modifica'); }
             });
         }
 
@@ -970,17 +960,9 @@
 
                 let resp;
                 if (id) {
-                    resp = await fetch(`/passwd/api/credentials/${id}`, {
-                        method: 'PUT',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(payload)
-                    });
+                        resp = await postForm(`/passwd/api/credentials/${id}`, payload, { method: 'PUT' });
                 } else {
-                    resp = await fetch(`/passwd/api/credentials`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(payload)
-                    });
+                    resp = await postForm(`/passwd/api/credentials`, payload);
                 }
 
                 if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -994,22 +976,26 @@
                 window.location.reload();
             } catch (err) {
                 console.error('Errore salvataggio credenziale', err);
-                alert('Errore nel salvataggio della credenziale');
+                try { if (typeof showToast === 'function') showToast('Errore nel salvataggio della credenziale', 'danger'); else alert('Errore nel salvataggio della credenziale'); } catch(e) { alert('Errore nel salvataggio della credenziale'); }
             }
         }
 
         function deleteCredential(id, serviceName) {
-            if (!confirm(`Eliminare la credenziale ${serviceName || id}?`)) return;
-            fetch(`/passwd/api/credentials/${id}`, { method: 'DELETE' }).then(r => r.json()).then(j => {
-                if (j && (j.ok === true || j.ok === 1)) {
-                    window.location.reload();
-                } else {
-                    alert('Eliminazione fallita');
-                }
-            }).catch(e => {
-                console.error('Errore deleteCredential', e);
-                alert('Errore durante l\'eliminazione');
-            });
+            var msg = `Eliminare la credenziale ${serviceName || id}?`;
+            var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ return Promise.resolve(confirm(m)); };
+            confirmFn(msg).then(function(confirmed) {
+                if (!confirmed) return;
+                postForm(`/passwd/api/credentials/${id}`, null, { method: 'DELETE' }).then(function(j){
+                    if (j && (j.ok === true || j.ok === 1)) {
+                        window.location.reload();
+                    } else {
+                        try { if (typeof showToast === 'function') showToast('Eliminazione fallita', 'danger'); else alert('Eliminazione fallita'); } catch(e) { alert('Eliminazione fallita'); }
+                    }
+                }).catch(function(e){
+                    console.error('Errore deleteCredential', e);
+                    try { if (typeof showToast === 'function') showToast('Errore durante l\'eliminazione', 'danger'); else alert('Errore durante l\'eliminazione'); } catch(er) { alert('Errore durante l\'eliminazione'); }
+                });
+            }).catch(function(){ /* ignore */ });
         }
 
         function copyToClipboard(text, label) {
@@ -1022,12 +1008,15 @@
                         feedback.classList.remove('d-none');
                         setTimeout(() => feedback.classList.add('d-none'), 1500);
                     } else {
-                        alert(message);
+                        try { if (typeof showToast === 'function') showToast(message, 'info'); else alert(message); } catch(e) { alert(message); }
                     }
+                }).catch(function(e){
+                    console.error('copyToClipboard failed', e);
+                    try { if (typeof showToast === 'function') showToast(text, 'info'); else alert(text); } catch(er) { alert(text); }
                 });
             } catch (e) {
                 console.error('copyToClipboard failed', e);
-                alert(text);
+                try { if (typeof showToast === 'function') showToast(text, 'info'); else alert(text); } catch(er) { alert(text); }
             }
         }
 

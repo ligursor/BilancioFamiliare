@@ -74,7 +74,7 @@
 <script>
     // Helper date utilities
     function parseDateInput(v) { if (!v) return null; let parts = v.split('-'); return new Date(parts[0], parseInt(parts[1], 10) - 1, parts[2]); }
-    var formatISO = window.formatISO || function(d) { try { if (!d) return ''; var dt = (d instanceof Date) ? d : new Date(d); if (isNaN(dt)) return ''; return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0'); } catch(e) { return ''; } };
+    // Use global `formatISO` provided by utils-format.js (loaded in <head>)
     function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
     function addDays(d, n) { let r = new Date(d); r.setDate(r.getDate() + n); return r; }
     function datesEqual(a, b) { if (!a || !b) return false; return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
@@ -410,9 +410,8 @@
                 start_date: therapyStartEl.value, 
                 total_drugs: parseInt(currentTotalDrugs, 10) || 0
             };
-            fetch('/sanita/api/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-                .then(r => r.json())
-                .then(js => {
+            postForm('/sanita/api/plan', payload)
+                .then(function(js) {
                     if (js.error) { 
                         if (js.error === 'plan_exists') {
                             window.showToast('Esiste già un piano. Eliminarlo prima di crearne uno nuovo.', 'warning');
@@ -443,21 +442,25 @@
 
         const resetPlanBtn = document.getElementById('resetPlanBtn');
         resetPlanBtn.addEventListener('click', function () {
-            if (!confirm('Confermi la cancellazione del piano terapeutico? Questa operazione è irreversibile.')) return;
-            fetch('/sanita/api/plan', { method: 'DELETE' }).then(r => r.json()).then(js => {
-                if (js.error) { window.showToast('Errore cancellazione piano', 'danger'); return; }
-                currentPlan = null; 
-                displayedDeliveries = []; 
-                currentTotalDrugs = defaultTotalDrugs;
-                therapyStartEl.value = formatISO(new Date()); 
-                localPlannedDeliveries = computePlannedDeliveries(currentTotalDrugs, parseDateInput(therapyStartEl.value));
-                // Keep local planned deliveries unmarked when no plan exists
-                renderDeliveries(localPlannedDeliveries);
-                // No per-delivery inline UI anymore
-                updateButtonStates();
-                refresh(); 
-                window.showToast('Piano cancellato', 'success');
-            }).catch(() => { window.showToast('Errore cancellazione', 'danger'); });
+            var msg = 'Confermi la cancellazione del piano terapeutico? Questa operazione è irreversibile.';
+            var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ return Promise.resolve(confirm(m)); };
+            confirmFn(msg).then(function(confirmed){
+                if (!confirmed) return;
+                postForm('/sanita/api/plan', null, { method: 'DELETE' }).then(function(js) {
+                    if (js.error) { window.showToast('Errore cancellazione piano', 'danger'); return; }
+                    currentPlan = null; 
+                    displayedDeliveries = []; 
+                    currentTotalDrugs = defaultTotalDrugs;
+                    therapyStartEl.value = formatISO(new Date()); 
+                    localPlannedDeliveries = computePlannedDeliveries(currentTotalDrugs, parseDateInput(therapyStartEl.value));
+                    // Keep local planned deliveries unmarked when no plan exists
+                    renderDeliveries(localPlannedDeliveries);
+                    // No per-delivery inline UI anymore
+                    updateButtonStates();
+                    refresh(); 
+                    window.showToast('Piano cancellato', 'success');
+                }).catch(() => { window.showToast('Errore cancellazione', 'danger'); });
+            }).catch(function(){});
         });
 
         const cancelFormBtn = document.getElementById('cancelFormBtn');
@@ -472,8 +475,8 @@
         });
 
     function loadPlan() { 
-        fetch('/sanita/api/plan').then(r => r.json()).then(js => { 
-            if (js.plan) { 
+        postForm('/sanita/api/plan', null, { method: 'GET', expect: 'json' }).then(js => { 
+            if (js && js.plan) { 
                 currentPlan = js.plan; 
                 therapyStartEl.value = currentPlan.start_date || therapyStartEl.value; 
                 // update internal total drugs from plan
@@ -518,9 +521,7 @@
             return { delivery_number: next.delivery_number, dates: res };
         }
 
-        var formatDisplayDate = window.formatDisplayDate || function(d) { try { if (!d) return ''; var dt = (d instanceof Date) ? d : new Date(d); if (isNaN(dt)) return ''; return String(dt.getDate()).padStart(2,'0') + '/' + String(dt.getMonth() + 1).padStart(2,'0') + '/' + dt.getFullYear(); } catch(e) { return ''; } };
-
-        var formatPrettyDate = window.formatPrettyDate || function(d) { try { if (!d) return ''; var dt = (d instanceof Date) ? d : new Date(d); if (isNaN(dt)) return ''; const months = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic']; return String(dt.getDate()) + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear(); } catch(e) { return ''; } };
+    // Rely on global `formatDisplayDate` and `formatPrettyDate` from utils-format.js
 
         if (addDeliveryBtn) {
             addDeliveryBtn.addEventListener('click', function () {
@@ -531,13 +532,15 @@
                 const dates = info.dates || [];
                 const pretty = dates.length ? dates.map(d => formatPrettyDate(d)).join(', ') : '(nessuna data prevista)';
                 const msg = `Consegna #${dn} — ${pretty}`;
-                if (!confirm(msg + "\n\nConfermi di marcare questa consegna come ricevuta?")) return;
-                try { if (addDeliverySpinner) addDeliverySpinner.classList.remove('d-none'); } catch(e){}
-                try { if (addDeliveryText) { addDeliveryText.textContent = 'Invio...'; addDeliveryText.classList.remove('d-none'); } } catch(e){}
-                addDeliveryBtn.disabled = true;
-                fetch('/sanita/api/delivery/next/mark', { method: 'POST' })
-                    .then(r => r.json())
-                    .then(js => {
+                var confirmMsg = msg + "\n\nConfermi di marcare questa consegna come ricevuta?";
+                var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ return Promise.resolve(confirm(m)); };
+                confirmFn(confirmMsg).then(function(confirmed){
+                    if (!confirmed) return;
+                    try { if (addDeliverySpinner) addDeliverySpinner.classList.remove('d-none'); } catch(e){}
+                    try { if (addDeliveryText) { addDeliveryText.textContent = 'Invio...'; addDeliveryText.classList.remove('d-none'); } } catch(e){}
+                    addDeliveryBtn.disabled = true;
+                    postForm('/sanita/api/delivery/next/mark')
+                        .then(function(js) {
                         if (js.error) { window.showToast('Errore marcatura consegna', 'danger'); return; }
                         currentPlan = js.plan;
                         displayedDeliveries = currentPlan.deliveries || [];
@@ -552,6 +555,7 @@
                         addDeliveryBtn.disabled = false;
                         try { updateButtonStates(); } catch(e) { /* ignore */ }
                     });
+                });
             });
         }
 
@@ -589,11 +593,13 @@
             }
             // Confirm with the user
             const pretty = formatPrettyDate(new Date(key));
-            if (!confirm('Vuoi marcare la somministrazione per il ' + pretty + ' ?')) return;
-            // Call backend to mark the delivery that covers this date
-            fetch('/sanita/api/delivery/mark_date', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: key }) })
-                .then(r => r.json())
-                .then(js => {
+            var confirmMsg = 'Vuoi marcare la somministrazione per il ' + pretty + ' ?';
+            var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ return Promise.resolve(confirm(m)); };
+            confirmFn(confirmMsg).then(function(confirmed){
+                if (!confirmed) return;
+                // Call backend to mark the delivery that covers this date
+                postForm('/sanita/api/delivery/mark_date', { date: key })
+                    .then(function(js) {
                     if (js.error) {
                             const msg = js.message || js.error;
                             if (js.error === 'already_received') {
@@ -623,8 +629,9 @@
                     updateButtonStates();
                     refresh();
                     window.showToast('Somministrazione registrata', 'success');
-                }).catch(() => { window.showToast('Errore marcatura', 'danger'); });
-        }
+        }).catch(() => { window.showToast('Errore marcatura', 'danger'); });
+        });
+    }
 
         // Attach delegated listener to both year containers
         const calendarYearEls = [document.getElementById('calendarYear1'), document.getElementById('calendarYear2')];

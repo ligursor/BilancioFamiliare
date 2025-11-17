@@ -219,7 +219,7 @@
                 var fd = new FormData(form);
                 try {
                     // POST the form
-                    var resp = await fetch(form.action, { method: 'POST', body: fd, credentials: 'same-origin' });
+                    var resp = await postForm(form.action, fd, { expect: 'raw' });
                     if (!resp.ok) {
                         if (submitBtn) submitBtn.disabled = false;
                         try { showToast('Errore durante il salvataggio della categoria', 'danger'); } catch(e) {}
@@ -228,8 +228,8 @@
 
                     // Re-fetch the categories list page and extract the two lists
                     var listUrl = document.getElementById('btn-nuova-categoria')?.dataset.listUrl || window.location.href;
-                    var pageResp = await fetch(listUrl, { credentials: 'same-origin' });
-                    if (!pageResp.ok) {
+                    var pageResp = await postForm(listUrl, null, { method: 'GET', expect: 'raw' });
+                    if (!pageResp || !pageResp.ok) {
                         if (submitBtn) submitBtn.disabled = false;
                         try { showToast('Errore nel ricaricare la lista categorie', 'danger'); } catch(e) {}
                         return;

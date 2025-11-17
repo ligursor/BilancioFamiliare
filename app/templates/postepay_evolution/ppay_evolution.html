@@ -438,7 +438,7 @@ function modificaAbbonamento(id) {
 
 // Imposta data odierna nei form
 document.addEventListener('DOMContentLoaded', function() {
-    const oggi = new Date().toISOString().split('T')[0];
+    const oggi = formatISO(new Date());
     document.getElementById('mov_data').value = oggi;
 });
 </script>
@@ -596,7 +596,7 @@ document.addEventListener('DOMContentLoaded', function(){
             // default date for movimento only
             if (formClass === 'form-nuovo-movimento') {
                 const dateInput = insertedForm.querySelector('input[type="date"]');
-                const today = new Date().toISOString().split('T')[0];
+                const today = formatISO(new Date());
                 if (dateInput && !dateInput.value) dateInput.value = today;
                 
                 // Initialize tipo_movimento dropdown dynamically
@@ -777,7 +777,7 @@ document.addEventListener('DOMContentLoaded', function(){
         if (isDeleteMov) {
             e.preventDefault(); e.stopPropagation();
             var msg = 'Sei sicuro di eliminare questo movimento?';
-            var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ return Promise.resolve(false); };
+            var confirmFn = (window.showGlobalConfirm && typeof window.showGlobalConfirm === 'function') ? window.showGlobalConfirm : function(m){ return Promise.resolve(confirm(m)); };
             var proceed = false;
             confirmFn(msg).then(function(ok){
                 if (!ok) return;
@@ -815,8 +815,8 @@ document.addEventListener('DOMContentLoaded', function(){
 
         const fd = new FormData(form);
 
-        fetch(action, {method: 'POST', body: fd})
-        .then(async res => {
+    postForm(action, fd, { expect: 'raw' })
+    .then(async res => {
             // Debug: log response info
             try {
                 console.log('Fetch response', {status: res.status, redirected: res.redirected, url: res.url});
@@ -839,7 +839,7 @@ document.addEventListener('DOMContentLoaded', function(){
             // Return response for processing (partial update instead of full reload)
             return res;
         })
-        .then(r => r.text())
+    .then(r => r.text())
         .then(html => {
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
@@ -888,18 +888,10 @@ document.addEventListener('DOMContentLoaded', function(){
                             const submittedDateISO = (fd.get('data') || '').toString().trim();
                             const submittedImporto = (fd.get('importo') || '').toString().trim();
 
-                            var formatDateISOtoDDMM = window.formatDateISOtoDDMM || function(dateStr){
-                                if (!dateStr) return '';
-                                const d = new Date(dateStr);
-                                if (isNaN(d.getTime())) return '';
-                                const dd = String(d.getDate()).padStart(2,'0');
-                                const mm = String(d.getMonth()+1).padStart(2,'0');
-                                const yyyy = d.getFullYear();
-                                return dd + '/' + mm + '/' + yyyy;
-                            };
+                            // Use global `formatDateISOtoDDMM` from utils-format.js
 
                             const targetDateText = formatDateISOtoDDMM(submittedDateISO);
-                            const formattedImporto = (parseFloat(submittedImporto) || 0).toFixed(2);
+                            const formattedImporto = formatNumber(parseFloat(submittedImporto) || 0, 2);
 
                             const newRows = Array.from(newTable.querySelectorAll('tbody tr'));
                             for (var iRow = 0; iRow < newRows.length; iRow++) {
@@ -908,7 +900,7 @@ document.addEventListener('DOMContentLoaded', function(){
                                 const dateCell = (row.cells[1] && row.cells[1].textContent || '').trim();
                                 let amtCell = (row.cells[3] && row.cells[3].textContent || '').trim();
                                 // normalize amount: remove currency symbol and spaces, replace comma with dot
-                                amtCell = amtCell.replace(/[€\s]/g,'').replace(/,/g,'.');
+                                amtCell = parseEuro(amtCell) || 0;
 
                                 if (submittedDescr && descCell === submittedDescr && submittedDateISO && dateCell === targetDateText) {
                                     // match amount loosely (formattedImporto may be contained)

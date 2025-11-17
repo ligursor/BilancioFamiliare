@@ -16,8 +16,8 @@ class VeicoliService(BaseService):
         query = Veicoli.query
         if solo_attivi and hasattr(Veicoli, 'attivo'):
             query = query.filter(Veicoli.attivo == True)
-    # Order by modello only
-    return query.order_by(Veicoli.modello).all()
+        # Order by modello only
+        return query.order_by(Veicoli.modello).all()
 
     def get_veicolo_by_id(self, veicolo_id):
         """Recupera un veicolo specifico"""

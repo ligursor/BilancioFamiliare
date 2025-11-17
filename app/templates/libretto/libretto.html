@@ -318,7 +318,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Imposta la data odierna come default per data attivazione
                 const dataAttivazioneField = insertedForm.querySelector('[name="data_attivazione"]');
                 if (dataAttivazioneField && !dataAttivazioneField.value) {
-                    const today = new Date().toISOString().split('T')[0];
+                    const today = formatISO(new Date());
                     dataAttivazioneField.value = today;
                 }
                 
@@ -364,17 +364,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (saldoDisponibileInput) {
             saldoDisponibileInput.addEventListener('input', function() {
                 const saldoReale = parseFloat(this.value) || 0;
-                const saldoAttuale = parseFloat(saldoLibrettoVal.textContent.replace('€', '').replace(',', '.').trim()) || 0;
+                const saldoAttuale = parseEuro(saldoLibrettoVal.textContent) || 0;
                 const differenza = saldoReale - saldoAttuale;
                 
                 if (Math.abs(differenza) >= 0.01) {
                     differenzaLibrettoPreview.style.display = 'block';
                     if (differenza > 0) {
                         differenzaLibrettoPreview.className = 'alert alert-success';
-                        differenzaLibrettoText.innerHTML = '<i class="fas fa-arrow-up me-1"></i>+€' + Math.abs(differenza).toFixed(2) + ' (Incremento)';
+                        differenzaLibrettoText.innerHTML = '<i class="fas fa-arrow-up me-1"></i>+' + formatEuro(Math.abs(differenza)) + ' (Incremento)';
                     } else {
                         differenzaLibrettoPreview.className = 'alert alert-danger';
-                        differenzaLibrettoText.innerHTML = '<i class="fas fa-arrow-down me-1"></i>-€' + Math.abs(differenza).toFixed(2) + ' (Decremento)';
+                        differenzaLibrettoText.innerHTML = '<i class="fas fa-arrow-down me-1"></i>-' + formatEuro(Math.abs(differenza)) + ' (Decremento)';
                     }
                 } else {
                     differenzaLibrettoPreview.style.display = 'none';
@@ -390,7 +390,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Aggiorna il valore visualizzato prima del redirect
             const nuovoSaldo = parseFloat(saldoDisponibileInput.value) || 0;
             if (saldoLibrettoVal) {
-                saldoLibrettoVal.textContent = '€ ' + nuovoSaldo.toFixed(2);
+                saldoLibrettoVal.textContent = formatEuro(nuovoSaldo);
             }
         });
     }

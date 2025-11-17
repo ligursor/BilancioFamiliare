@@ -13,10 +13,10 @@ function modificaTransazioneAttr(btn) {
         // Normalize stored importo (someflows may leave a formatted string like "-€ 6.00")
         var rawImporto = btn.getAttribute('data-importo') || '0';
         try {
-            // keep only digits, minus, dot and comma; convert comma to dot
-            rawImporto = String(rawImporto).replace(/[^0-9\-\.,]/g, '').replace(',', '.');
-            if (rawImporto === '' || rawImporto === null) rawImporto = '0';
-        } catch (e) { rawImporto = '0'; }
+            // Use centralized parser for currency-like strings (handles € , thousands separators etc.)
+            // parseEuro is provided by app/static/js/utils-format.js
+            rawImporto = parseEuro(rawImporto) || 0;
+        } catch (e) { rawImporto = 0; }
         const startDate = '{{ start_date }}';
         const endDate = '{{ end_date }}';
 
@@ -43,7 +43,8 @@ function modificaTransazioneAttr(btn) {
     const input = document.createElement('input');
     input.type = 'number'; input.name = 'importo'; input.step = '0.01'; input.min = '0';
     input.className = 'form-control form-control-sm no-spinner'; input.style.width = '120px';
-        input.value = (isNaN(parseFloat(rawImporto)) ? 0 : parseFloat(rawImporto));
+        // Show a consistent numeric value with two decimals in the inline editor
+        input.value = Number(rawImporto || 0).toFixed(2);
 
         const saveBtn = document.createElement('button');
         saveBtn.type = 'submit'; saveBtn.className = 'btn btn-sm btn-outline-success ms-2';
@@ -59,17 +60,16 @@ function modificaTransazioneAttr(btn) {
         form.addEventListener('submit', function(evt){
             evt.preventDefault(); saveBtn.disabled = true; cancelBtn.disabled = true;
             const fd = new FormData(); fd.append('importo', input.value);
-            fetch(`/dettaglio/${startDate}/${endDate}/modifica_transazione/${id}`, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(function(response){ if (!response.ok) throw new Error('Errore server'); return response.json(); })
+            postForm(`/dettaglio/${startDate}/${endDate}/modifica_transazione/${id}`, fd)
             .then(function(json){
                 if (!json || json.status !== 'ok') throw new Error('Errore server');
                 // Update summary cards and budget rows if provided
                 try { if (json.summary) applySummary(json.summary); } catch(e) { console && console.error && console.error('applySummary failed', e); }
                 // Update the amount cell locally to reflect the new value
                 try {
-                    amountCell.textContent = '€ ' + Number(input.value || 0).toFixed(2);
+                    amountCell.textContent = formatEuro(Number(input.value || 0));
                     // keep the edit button's data-importo in sync so future inline edits pick the updated value
-                    try { btn.setAttribute('data-importo', Number(input.value || 0)); } catch(e) {}
+                    try { btn.setAttribute('data-importo', Number(input.value || 0).toFixed(2)); } catch(e) {}
                 } catch(e){}
                 // try { showToast('Modifica salvata', 'success'); } catch(e){}
             }).catch(function(err){ console.error('Errore salvataggio inline:', err); showToast('Errore nel salvataggio. Riprova.','danger'); amountCell.innerHTML = originalHtml; try { btn.style.display = ''; } catch(e) {} })
@@ -109,7 +109,7 @@ function modificaMonthlyBudget(btn) {
     const input = document.createElement('input');
     input.type = 'number'; input.name = 'iniziale'; input.step = '0.01'; input.min = '0';
     input.className = 'form-control form-control-sm no-spinner'; input.style.width = '120px';
-        input.value = parseFloat(btn.getAttribute('data-iniziale')) || 0;
+        input.value = (parseFloat(btn.getAttribute('data-iniziale')) || 0).toFixed(2);
 
         const saveBtn = document.createElement('button');
         saveBtn.type = 'submit'; saveBtn.className = 'btn btn-sm btn-outline-success ms-2';
@@ -125,8 +125,7 @@ function modificaMonthlyBudget(btn) {
         form.addEventListener('submit', function(evt){
             evt.preventDefault(); saveBtn.disabled = true; cancelBtn.disabled = true;
             const fd = new FormData(); fd.append('categoria_id', categoria); fd.append('importo', input.value);
-            fetch(`/dettaglio/${startDate}/${endDate}/modifica_monthly_budget`, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(function(response){ if (!response.ok) throw new Error('Errore server'); return response.json().catch(function(){ return null; }); })
+            postForm(`/dettaglio/${startDate}/${endDate}/modifica_monthly_budget`, fd)
             .then(function(json){
                 // Persisted on server — reload page to reflect authoritative data
                 window.location.reload();
@@ -172,7 +171,7 @@ function modificaMonthlyBudget(btn) {
                         <div class="card bg-primary text-white">
                             <div class="card-body text-center">
                                 <h6>Saldo Iniziale</h6>
-                                <h4 id="saldo_iniziale_val">€ {{ "%.2f"|format(saldo_iniziale_mese) }}</h4>
+                                <h4 id="saldo_iniziale_val">{{ saldo_iniziale_mese|format_currency }}</h4>
                             </div>
                         </div>
                     </div>
@@ -180,7 +179,7 @@ function modificaMonthlyBudget(btn) {
                         <div class="card bg-success text-white">
                             <div class="card-body text-center">
                                 <h6>Entrate Previste</h6>
-                                <h4 id="entrate_val">€ {{ "%.2f"|format(entrate) }}</h4>
+                                        <h4 id="entrate_val">{{ entrate|format_currency }}</h4>
                             </div>
                         </div>
                     </div>
@@ -194,7 +193,7 @@ function modificaMonthlyBudget(btn) {
                                     </button>
                                     Uscite Previste
                                 </h6>
-                                <h4 id="uscite_val">€ {{ "%.2f"|format(uscite) }}</h4>
+                                        <h4 id="uscite_val">{{ uscite|format_currency }}</h4>
                             </div>
                         </div>
                     </div>
@@ -203,7 +202,7 @@ function modificaMonthlyBudget(btn) {
                         <div class="card {% if bilancio >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
                             <div class="card-body text-center">
                                 <h6>Bilancio Previsto</h6>
-                                <h4 id="bilancio_val">{% if bilancio >= 0 %}+{% endif %}€ {{ "%.2f"|format(bilancio) }}</h4>
+                                <h4 id="bilancio_val">{% if bilancio >= 0 %}+{% endif %}{{ bilancio|format_currency }}</h4>
                             </div>
                         </div>
                     </div>
@@ -222,7 +221,7 @@ function modificaMonthlyBudget(btn) {
                                         <i class="fas fa-wrench" aria-hidden="true"></i>
                                     </button>
                                 </h6>
-                                <h4 id="saldo_attuale_val">€ {{ "%.2f"|format(saldo_attuale_mese) }}</h4>
+                                <h4 id="saldo_attuale_val">{{ saldo_attuale_mese|format_currency }}</h4>
                             </div>
                         </div>
                     </div>
@@ -232,7 +231,7 @@ function modificaMonthlyBudget(btn) {
                         <div class="card {% if saldo_finale_mese >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
                             <div class="card-body text-center">
                                 <h6>Saldo Finale</h6>
-                                <h4 id="saldo_finale_val">€ {{ "%.2f"|format(saldo_finale_mese) }}</h4>
+                                <h4 id="saldo_finale_val">{{ saldo_finale_mese|format_currency }}</h4>
                             </div>
                         </div>
                     </div>
@@ -240,7 +239,7 @@ function modificaMonthlyBudget(btn) {
                         <div class="card {% if ((saldo_finale_mese or 0) + (budget_items|sum(attribute='residuo') or 0)) >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
                             <div class="card-body text-center">
                                 <h6>Con Budget Residuo</h6>
-                                <h4 id="saldo_finale_plus_residui_val">€ {{ "%.2f"|format((saldo_finale_mese or 0) + (budget_items|sum(attribute='residuo') or 0)) }}</h4>
+                                <h4 id="saldo_finale_plus_residui_val">{{ ((saldo_finale_mese or 0) + (budget_items|sum(attribute='residuo') or 0))|format_currency }}</h4>
                             </div>
                         </div>
                     </div>
@@ -249,7 +248,7 @@ function modificaMonthlyBudget(btn) {
                         <div class="card {% if saldo_finale_mese >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
                             <div class="card-body text-center">
                                 <h6>Saldo Finale</h6>
-                                <h4 id="saldo_finale_val">€ {{ "%.2f"|format(saldo_finale_mese) }}</h4>
+                                <h4 id="saldo_finale_val">{{ saldo_finale_mese|format_currency }}</h4>
                             </div>
                         </div>
                     </div>
@@ -260,7 +259,7 @@ function modificaMonthlyBudget(btn) {
                         <div class="card {% if saldo_previsto_fine_mese >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
                             <div class="card-body text-center">
                                 <h6><i class="fas fa-crystal-ball me-1"></i>Saldo Previsto Fine Mese</h6>
-                                <h4>€ {{ "%.2f"|format(saldo_previsto_fine_mese) }}</h4>
+                                <h4>{{ saldo_previsto_fine_mese|format_currency }}</h4>
                             </div>
                         </div>
                     </div>
@@ -288,7 +287,7 @@ function modificaMonthlyBudget(btn) {
                                         <td class="text-start">{{ b.categoria_nome }}</td>
                                         <td class="text-center align-middle">
                                             <span class="iniziale-val align-middle" data-categoria-id="{{ b.categoria_id }}">
-                                                € {{ "%.2f"|format(b.iniziale) }}
+                                                {{ b.iniziale|format_currency }}
                                             </span>
                                             <div class="btn-group btn-group-sm ms-2" role="group" aria-label="Budget actions">
                                                 <button type="button" class="btn btn-outline-primary btn-sm btn-edit-budget align-middle" data-action="modifica-monthly-budget" data-categoria="{{ b.categoria_id }}" data-iniziale="{{ '%.2f'|format(b.iniziale) }}" title="Modifica importo mensile" aria-label="Modifica budget">
@@ -296,9 +295,9 @@ function modificaMonthlyBudget(btn) {
                                                 </button>
                                             </div>
                                         </td>
-                                        <td class="text-center text-danger align-middle"><span class="spese-effettuate-val align-middle" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.spese_effettuate) }}</span></td>
-                                        <td class="text-center text-warning align-middle"><span class="spese-pianificate-val align-middle" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.spese_pianificate) }}</span></td>
-                                        <td class="text-center align-middle {% if b.residuo < 0 %}text-danger{% else %}text-success{% endif %}"><span class="residuo-val align-middle" data-categoria-id="{{ b.categoria_id }}">€ {{ "%.2f"|format(b.residuo) }}</span></td>
+                                        <td class="text-center text-danger align-middle"><span class="spese-effettuate-val align-middle" data-categoria-id="{{ b.categoria_id }}">{{ b.spese_effettuate|format_currency }}</span></td>
+                                        <td class="text-center text-warning align-middle"><span class="spese-pianificate-val align-middle" data-categoria-id="{{ b.categoria_id }}">{{ b.spese_pianificate|format_currency }}</span></td>
+                                        <td class="text-center align-middle {% if b.residuo < 0 %}text-danger{% else %}text-success{% endif %}"><span class="residuo-val align-middle" data-categoria-id="{{ b.categoria_id }}">{{ b.residuo|format_currency }}</span></td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -400,7 +399,7 @@ function modificaMonthlyBudget(btn) {
                                     {% endif %}
                                 </td>
                                 <td class="text-center {% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
-                                    € {{ "%.2f"|format(transazione.importo) }}
+                                    {{ transazione.importo|format_currency }}
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm" role="group">
@@ -473,7 +472,7 @@ function modificaMonthlyBudget(btn) {
                                         {% endif %}
                                     </td>
                                     <td class="text-center {% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
-                                        € {{ "%.2f"|format(transazione.importo) }}
+                                        {{ transazione.importo|format_currency }}
                                     </td>
                                     <td class="text-center">
                                         <div class="btn-group btn-group-sm" role="group">
@@ -579,7 +578,7 @@ function modificaMonthlyBudget(btn) {
                 <div class="modal-body">
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>Saldo Attuale Registrato:</strong> <span id="saldo_registrato_display">€ {{ "%.2f"|format(saldo_attuale_mese) }}</span>
+                        <strong>Saldo Attuale Registrato:</strong> <span id="saldo_registrato_display">{{ saldo_attuale_mese|format_currency }}</span>
                     </div>
                     <div class="mb-3">
                         <label for="saldo_reale_input" class="form-label">Inserisci il Saldo Reale (€)</label>
@@ -665,7 +664,7 @@ function modificaMonthlyBudget(btn) {
                     var catSel = document.getElementById('inline_add_categoria');
                     var cfg = (typeof DETTAGLIO_CONFIG !== 'undefined') ? DETTAGLIO_CONFIG : { start_date: '{{ start_date }}', end_date: '{{ end_date }}', categorie: [] };
                     if (d) {
-                        var today = new Date().toISOString().slice(0,10);
+                        var today = formatISO(new Date());
                         var defaultDate = today;
                         if (!cfg.start_date || !cfg.end_date) {
                             defaultDate = today;
@@ -720,18 +719,13 @@ function modificaMonthlyBudget(btn) {
         if (saldoRealeInput) {
             saldoRealeInput.addEventListener('input', function() {
                 const saldoReale = parseFloat(this.value) || 0;
-                const saldoAttuale = parseFloat(saldoAttualeVal.textContent.replace('€', '').replace(',', '.').trim()) || 0;
+                const saldoAttuale = parseEuro(saldoAttualeVal.textContent) || 0;
                 const differenza = saldoReale - saldoAttuale;
                 
                 if (Math.abs(differenza) >= 0.01) {
                     differenzaPreview.style.display = 'block';
-                    if (differenza > 0) {
-                        differenzaPreview.className = 'alert alert-success';
-                        differenzaText.innerHTML = '<i class="fas fa-arrow-up me-1"></i>+€' + Math.abs(differenza).toFixed(2) + ' (Entrata)';
-                    } else {
-                        differenzaPreview.className = 'alert alert-danger';
-                        differenzaText.innerHTML = '<i class="fas fa-arrow-down me-1"></i>-€' + Math.abs(differenza).toFixed(2) + ' (Uscita)';
-                    }
+                        differenzaPreview.className = differenza > 0 ? 'alert alert-success' : 'alert alert-danger';
+                        differenzaText.innerHTML = '<i class="fas fa-arrow-' + (differenza > 0 ? 'up' : 'down') + ' me-1"></i>' + (differenza > 0 ? '+' : '-') + formatEuro(Math.abs(differenza)) + ' (' + (differenza > 0 ? 'Entrata' : 'Uscita') + ')';
                 } else {
                     differenzaPreview.style.display = 'none';
                 }
@@ -749,15 +743,8 @@ function modificaMonthlyBudget(btn) {
             const startDate = '{{ start_date }}';
             const endDate = '{{ end_date }}';
             
-            fetch(`/dettaglio/${startDate}/${endDate}/correggi_saldo`, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
+            postForm(`/dettaglio/${startDate}/${endDate}/correggi_saldo`, formData)
+            .then(function(data){
                 if (data.status === 'ok' || data.status === 'info') {
                     // Update summary cards if provided
                     if (data.summary) {
@@ -766,13 +753,13 @@ function modificaMonthlyBudget(btn) {
                                 applySummary(data.summary);
                             } else {
                                 // Manual update
-                                document.getElementById('saldo_iniziale_val').textContent = '€ ' + data.summary.saldo_iniziale_mese.toFixed(2);
-                                document.getElementById('entrate_val').textContent = '€ ' + data.summary.entrate.toFixed(2);
-                                document.getElementById('uscite_val').textContent = '€ ' + data.summary.uscite.toFixed(2);
-                                document.getElementById('bilancio_val').textContent = (data.summary.bilancio >= 0 ? '+' : '') + '€ ' + data.summary.bilancio.toFixed(2);
-                                document.getElementById('saldo_attuale_val').textContent = '€ ' + data.summary.saldo_attuale_mese.toFixed(2);
+                                document.getElementById('saldo_iniziale_val').textContent = formatEuro(data.summary.saldo_iniziale_mese);
+                                document.getElementById('entrate_val').textContent = formatEuro(data.summary.entrate);
+                                document.getElementById('uscite_val').textContent = formatEuro(data.summary.uscite);
+                                document.getElementById('bilancio_val').textContent = (data.summary.bilancio >= 0 ? '+' : '') + formatEuro(Math.abs(data.summary.bilancio));
+                                document.getElementById('saldo_attuale_val').textContent = formatEuro(data.summary.saldo_attuale_mese);
                                 if (document.getElementById('saldo_finale_val')) {
-                                    document.getElementById('saldo_finale_val').textContent = '€ ' + data.summary.saldo_finale_mese.toFixed(2);
+                                    document.getElementById('saldo_finale_val').textContent = formatEuro(data.summary.saldo_finale_mese);
                                 }
                             }
                         } catch(e) {
@@ -780,12 +767,14 @@ function modificaMonthlyBudget(btn) {
                         }
                     }
                     
-                    // Show success message
-                    if (typeof showToast === 'function') {
-                        showToast(data.message, data.status === 'ok' ? 'success' : 'info');
-                    } else {
-                        alert(data.message);
-                    }
+                    // Show success message (use centralized toast when available, fallback to alert)
+                    try {
+                        if (typeof showToast === 'function') {
+                            showToast(data.message, data.status === 'ok' ? 'success' : 'info');
+                        } else {
+                            alert(data.message);
+                        }
+                    } catch(e) { try { alert(data.message); } catch(_) { /* ignore */ } }
                     
                     // Close modal
                     const modalInstance = bootstrap.Modal.getInstance(correggiSaldoModal);
@@ -799,11 +788,13 @@ function modificaMonthlyBudget(btn) {
             })
             .catch(error => {
                 console.error('Error:', error);
-                if (typeof showToast === 'function') {
-                    showToast(error.message || 'Errore durante la correzione del saldo', 'danger');
-                } else {
-                    alert(error.message || 'Errore durante la correzione del saldo');
-                }
+                try {
+                    if (typeof showToast === 'function') {
+                        showToast(error.message || 'Errore durante la correzione del saldo', 'danger');
+                    } else {
+                        alert(error.message || 'Errore durante la correzione del saldo');
+                    }
+                } catch(e) { /* ignore */ }
             })
             .finally(() => {
                 if (submitBtn) submitBtn.disabled = false;
@@ -811,6 +802,6 @@ function modificaMonthlyBudget(btn) {
         });
     });
 </script>
-<script src="{{ url_for('static', filename='js/dettaglio_mese.js') }}"></script>
+<script src="{{ asset_url('js/dettaglio_mese.js') }}"></script>
 <script>document.addEventListener('DOMContentLoaded', function(){ try{ initDettaglio(DETTAGLIO_CONFIG); }catch(e){console && console.error && console.error('initDettaglio error', e);} });</script>
 {% endblock %}
