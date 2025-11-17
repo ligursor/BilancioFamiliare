@@ -84,7 +84,7 @@ a.text-decoration-none:active {
     margin-top: 50px;
 }
 
-/* Tipo filter removed — dropped related styles to avoid unused rules */
+/* Tipo filter styles consolidated */
 
 /* PayPal/PostePay toggle styles (merged from static/css/ppay.css) */
 #toggle-completati,
@@ -145,7 +145,7 @@ a.text-decoration-none:active {
 /* Ensure table header labels are horizontally aligned */
 
 
-/* Tipo filter removed — alignment helpers no longer needed */
+/* Tipo filter alignment helpers (not used) */
 
 /* Make action buttons in tables uniformly rounded and spaced */
 .table .btn,

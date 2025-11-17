@@ -5,7 +5,7 @@
 {% block content %}
 <script>
     
-/* fallback editor removed: inline-only editing is enforced. */
+/* Inline-only editing enforced; no fallback editor. */
 function modificaTransazioneAttr(btn) {
     // Inline-only edit of importo (fall back to full modal if anything goes wrong)
     try {
@@ -510,7 +510,7 @@ function modificaMonthlyBudget(btn) {
     </div>
 </div>
 
-<!-- Inline editor script moved to the scripts block to avoid accidental rendering inside content -->
+<!-- Inline editor script placed in the scripts block to avoid accidental rendering inside content -->
 
 <!-- Modal per aggiungere nuova transazione -->
 <div class="modal fade" id="addTransactionModal" tabindex="-1">

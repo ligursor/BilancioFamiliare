@@ -336,4 +336,4 @@ def reset():
         saldo = None
     return render_template('bilancio/reset.html', saldo=saldo)
 
-# Route rimossa - gestita dal blueprint dettaglio_periodo
+# Route gestita dal blueprint dettaglio_periodo

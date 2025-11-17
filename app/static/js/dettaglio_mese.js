@@ -243,7 +243,7 @@
         }catch(e){}
     }
 
-    // sorting removed — UI no longer exposes sort controls for Data/Importo
+    
 
     function bindDelegatedHandlers(cfg){
         // avoid binding multiple times if initDettaglio is called repeatedly

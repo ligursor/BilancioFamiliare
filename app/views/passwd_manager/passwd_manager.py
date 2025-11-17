@@ -20,7 +20,6 @@ def hash_password(password):
 @bp.route('/')
 def index():
     # If the passwd manager hasn't been configured, inform the operator.
-    # The previous automatic reconfiguration/setup flow has been removed.
     if not has_security_config():
         return ("Password Manager non configurato. Contatta l'amministratore per la configurazione.", 503)
     
@@ -42,9 +41,7 @@ def index():
     return render_template('passwd_manager/index.html', categories=categories)
 
 
-# NOTE: setup route and reconfiguration UI were removed intentionally.
-# If you need to re-enable interactive setup, restore a safe setup flow
-# that requires authenticated administrative access outside of the public UI.
+# Setup route and reconfiguration UI are intentionally disabled in the public UI.
 
 
 @bp.route('/login', methods=['GET', 'POST'])

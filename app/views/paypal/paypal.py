@@ -263,7 +263,7 @@ def nuovo():
     
     return render_template('paypal/paypal_nuovo.html')
 
-# Dettaglio route rimossa: i dettagli vengono gestiti nella dashboard o nella pagina di modifica.
+# La gestione dei dettagli è stata centralizzata nella dashboard o nella pagina di modifica.
 
 @paypal_bp.route('/rata/<int:rata_id>/paga', methods=['POST'])
 def paga_rata(rata_id):

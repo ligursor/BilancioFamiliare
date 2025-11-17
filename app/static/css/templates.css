@@ -2,7 +2,7 @@
    Location: app/static/css/templates.css
 */
 
-/* ---------- Navbar (moved from base.html inline styles) ---------- */
+/* ---------- Navbar (consolidated) ---------- */
 .navbar {
   position: relative;
   z-index: 1100;
@@ -254,7 +254,7 @@ body.setup-required { display: flex; align-items: center; justify-content: cente
 .min-w-160 { min-width: 160px !important; }
 .flex-fill-min-160 { flex: 1 1 280px !important; min-width: 160px !important; }
 
-/* Toast positioning (moved from base.html inline styles) */
+/* Toast positioning (consolidated) */
 .toast-area {
   position: fixed;
   top: 1rem;
@@ -329,10 +329,9 @@ body.setup-required { display: flex; align-items: center; justify-content: cente
 }
 
 /* ------------------------------------------------------------------
-   Terapia Biologica - calendar & delivery styles
-   Moved here from app/templates/sanita/terapia_biologica.html to central
-   stylesheet so styles are not duplicated and can be cached.
-   ------------------------------------------------------------------ */
+  Terapia Biologica - calendar & delivery styles
+  Consolidated from terapia_biologica template into central stylesheet.
+  ------------------------------------------------------------------ */
 
 /* Minimal calendar styles (copied from terapia_biologica.html) */
 .calendar-year {

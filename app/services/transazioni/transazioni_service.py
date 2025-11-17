@@ -1,4 +1,4 @@
-"""Servizio per la gestione delle transazioni (spostato in app.services.bilancio)"""
+"""Servizio per la gestione delle transazioni"""
 from app.services import BaseService, DateUtilsService, get_month_boundaries
 from app.models.Transazioni import Transazioni
 from app.models.Categorie import Categorie

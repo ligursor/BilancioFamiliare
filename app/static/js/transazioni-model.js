@@ -9,7 +9,7 @@
       try {
         this.originali = Array.isArray(arr) ? arr : [];
         this.filtrate = [...this.originali];
-        // Do NOT write legacy globals here; consumers should use model API.
+  // Do NOT write legacy globals here; consumers should use model API.
         this.ready = true;
         document.dispatchEvent(new Event('transazioni:ready'));
         this._listeners.forEach(cb => { try{ cb(); }catch(e){} });
@@ -76,7 +76,5 @@
     },
     onReady(cb){ if (this.ready) { try{ cb(); }catch(e){} } else this._listeners.push(cb); }
   };
-  try { window.BilancioTransazioni = Model; } catch(e) { /* console.warn removed */ }
-  // Note: legacy global proxies removed. Consumers should use the model API exposed on
-  // window.BilancioTransazioni: setOriginali, getOriginali, getFiltrate, applyFilters, sortFiltrate, setFiltrate, onReady
+  try { window.BilancioTransazioni = Model; } catch(e) {}
 })();

@@ -15,7 +15,6 @@ def garage():
     try:
         current_app.logger.debug('Garage page requested')
         try:
-            # marca removed; order by modello only
             veicoli = Veicoli.query.order_by(Veicoli.modello).all()
             current_app.logger.debug('Retrieved %d veicoli from DB', len(veicoli))
         except OperationalError as oe:
@@ -27,7 +26,6 @@ def garage():
             class VehicleProxy:
                 def __init__(self, r):
                     self.id = r['id']
-                    # 'marca' column removed; proxy stores only modello
                     self.modello = r['modello']
                     self.mese_scadenza_bollo = r['mese_scadenza_bollo']
                     self.costo_finanziamento = r['costo_finanziamento']
@@ -310,7 +308,7 @@ def aggiungi_veicolo():
         else:
             prima_rata = date.today()
 
-        # 'marca' removed from form; use only modello
+    # form uses only modello
         modello = (request.form.get('modello') or '').strip()
         if not modello:
             flash('Modello è obbligatorio per aggiungere un veicoli.', 'error')

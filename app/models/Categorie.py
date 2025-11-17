@@ -12,9 +12,8 @@ class Categorie(db.Model):
     
     def __repr__(self):
         return f'<Categorie {self.nome} ({self.tipo})>'
-# NOTE: The SaldoIniziale model was intentionally removed in favor of using
-# the `strumento` table (instrument "Conto Bancoposta") as the canonical
-# source for global starting balance. The database table `saldo_iniziale`
-# may still exist and should be dropped via a migration once you've
-# confirmed there are no remaining runtime references (we've searched and
-# reported remaining references separately).
+# The SaldoIniziale model was replaced in favor of using the `strumento`
+# table (instrument "Conto Bancoposta") as the canonical source for the
+# global starting balance. If the legacy `saldo_iniziale` table exists,
+# consider dropping it via a migration after confirming there are no
+# runtime references.

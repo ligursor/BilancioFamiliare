@@ -98,7 +98,7 @@ def mese(anno, mese):
 		# Servizi
 		service = DettaglioPeriodoService()
 
-		# Recupera dati per il mese (categorie filtering removed)
+	# Recupera dati per il mese
 		dettaglio = service.get_dettaglio_mese(anno, mese)
 		stats_categorie = service.get_statistiche_per_categoria(anno, mese)
 
@@ -192,7 +192,7 @@ def dettaglio_periodo(start_date, end_date):
 
 		service = DettaglioPeriodoService()
 
-		# Recupera dettaglio del periodo (categorie filtering removed)
+	# Recupera dettaglio del periodo
 		result = service.dettaglio_periodo_interno(start_date_obj, end_date_obj)
 
 		# Prepara categorie per il modal (escludi PayPal) usando il servizio

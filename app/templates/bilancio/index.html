@@ -92,12 +92,12 @@
     </div>
 </div>
 
-<!-- Grafico e transazioni rimosse dalla dashboard principale per semplificare l'interfaccia -->
+<!-- Grafico e transazioni non mostrati nella dashboard principale per semplificare l'interfaccia -->
 
-<!-- Inserimento transazioni disabilitato in dashboard: usa il dettaglio mensile -->
+<!-- Inserimento transazioni non disponibile in dashboard: usare il dettaglio mensile -->
 {% endblock %}
 
-<!-- Keep only categorie-data and modal JS; mesi-data and Chart initialization removed -->
+<!-- Keep only categorie-data and modal JS; mesi-data and Chart initialization are not included here -->
 <script id="categorie-data" type="application/json">[
 {% for categoria in categorie %}
     {"id": {{ categoria.id }}, "nome": "{{ categoria.nome | replace('"','\"') }}", "tipo": "{{ categoria.tipo }}" }{% if not loop.last %},{% endif %}

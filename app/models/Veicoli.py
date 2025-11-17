@@ -19,7 +19,7 @@ class Veicoli(db.Model):
     prima_rata = db.Column(db.Date, nullable=True)
     numero_rate = db.Column(db.Integer, nullable=True)
     rata_mensile = db.Column(db.Float, nullable=True)
-    # 'marca' field removed by request — use only 'modello' as display name
+    
     
     @property
     def totale_versato(self):
@@ -73,8 +73,8 @@ class Veicoli(db.Model):
     @property
     def nome_completo(self):
         """Restituisce nome completo del veicoli"""
-        # Prima era 'marca + modello'. Dopo la rimozione del campo 'marca' mostriamo solo il modello
-        return f"{self.modello}"
+    # Display only the modello
+    return f"{self.modello}"
 
     @property
     def bollo_scaduto(self):
@@ -103,7 +103,7 @@ class AutoBolli(db.Model):
     anno_riferimento = db.Column(db.Integer, nullable=False)
     importo = db.Column(db.Float, nullable=False)
     data_pagamento = db.Column(db.Date, nullable=False)
-    # data_creazione removed — not needed for bolli records
+    
     
     def __repr__(self):
         return f'<AutoBolli {self.veicolo.nome_completo} {self.anno_riferimento}: {self.importo}>'
@@ -123,7 +123,7 @@ class AutoManutenzioni(db.Model):
     costo = db.Column(db.Float, nullable=False)
     km_intervento = db.Column(db.Integer, nullable=True)
     officina = db.Column(db.String(200), nullable=True)
-    # data_creazione removed — not needed for manutenzioni records
+    
     
     def __repr__(self):
         return f'<AutoManutenzioni {self.veicolo.nome_completo} - {self.tipo_intervento}: {self.costo}>'
@@ -141,7 +141,7 @@ class Assicurazioni(db.Model):
     importo = db.Column(db.Float, nullable=False)
     compagnia = db.Column(db.String(200), nullable=True)
     data_pagamento = db.Column(db.Date, nullable=False)
-    # data_creazione removed — not needed for assicurazioni records
+    
 
     def __repr__(self):
         return f'<Assicurazioni {self.veicolo.nome_completo} {self.anno_riferimento}: {self.importo}>'

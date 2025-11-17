@@ -3,7 +3,7 @@
 {% block title %}{{ veicolo.nome_completo }} - Dettaglio{% endblock %}
 
 {% block content %}
-<!-- equal-height styles moved to static/css/templates.css -->
+<!-- equal-height styles consolidated in static/css/templates.css -->
 <div class="container-fluid mt-4">
 	<div class="row">
 		<div class="col-lg-12">
@@ -12,7 +12,7 @@
 					<a href="{{ url_for('veicoli.garage') }}" class="btn btn-secondary me-2">
 						<i class="fas fa-arrow-left me-1"></i>Garage
 					</a>
-					<!-- Modifica button removed per richiesta -->
+					<!-- Modifica button non mostrato per impostazione -->
 					<form method="POST" action="{{ url_for('veicoli.rimuovi_veicolo', veicolo_id=veicolo.id) }}" class="d-inline-block" data-action="confirm-delete" data-message="Confermi la rimozione del veicolo dal garage?">
 						<button type="submit" class="btn btn-danger ms-2">
 							<i class="fas fa-trash me-1"></i>Rimuovi
@@ -131,7 +131,7 @@
 				</div>
 			</div>
 		</div>
-		<!-- Totale Costi box removed; keep 'Costo Totale' only -->
+	<!-- Totale Costi box non mostrato; mantenuto il campo 'Costo Totale' -->
 		{%- else %}
 		<div class="col-md-4">
 			<div class="card bg-warning text-white">
@@ -157,11 +157,11 @@
 				</div>
 			</div>
 		</div>
-		<!-- Totale Costi box removed; keep 'Costo Totale' only -->
+	<!-- Totale Costi box non mostrato; mantenuto il campo 'Costo Totale' -->
 		{%- endif %}
 	</div>
 
-	<!-- Azioni rapide rimosse: il pulsante Rimuovi è stato spostato in alto accanto a Modifica -->
+	<!-- Azioni rapide non mostrate: il pulsante Rimuovi è presente nell'header sopra -->
 
 	<!-- Storico operazioni -->
 	<div class="row">
@@ -265,7 +265,7 @@
 	</div>
 </div>
 
-<!-- Modifica modal removed -->
+<!-- Modal modifica non utilizzato in questa vista -->
 
 <!-- Inline templates per aggiungere Bollo/Manutenzione direttamente nella pagina dettaglio -->
 <template id="tpl-nuovo-bollo-dettaglio">

@@ -34,10 +34,8 @@ class PaypalMovimenti(db.Model):
     data_scadenza = db.Column(db.Date, nullable=False)
     data_pagamento = db.Column(db.Date, nullable=True)
     stato = db.Column(db.String(20), nullable=False, default='in_attesa')  # 'in_attesa', 'pagata', 'scaduta'
-    # Note: We intentionally do NOT link PaypalMovimenti to Transazioni.
-    # Previous schema used `transazione_id` FK here, but PayPal movements should
-    # remain independent from the application's `transazioni` table.
-    # Any previous column `transazione_id` should be removed via migration.
+    # Note: PaypalMovimenti intentionally does not link to Transazioni and
+    # remains independent from the application's `transazioni` table.
     
     def __repr__(self):
         return f'<PaypalMovimenti {self.piano.descrizione} - Rata {self.numero_rata}: {self.importo}>'

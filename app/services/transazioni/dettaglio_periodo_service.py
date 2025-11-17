@@ -153,7 +153,7 @@ class DettaglioPeriodoService:
                     Transazioni.data <= mese_corrente_end,
                     Transazioni.categoria_id.isnot(None)
                 ).all()
-            # Do not apply category filter to monthly aggregates (categorie filtering removed)
+            # Do not apply category filter to monthly aggregates
             
             # Per mesi passati, usa solo transazioni effettuate
             # Per mese corrente e futuri, includi tutte le transazioni (per saldo finale)
@@ -279,7 +279,7 @@ class DettaglioPeriodoService:
                             db.session.commit()
                             # Audit: creazione automatica mensile
                             try:
-                                # MonthlyBudgetAudit model rimosso: loggiamo l'evento invece di persistere il record
+                                # MonthlyBudgetAudit: loggiamo l'evento invece di persistere il record
                                 import logging
                                 logger = logging.getLogger('bilancio.monthly_budget_audit')
                                 logger.info(
