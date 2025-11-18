@@ -15,7 +15,7 @@
                     <!-- Filtro Periodo -->
                     <div class="d-flex align-items-center">
                         <label for="periodo_filter" class="form-label mb-0 me-2">Periodo:</label>
-                        <select id="periodo_filter" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                        <select id="periodo_filter" class="form-select form-select-sm w-auto" onchange="this.form.submit()">
                             <option value="">Seleziona periodo...</option>
                             {% for p in periodi %}
                             <option value="{{ p.id_periodo }}" {% if p.id_periodo == periodo_selezionato %}selected{% endif %}>

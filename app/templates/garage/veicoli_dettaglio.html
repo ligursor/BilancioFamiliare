@@ -24,7 +24,7 @@
 	</div>
 
 	<!-- Informazioni veicolo + Situazione Finanziaria affiancate -->
-	<div class="row mb-4" style="min-height: 1px;">
+	<div class="row mb-4 min-h-1">
 		<div class="col-md-6 equal-height">
 			<div class="card equal-height">
 				<div class="card-header">
@@ -304,7 +304,7 @@
 	    <div class="card-header d-flex align-items-center py-2">
 		    <h5 class="mb-0 fs-6"><i class="fas fa-wrench me-2"></i>Nuova Manutenzione per <span class="ms-2"><strong class="inline-target-name">{{ veicolo.nome_completo }}</strong></span></h5>
 			<button type="button" class="btn btn-link p-0 ms-auto inline-cancel" aria-label="Chiudi">
-				<i class="fas fa-times" style="font-size:1.1rem;color:#000;"></i>
+				<i class="fas fa-times text-dark fs-6"></i>
 			</button>
 		</div>
 		<div class="card-body py-2">
@@ -356,7 +356,7 @@
 			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-				<form method="POST" action="{{ url_for('veicoli.rimuovi_veicolo', veicolo_id=veicolo.id) }}" style="display: inline;">
+				<form method="POST" action="{{ url_for('veicoli.rimuovi_veicolo', veicolo_id=veicolo.id) }}" class="d-inline">
 					<button type="submit" class="btn btn-danger">Rimuovi dal Garage</button>
 				</form>
 			</div>

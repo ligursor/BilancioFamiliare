@@ -94,8 +94,7 @@
                     <div class="row">
                         <div class="col-md-6 mb-2">
                             <label for="descrizione" class="form-label">Descrizione</label>
-                            <input type="text" class="form-control" id="descrizione" name="descrizione" required placeholder
-    ="Es. iPhone 15" style="text-transform: uppercase;">                                                                                                </div>
+                            <input type="text" class="form-control text-uppercase" id="descrizione" name="descrizione" required placeholder="Es. iPhone 15">                                                                                                </div>
                         <div class="col-md-3 mb-2">
                             <label for="importo_totale" class="form-label">Importo Totale (€)</label>
                             <input type="number" class="form-control" id="importo_totale" name="importo_totale" step="0.01" 
@@ -179,7 +178,7 @@ aria-label="Modifica piano"                                                     
                                 >
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <form method="POST" action="{{ url_for('paypal.elimina', piano_id=piano.id) }}" style="display:inline">                                                                                                                                                     <button type="submit" class="btn btn-outline-danger" title="Elimina piano" aria-label="Elimina piano" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo piano?">                                                              <i class="fas fa-trash" aria-hidden="true"></i>
+                                <form method="POST" action="{{ url_for('paypal.elimina', piano_id=piano.id) }}" class="d-inline">                                                                                                                                                     <button type="submit" class="btn btn-outline-danger" title="Elimina piano" aria-label="Elimina piano" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo piano?">                                                              <i class="fas fa-trash" aria-hidden="true"></i>
                                         <span class="visually-hidden">Elimina piano</span>
                                     </button>
                                 </form>
@@ -228,7 +227,7 @@ aria-label="Modifica piano"                                                     
                         <td class="text-center">
                             <div class="btn-group btn-group-sm" role="group">
                                 {# Azioni: modifica / elimina #}
-                                <form method="POST" action="{{ url_for('paypal.elimina', piano_id=piano.id) }}" style="display:inline">                                                                                                                                                     <button type="submit" class="btn btn-outline-danger" title="Elimina piano" aria-label="Elimina piano" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo piano?">                                                              <i class="fas fa-trash" aria-hidden="true"></i>
+                                <form method="POST" action="{{ url_for('paypal.elimina', piano_id=piano.id) }}" class="d-inline">                                                                                                                                                     <button type="submit" class="btn btn-outline-danger" title="Elimina piano" aria-label="Elimina piano" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo piano?">                                                              <i class="fas fa-trash" aria-hidden="true"></i>
                                         <span class="visually-hidden">Elimina piano</span>
                                     </button>
                                 </form>
