@@ -11,9 +11,9 @@
             <div class="card bg-primary text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
-                        <div>
+                            <div>
                             <h5 class="card-title">Veicoli Attivi</h5>
-                            <h3>{{ veicoli|length }}</h3>
+                            <h3 class="mb-0">{{ veicoli|length }}</h3>
                         </div>
                         <div class="align-self-center">
                             <i class="fas fa-car fa-2x"></i>
@@ -28,7 +28,7 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <h5 class="card-title">Totale Finanziamenti</h5>
-                            <h3>{{ (totale_costo_finanziamento) | format_currency }}</h3>
+                            <h3 class="mb-0">{{ (totale_costo_finanziamento) | format_currency }}</h3>
                         </div>
                         <div class="align-self-center">
                             <i class="fas fa-euro-sign fa-2x"></i>
@@ -43,7 +43,7 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <h5 class="card-title">Totale Versato</h5>
-                            <h3>{{ (totale_versato) | format_currency }}</h3>
+                            <h3 class="mb-0">{{ (totale_versato) | format_currency }}</h3>
                         </div>
                         <div class="align-self-center">
                             <i class="fas fa-wallet fa-2x"></i>
@@ -58,7 +58,7 @@
                     <div class="d-flex justify-content-between">
                         <div>
                             <h5 class="card-title">Saldo Rimanente</h5>
-                            <h3>{{ (totale_saldo_rimanente) | format_currency }}</h3>
+                            <h3 class="mb-0">{{ (totale_saldo_rimanente) | format_currency }}</h3>
                         </div>
                         <div class="align-self-center">
                             <i class="fas fa-coins fa-2x"></i>
@@ -205,7 +205,7 @@
                                         <th class="text-center">Veicolo</th>
                                         <th class="text-center">Data</th>
                                         <th class="text-center">Anno</th>
-                                        <th class="text-center">Importo</th>
+                                        <th class="text-center">Importo (€)</th>
                                         <th class="text-center">Azioni</th>
                                     </tr>
                                 </thead>
@@ -215,7 +215,7 @@
                                         <td class="text-start">{{ bollo.veicolo.nome_completo }}</td>
                                         <td class="text-center">{{ bollo.data_pagamento.strftime('%d/%m/%Y') }}</td>
                                         <td class="text-center">{{ bollo.anno_riferimento }}</td>
-                                        <td class="text-center">{{ (bollo.importo) | format_currency }}</td>
+                                        <td class="text-center">{{ (bollo.importo | default(0) | abs) | format_currency('{:.2f}') }}</td>
                                         <td class="text-center">
                                             <form method="POST" action="{{ url_for('veicoli.elimina_bollo', bollo_id=bollo.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo bollo?">
                                                 <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina bollo" aria-label="Elimina bollo">
@@ -252,7 +252,7 @@
                                         <th class="text-center">Veicolo</th>
                                         <th class="text-center">Data</th>
                                         <th class="text-center">Compagnia</th>
-                                        <th class="text-center">Importo</th>
+                                        <th class="text-center">Importo (€)</th>
                                         <th class="text-center">Azioni</th>
                                     </tr>
                                 </thead>
@@ -262,7 +262,7 @@
                                         <td class="text-start">{{ assicurazione.veicolo.nome_completo }}</td>
                                         <td class="text-center">{{ assicurazione.data_pagamento.strftime('%d/%m/%Y') }}</td>
                                         <td class="text-start">{{ assicurazione.compagnia }}</td>
-                                        <td class="text-center">{{ assicurazione.importo | format_currency }}</td>
+                                        <td class="text-center">{{ (assicurazione.importo | default(0) | abs) | format_currency('{:.2f}') }}</td>
                                         <td class="text-center">
                                             <form method="POST" action="{{ url_for('veicoli.elimina_assicurazione', assicurazione_id=assicurazione.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa assicurazione?">
                                                 <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina assicurazione" aria-label="Elimina assicurazione">
@@ -299,7 +299,7 @@
                                         <th class="text-center">Veicolo</th>
                                         <th class="text-center">Data</th>
                                         <th class="text-center">Dettaglio</th>
-                                        <th class="text-center">Importo</th>
+                                        <th class="text-center">Importo (€)</th>
                                         <th class="text-center">Azioni</th>
                                     </tr>
                                 </thead>
@@ -309,7 +309,7 @@
                                         <td class="text-start">{{ manutenzione.veicolo.nome_completo }}</td>
                                         <td class="text-center">{{ manutenzione.data_intervento.strftime('%d/%m/%Y') }}</td>
                                         <td class="text-start">{{ manutenzione.tipo_intervento }}<br><small class="text-muted">{{ manutenzione.officina }} - KM {{ manutenzione.km_intervento | format_number }}</small></td>
-                                        <td class="text-center">{{ (manutenzione.costo) | format_currency }}</td>
+                                        <td class="text-center">{{ (manutenzione.costo | default(0) | abs) | format_currency('{:.2f}') }}</td>
                                         <td class="text-center">
                                             <form method="POST" action="{{ url_for('veicoli.elimina_manutenzione', manutenzione_id=manutenzione.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa manutenzione?">
                                                 <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina manutenzione" aria-label="Elimina manutenzione">

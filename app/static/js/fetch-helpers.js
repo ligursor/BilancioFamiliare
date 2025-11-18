@@ -20,8 +20,8 @@
         var expect = opts.expect || 'json';
         var headers = opts.headers || {};
 
-        // merge default headers
-        var merged = Object.assign({}, defaultHeaders(expect === 'json'), headers);
+        // merge default headers WITHOUT forcing Content-Type so FormData can set its own
+        var merged = Object.assign({}, defaultHeaders(false), headers);
 
         var fetchOpts = {
             method: opts.method || 'POST',
@@ -29,11 +29,13 @@
             headers: merged
         };
 
-        if (formData instanceof FormData) fetchOpts.body = formData;
-        else if (formData && typeof formData === 'object' && !(formData instanceof String)) {
+        if (formData instanceof FormData) {
+            // Let the browser set the correct multipart/form-data + boundary header
+            fetchOpts.body = formData;
+        } else if (formData && typeof formData === 'object' && !(formData instanceof String)) {
             // JSON body
             fetchOpts.body = JSON.stringify(formData);
-            // ensure content-type
+            // ensure content-type for JSON payloads
             fetchOpts.headers['Content-Type'] = 'application/json';
         }
 

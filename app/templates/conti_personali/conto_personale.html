@@ -5,23 +5,20 @@
 {% block content %}
 <div class="container mt-4">
     
-        <div class="row">
-            <div class="col-12">
-
-                {% set totale_versato = (versamenti | map(attribute='importo') | sum) if versamenti else 0.0 %}
-                {% set saldo_calcolato = (conto.strumento.saldo_iniziale | default(0.0)) - (totale_versato | default(0.0)) %}
-
-                <div id="top-cards">
-                <div class="row mb-4">
+    {# compute aggregates used by the top cards #}
+    {% set totale_versato = (versamenti | map(attribute='importo') | sum) if versamenti else 0.0 %}
+    {% set saldo_calcolato = (conto.strumento.saldo_iniziale | default(0.0)) - (totale_versato | default(0.0)) %}
+                <div class="row mb-4" id="top-cards">
                     <div class="col-md-6 col-lg-3">
-                        <div class="card bg-info text-white">
+                        <div class="card bg-primary text-white">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between">
                                     <div>
-                                        <h4 class="card-title">
-                                        <span class="text-white">{{ (conto.strumento.saldo_iniziale | default(0.0)) | format_currency }}</span>
-                                        </h4>
-                                        <p class="card-text">Saldo Iniziale</p>
+                                        <h5 class="card-title">Saldo Iniziale</h5>
+                                        <h3 class="mb-0">{{ (conto.strumento.saldo_iniziale | default(0.0)) | format_currency('{:.2f}') }}</h3>
+                                    </div>
+                                    <div class="align-self-center">
+                                        <i class="fas fa-piggy-bank fa-2x"></i>
                                     </div>
                                 </div>
                             </div>
@@ -29,25 +26,15 @@
                     </div>
 
                     <div class="col-md-6 col-lg-3">
-                        <div class="card {% if saldo_calcolato >= 0 %}bg-primary{% else %}bg-danger{% endif %} text-white">
+                        <div class="card {% if saldo_calcolato >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between">
                                     <div>
-                                        <h4 class="card-title">{{ (saldo_calcolato | default(0.0)) | format_currency }}</h4>
-                                        <p class="card-text">Saldo Attuale</p>
+                                        <h5 class="card-title">Saldo Attuale</h5>
+                                        <h3 class="mb-0">{{ (saldo_calcolato | default(0.0)) | format_currency('{:.2f}') }}</h3>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-6 col-lg-3">
-                        <div class="card bg-success text-white">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <h4 class="card-title">{{ versamenti|length }}</h4>
-                                        <p class="card-text">Versamenti Totali</p>
+                                    <div class="align-self-center">
+                                        <i class="fas fa-wallet fa-2x"></i>
                                     </div>
                                 </div>
                             </div>
@@ -59,16 +46,33 @@
                             <div class="card-body">
                                 <div class="d-flex justify-content-between">
                                     <div>
-                                        <h4 class="card-title">{{ (totale_versato | default(0.0)) | format_currency }}</h4>
-                                        <p class="card-text">Totale Versato</p>
+                                        <h5 class="card-title">Versamenti Totali</h5>
+                                        <h3 class="mb-0">{{ versamenti|length }}</h3>
+                                    </div>
+                                    <div class="align-self-center">
+                                        <i class="fas fa-hand-holding-dollar fa-2x"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card bg-info text-white">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h5 class="card-title">Totale Versato</h5>
+                                        <h3 class="mb-0">{{ (totale_versato | default(0.0)) | format_currency('{:.2f}') }}</h3>
+                                    </div>
+                                    <div class="align-self-center">
+                                        <i class="fas fa-coins fa-2x"></i>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                </div>
-                <!-- spinner removal styles relocated to static/css/templates.css -->
 
                 <template id="tmpl-nuovo-versamento">
                     <div id="card-nuovo-versamento" class="card mb-4">
@@ -129,7 +133,7 @@
                     <tr>
                         <th class="text-center">Descrizione</th>
                         <th class="text-center">Data</th>
-                        <th class="text-center">Importo</th>
+                        <th class="text-center">Importo (€)</th>
                         <th class="text-center">Azioni</th>
                     </tr>
                 </thead>
@@ -138,7 +142,7 @@
                     <tr>
                         <td class="text-start">{{ versamento.descrizione }}</td>
                         <td class="text-center">{{ versamento.data.strftime('%d/%m/%Y') }}</td>
-                        <td class="text-center">{{ (versamento.importo | default(0.0)) | format_currency }}</td>
+                        <td class="text-center">{{ (versamento.importo | default(0.0) | abs) | format_currency('{:.2f}') }}</td>
                         <td class="text-center">
                             <form class="form-elimina-versamento d-inline" method="POST" action="{{ url_for('conti.elimina_versamento', versamento_id=versamento.id) }}">
                                 <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina versamento">
@@ -360,4 +364,4 @@ document.addEventListener('DOMContentLoaded', function(){
     });
 </script>
 {% endblock %}
-    }
+    

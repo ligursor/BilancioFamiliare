@@ -18,14 +18,14 @@
             <div class="text-end">
                 <label class="form-label mb-1">Azioni</label>
                 <div class="d-flex gap-2">
-            <button id="cancelFormBtn" class="btn btn-outline-secondary" title="Cancella form (reset dati)"><i class="fas fa-eraser"></i></button>
-            <button id="savePlanBtn" class="btn btn-success" title="Salva piano"><i class="fas fa-check"></i></button>
+            <button id="cancelFormBtn" class="btn btn-outline-secondary" style="display: none;" title="Cancella form (reset dati)"><i class="fas fa-eraser"></i></button>
+            <button id="savePlanBtn" class="btn btn-success" style="display: none;" title="Salva piano"><i class="fas fa-check"></i></button>
             
             <!-- Add delivery button (marks next delivery as received) - hidden until a plan is saved -->
-            <button id="addDeliveryBtn" class="btn btn-primary d-none" title="Aggiungi consegna"><i class="fas fa-plus"></i></button>
+            <button id="addDeliveryBtn" class="btn btn-primary" style="display: none;" title="Aggiungi consegna"><i class="fas fa-plus"></i></button>
             <span id="addDeliverySpinner" class="spinner-border spinner-border-sm text-primary ms-2 d-none" role="status" aria-hidden="true"></span>
             <span id="addDeliveryText" class="ms-2 small text-muted d-none"></span>
-            <button id="resetPlanBtn" class="btn btn-outline-danger" title="Elimina piano dal DB"><i class="fas fa-trash-alt"></i></button>
+            <button id="resetPlanBtn" class="btn btn-outline-danger" style="display: none;" title="Elimina piano dal DB"><i class="fas fa-trash-alt"></i></button>
                 </div>
             </div>
         </div>
@@ -231,7 +231,7 @@
         try {
             if (!addDeliveryBtn || !addDeliveryText) return;
             // Only show preview when a plan exists
-            if (!currentPlan) {
+            if (typeof currentPlan === 'undefined' || !currentPlan) {
                 addDeliveryText.classList.add('d-none');
                 addDeliveryBtn.title = 'Aggiungi consegna';
                 return;
@@ -262,6 +262,10 @@
     let currentTotalDrugs = defaultTotalDrugs;
     const savePlanBtn = document.getElementById('savePlanBtn');
         const yearEls = [document.getElementById('calendarYear1'), document.getElementById('calendarYear2')];
+        
+        // Hide all buttons initially - they will be shown by updateButtonStates() after loadPlan()
+        const allButtons = [savePlanBtn, document.getElementById('cancelFormBtn'), document.getElementById('resetPlanBtn'), document.getElementById('addDeliveryBtn')];
+        allButtons.forEach(btn => { if (btn) { btn.style.cssText = 'display: none !important;'; btn.disabled = true; } });
         const containerEls = [document.getElementById('yearContainer0'), document.getElementById('yearContainer1')];
         const displayYearLabel = document.getElementById('displayYearLabel');
         const prevBtn = document.getElementById('prevYearBtn');
@@ -353,45 +357,51 @@
         function updateButtonStates() {
             const hasPlan = !!currentPlan;
             const resetPlanBtn = document.getElementById('resetPlanBtn');
-            
-            // Show only Save when no plan, only Delete when plan exists
             const cancelFormBtn = document.getElementById('cancelFormBtn');
+            
             // Disable therapy start input when a saved plan exists
             try {
                 if (therapyStartEl) therapyStartEl.disabled = hasPlan;
             } catch (e) { }
+            
             if (hasPlan) {
-                // plan saved: show only delete
-                savePlanBtn.classList.add('d-none');
-                resetPlanBtn.classList.remove('d-none');
-                if (cancelFormBtn) cancelFormBtn.classList.add('d-none');
-                // ensure reset button enabled
-                if (resetPlanBtn) resetPlanBtn.disabled = false;
+                // plan saved: hide Save and Cancel, show Delete
+                if (savePlanBtn) {
+                    savePlanBtn.style.cssText = 'display: none !important;';
+                    savePlanBtn.disabled = true;
+                }
+                if (cancelFormBtn) {
+                    cancelFormBtn.style.cssText = 'display: none !important;';
+                    cancelFormBtn.disabled = true;
+                }
+                if (resetPlanBtn) {
+                    resetPlanBtn.style.cssText = '';
+                    resetPlanBtn.disabled = false;
+                }
             } else {
-                // no plan: show only save
-                savePlanBtn.classList.remove('d-none');
-                resetPlanBtn.classList.add('d-none');
-                if (cancelFormBtn) cancelFormBtn.classList.add('d-none');
-                if (savePlanBtn) savePlanBtn.disabled = false;
-            }
-
-            // Always keep style classes consistent
-            if (hasPlan) {
-                savePlanBtn.classList.add('disabled');
-                resetPlanBtn.classList.remove('disabled');
-            } else {
-                savePlanBtn.classList.remove('disabled');
-                resetPlanBtn.classList.add('disabled');
+                // no plan: show Save and Cancel, hide Delete
+                if (savePlanBtn) {
+                    savePlanBtn.style.cssText = '';
+                    savePlanBtn.disabled = false;
+                }
+                if (cancelFormBtn) {
+                    cancelFormBtn.style.cssText = '';
+                    cancelFormBtn.disabled = false;
+                }
+                if (resetPlanBtn) {
+                    resetPlanBtn.style.cssText = 'display: none !important;';
+                    resetPlanBtn.disabled = true;
+                }
             }
 
             // Update add-delivery button state (show only when plan exists)
             try {
                 if (addDeliveryBtn) {
                     if (!hasPlan || !currentPlan.deliveries) {
-                        addDeliveryBtn.classList.add('d-none');
+                        addDeliveryBtn.style.cssText = 'display: none !important;';
                         addDeliveryBtn.disabled = true;
                     } else {
-                        addDeliveryBtn.classList.remove('d-none');
+                        addDeliveryBtn.style.cssText = '';
                         const hasPending = currentPlan.deliveries.some(d => !d.received);
                         addDeliveryBtn.disabled = !hasPending;
                     }
@@ -470,7 +480,8 @@
             localPlannedDeliveries = computePlannedDeliveries(currentTotalDrugs, parseDateInput(therapyStartEl.value)); 
             // Keep local planned deliveries unmarked when no plan exists
             renderDeliveries(localPlannedDeliveries); 
-            currentPlan = null; 
+            currentPlan = null;
+            updateButtonStates();
             refresh(); 
         });
 

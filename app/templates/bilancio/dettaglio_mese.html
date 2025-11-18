@@ -287,7 +287,7 @@ function modificaMonthlyBudget(btn) {
                                         <td class="text-start">{{ b.categoria_nome }}</td>
                                         <td class="text-center align-middle">
                                             <span class="iniziale-val align-middle" data-categoria-id="{{ b.categoria_id }}">
-                                                {{ b.iniziale|format_currency }}
+                                                {{ (b.iniziale | default(0) | abs) | format_currency('{:.2f}') }}
                                             </span>
                                             <div class="btn-group btn-group-sm ms-2" role="group" aria-label="Budget actions">
                                                 <button type="button" class="btn btn-outline-primary btn-sm btn-edit-budget align-middle" data-action="modifica-monthly-budget" data-categoria="{{ b.categoria_id }}" data-iniziale="{{ '%.2f'|format(b.iniziale) }}" title="Modifica importo mensile" aria-label="Modifica budget">
@@ -295,9 +295,9 @@ function modificaMonthlyBudget(btn) {
                                                 </button>
                                             </div>
                                         </td>
-                                        <td class="text-center text-danger align-middle"><span class="spese-effettuate-val align-middle" data-categoria-id="{{ b.categoria_id }}">{{ b.spese_effettuate|format_currency }}</span></td>
-                                        <td class="text-center text-warning align-middle"><span class="spese-pianificate-val align-middle" data-categoria-id="{{ b.categoria_id }}">{{ b.spese_pianificate|format_currency }}</span></td>
-                                        <td class="text-center align-middle {% if b.residuo < 0 %}text-danger{% else %}text-success{% endif %}"><span class="residuo-val align-middle" data-categoria-id="{{ b.categoria_id }}">{{ b.residuo|format_currency }}</span></td>
+                                        <td class="text-center text-danger align-middle"><span class="spese-effettuate-val align-middle" data-categoria-id="{{ b.categoria_id }}">{{ (b.spese_effettuate | default(0) | abs) | format_currency('{:.2f}') }}</span></td>
+                                        <td class="text-center text-warning align-middle"><span class="spese-pianificate-val align-middle" data-categoria-id="{{ b.categoria_id }}">{{ (b.spese_pianificate | default(0) | abs) | format_currency('{:.2f}') }}</span></td>
+                                        <td class="text-center align-middle {% if b.residuo < 0 %}text-danger{% else %}text-success{% endif %}"><span class="residuo-val align-middle" data-categoria-id="{{ b.categoria_id }}">{{ (b.residuo | default(0) | abs) | format_currency('{:.2f}') }}</span></td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -314,6 +314,10 @@ function modificaMonthlyBudget(btn) {
                 <!-- Inline add transaction box (hidden by default) -->
                 <div id="inline-add-transaction" class="mb-3 w-100 d-none">
                     <div class="card w-100">
+                        <div class="card-header d-flex align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Nuova Transazione</h5>
+                            <button type="button" class="btn btn-link p-0 ms-auto" aria-label="Chiudi" onclick="toggleInlineAddTransaction()"><i class="fas fa-times text-white fs-5"></i></button>
+                        </div>
                         <div class="card-body">
                             <form id="inlineAddTransactionForm" class="" autocomplete="off">
                                 <div class="d-flex flex-nowrap align-items-center gap-2 overflow-auto">
@@ -334,9 +338,9 @@ function modificaMonthlyBudget(btn) {
                                             {% endfor %}
                                         </select>
                                     </div>
-                                    <div class="w-100 flex-shrink-0">
+                                    <div class="w-120 flex-shrink-0">
                                         <label class="visually-hidden" for="inline_add_tipo">Tipo</label>
-                                        <select id="inline_add_tipo" name="tipo" class="form-select form-select-sm w-100">
+                                        <select id="inline_add_tipo" name="tipo" class="form-select form-select-sm w-120">
                                             <option value="uscita">Uscita</option>
                                             <option value="entrata">Entrata</option>
                                         </select>
@@ -376,7 +380,7 @@ function modificaMonthlyBudget(btn) {
                                 <th class="text-center">Data</th>
                                 <th class="text-center">Categoria</th>
                                 <th class="text-center align-middle">Tipo</th>
-                                <th class="text-center">Importo</th>
+                                <th class="text-center">Importo (€)</th>
                                 <th class="text-center">Azioni</th>
                             </tr>
                         </thead>
@@ -399,7 +403,7 @@ function modificaMonthlyBudget(btn) {
                                     {% endif %}
                                 </td>
                                 <td class="text-center {% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
-                                    {{ transazione.importo|format_currency }}
+                                    {{ (transazione.importo | default(0) | abs) | format_currency('{:.2f}') }}
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm" role="group">
@@ -450,7 +454,7 @@ function modificaMonthlyBudget(btn) {
                                     <th class="text-center">Data Programmata</th>
                                     <th class="text-center">Categoria</th>
                                     <th class="text-center">Tipo</th>
-                                    <th class="text-center">Importo</th>
+                                    <th class="text-center">Importo (€)</th>
                                     <th class="text-center">Azioni</th>
                                 </tr>
                             </thead>
@@ -472,7 +476,7 @@ function modificaMonthlyBudget(btn) {
                                         {% endif %}
                                     </td>
                                     <td class="text-center {% if transazione.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
-                                        {{ transazione.importo|format_currency }}
+                                        {{ (transazione.importo | default(0) | abs) | format_currency('{:.2f}') }}
                                     </td>
                                     <td class="text-center">
                                         <div class="btn-group btn-group-sm" role="group">

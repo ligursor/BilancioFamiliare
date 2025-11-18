@@ -164,7 +164,7 @@
                             <th class="text-center">Giorno</th>
                             <th class="text-center">Cadenza</th>
                             <th class="text-center">Tipo</th>
-                            <th class="text-center">Importo</th>
+                            <th class="text-center">Importo (€)</th>
                             <th class="text-center">Azioni</th>
                         </tr>
                     </thead>
@@ -195,7 +195,7 @@
                                 </span>
                             </td>
                                 <td class="text-center {% if ricorrente.tipo == 'entrata' %}text-success{% else %}text-danger{% endif %}">
-                                <strong>{{ ricorrente.importo|format_currency }}</strong>
+                                <strong>{{ (ricorrente.importo | default(0) | abs) | format_currency('{:.2f}') }}</strong>
                             </td>
                                 <td class="text-center align-middle">
                                 <div class="btn-group btn-group-sm" role="group">

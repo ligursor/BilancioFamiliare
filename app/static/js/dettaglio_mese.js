@@ -11,7 +11,7 @@
     var dataTd = document.createElement('td'); dataTd.className='text-center'; dataTd.textContent = tx.data ? formatDisplayDate(tx.data) : '';
     var catTd = document.createElement('td'); catTd.className='text-center'; var spanCat = document.createElement('span'); spanCat.className = 'badge ' + (tx.tipo==='entrata' ? 'bg-success' : 'bg-danger'); var catName = tx.categoria_nome || tx.categoria || ''; spanCat.textContent = catName; catTd.appendChild(spanCat);
         var tipoTd = document.createElement('td'); tipoTd.className='text-center'; tipoTd.innerHTML = tx.tipo==='entrata' ? '<span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>' : '<span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>';
-        var importoTd = document.createElement('td'); importoTd.className='text-center ' + (tx.tipo==='entrata' ? 'text-success' : 'text-danger'); importoTd.textContent = (tx.tipo==='entrata' ? '+' : '-') + formatEuro(Number(tx.importo||0));
+    var importoTd = document.createElement('td'); importoTd.className='text-center ' + (tx.tipo==='entrata' ? 'text-success' : 'text-danger'); importoTd.textContent = formatNumber(Number(tx.importo||0), 2);
         var azTd = document.createElement('td'); azTd.className='text-center';
         var btnGroup = document.createElement('div'); btnGroup.className='btn-group btn-group-sm'; btnGroup.setAttribute('role','group');
     var editBtn = document.createElement('button'); editBtn.className='btn btn-outline-primary btn-sm'; editBtn.setAttribute('title','Modifica transazione'); editBtn.setAttribute('data-id', tx.id); editBtn.setAttribute('data-descrizione', JSON.stringify(tx.descrizione||'')); editBtn.setAttribute('data-importo', (tx.importo !== undefined && tx.importo !== null) ? Number(tx.importo).toFixed(2) : '0.00'); editBtn.setAttribute('data-data', JSON.stringify(tx.data||'')); editBtn.setAttribute('data-categoria', tx.categoriaId || tx.categoria_id || tx.categoria || ''); editBtn.setAttribute('data-action','modifica-transazione-attr'); editBtn.innerHTML = '<i class="fas fa-edit" aria-hidden="true"></i>';
@@ -32,7 +32,7 @@
     var dataTd = document.createElement('td'); dataTd.className='text-center'; dataTd.textContent = tx.data ? formatDisplayDate(tx.data) : '';
         var catTd = document.createElement('td'); catTd.className='text-center'; var spanCat = document.createElement('span'); spanCat.className = 'badge ' + (tx.tipo==='entrata' ? 'bg-success' : 'bg-danger'); var catName = tx.categoria_nome || tx.categoria || ''; spanCat.textContent = catName; catTd.appendChild(spanCat);
         var tipoTd = document.createElement('td'); tipoTd.className='text-center'; tipoTd.innerHTML = tx.tipo==='entrata' ? '<span class="text-success"><i class="fas fa-arrow-up"></i> Entrata</span>' : '<span class="text-danger"><i class="fas fa-arrow-down"></i> Uscita</span>';
-        var importoTd = document.createElement('td'); importoTd.className='text-center ' + (tx.tipo==='entrata' ? 'text-success' : 'text-danger'); importoTd.textContent = formatEuro(Number(tx.importo||0));
+    var importoTd = document.createElement('td'); importoTd.className='text-center ' + (tx.tipo==='entrata' ? 'text-success' : 'text-danger'); importoTd.textContent = formatNumber(Number(tx.importo||0), 2);
         var azTd = document.createElement('td'); azTd.className='text-center';
         var btnGroup = document.createElement('div'); btnGroup.className='btn-group btn-group-sm'; btnGroup.setAttribute('role','group');
     var editBtn = document.createElement('button'); editBtn.className='btn btn-outline-primary btn-sm'; editBtn.setAttribute('title','Modifica transazione'); editBtn.setAttribute('data-id', tx.id); editBtn.setAttribute('data-descrizione', JSON.stringify(tx.descrizione||'')); editBtn.setAttribute('data-importo', (tx.importo !== undefined && tx.importo !== null) ? Number(tx.importo).toFixed(2) : '0.00'); editBtn.setAttribute('data-data', JSON.stringify(tx.data||'')); editBtn.setAttribute('data-categoria', tx.categoriaId || tx.categoria_id || tx.categoria || ''); editBtn.setAttribute('data-action','modifica-transazione-attr'); editBtn.innerHTML = '<i class="fas fa-edit" aria-hidden="true"></i>';
@@ -50,10 +50,10 @@
         try{
             (items || []).forEach(function(b){
                 var id = b.categoria_id;
-                var el = document.querySelector('.spese-effettuate-val[data-categoria-id="'+id+'"]'); if (el) el.textContent = formatEuro(b.spese_effettuate);
-                el = document.querySelector('.spese-pianificate-val[data-categoria-id="'+id+'"]'); if (el) el.textContent = formatEuro(b.spese_pianificate);
-                el = document.querySelector('.iniziale-val[data-categoria-id="'+id+'"]'); if (el) el.textContent = formatEuro(b.iniziale);
-                el = document.querySelector('.residuo-val[data-categoria-id="'+id+'"]'); if (el) { el.textContent = formatEuro(b.residuo); if (Number(b.residuo) < 0) { el.classList.remove('text-success'); el.classList.add('text-danger'); } else { el.classList.remove('text-danger'); el.classList.add('text-success'); } }
+                var el = document.querySelector('.spese-effettuate-val[data-categoria-id="'+id+'"]'); if (el) el.textContent = formatNumber(Math.abs(Number(b.spese_effettuate || 0)), 2);
+                el = document.querySelector('.spese-pianificate-val[data-categoria-id="'+id+'"]'); if (el) el.textContent = formatNumber(Math.abs(Number(b.spese_pianificate || 0)), 2);
+                el = document.querySelector('.iniziale-val[data-categoria-id="'+id+'"]'); if (el) el.textContent = formatNumber(Math.abs(Number(b.iniziale || 0)), 2);
+                el = document.querySelector('.residuo-val[data-categoria-id="'+id+'"]'); if (el) { el.textContent = formatNumber(Math.abs(Number(b.residuo || 0)), 2); if (Number(b.residuo) < 0) { el.classList.remove('text-success'); el.classList.add('text-danger'); } else { el.classList.remove('text-danger'); el.classList.add('text-success'); } }
             });
         } catch(e){ console && console.error && console.error('updateBudgetItems error', e); }
     }
@@ -134,7 +134,7 @@
                                 if (sectionsDiv) {
                                     var newSection = document.createElement('div');
                                     newSection.className = 'mt-3';
-                                    newSection.innerHTML = '<h5 class="mb-3"><i class="fas fa-clock text-warning me-2"></i>Transazioni in Attesa</h5><div class="table-responsive"><table class="table table-striped table-sm det-mese-table"><thead><tr><th class="text-center">Descrizione</th><th class="text-center">Data Programmata</th><th class="text-center">Categoria</th><th class="text-center">Tipo</th><th class="text-center">Importo</th><th class="text-center">Azioni</th></tr></thead><tbody></tbody></table></div>';
+                                    newSection.innerHTML = '<h5 class="mb-3"><i class="fas fa-clock text-warning me-2"></i>Transazioni in Attesa</h5><div class="table-responsive"><table class="table table-striped table-sm det-mese-table"><thead><tr><th class="text-center">Descrizione</th><th class="text-center">Data Programmata</th><th class="text-center">Categoria</th><th class="text-center">Tipo</th><th class="text-center">Importo (€)</th><th class="text-center">Azioni</th></tr></thead><tbody></tbody></table></div>';
                                     sectionsDiv.appendChild(newSection);
                                     var tbody = newSection.querySelector('tbody');
                                     if (tbody) tbody.appendChild(createPendingTransactionRow(json.transazione, cfg));

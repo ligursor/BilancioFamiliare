@@ -12,7 +12,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h5 class="card-title">Piani Totali</h5>
-                        <h3>{{ totale_piani }}</h3>
+                        <h3 class="mb-0">{{ totale_piani }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-list fa-2x"></i>
@@ -27,7 +27,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h5 class="card-title">Piani Attivi</h5>
-                        <h3>{{ piani_attivi }}</h3>
+                        <h3 class="mb-0">{{ piani_attivi }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-play fa-2x"></i>
@@ -42,7 +42,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h5 class="card-title">Importo Rimanente</h5>
-                        <h3>{{ importo_rimanente_totale|format_currency }}</h3>
+                        <h3 class="mb-0">{{ importo_rimanente_totale|format_currency }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-euro-sign fa-2x"></i>
@@ -57,7 +57,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h5 class="card-title">Rate Non Pagate</h5>
-                        <h3>{{ rate_non_pagate_totali }}</h3>
+                        <h3 class="mb-0">{{ rate_non_pagate_totali }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-clock fa-2x"></i>
@@ -126,9 +126,9 @@
                 <thead>
                     <tr>
                         <th class="text-center">Descrizione</th>
-                        <th class="text-center">Importo Totale</th>
-                        <th class="text-center">Importo Rata</th>
-                        <th class="text-center">Importo Residuo</th>
+                        <th class="text-center">Importo Totale (€)</th>
+                        <th class="text-center">Importo Rata (€)</th>
+                        <th class="text-center">Importo Residuo (€)</th>
                         <th class="text-center">Rate Pagate</th>
                         <th class="text-center">Prossima Scadenza</th>
                         
@@ -144,9 +144,9 @@
                             <br><small class="text-muted">{{ piano.note[:50] }}{% if piano.note|length > 50 %}...{% endif %}
 </small>                                                                                                                                                {% endif %}
                         </td>
-                        <td class="text-center">{{ piano.importo_totale|format_currency }}</td>
-                        <td class="text-center">{{ piano.importo_rata|format_currency }}</td>
-                        <td class="text-center">{{ (piano.importo_rimanente or 0.0)|format_currency }}</td>
+                        <td class="text-center">{{ (piano.importo_totale | default(0) | abs) | format_currency('{:.2f}') }}</td>
+                        <td class="text-center">{{ (piano.importo_rata | default(0) | abs) | format_currency('{:.2f}') }}</td>
+                        <td class="text-center">{{ (piano.importo_rimanente or 0.0) | abs | format_currency('{:.2f}') }}</td>
                         <td class="text-center">
                             {% set pagate = (piano.rate|selectattr('stato', 'equalto', 'pagata')|list) if piano.rate else [] %}
                             {% set tot = (piano.rate|length) if piano.rate else 0 %}
@@ -208,8 +208,8 @@ aria-label="Modifica piano"                                                     
                 <thead>
                     <tr>
                         <th class="text-center">Descrizione</th>
-                        <th class="text-center">Importo Totale</th>
-                        <th class="text-center">Importo Rata</th>
+                        <th class="text-center">Importo Totale (€)</th>
+                        <th class="text-center">Importo Rata (€)</th>
                         <th class="text-center">Prima Rata</th>
                         <th class="text-center">Azioni</th>
                     </tr>
@@ -220,8 +220,8 @@ aria-label="Modifica piano"                                                     
                         <td class="text-start">
                             {{ piano.descrizione }}
                         </td>
-                        <td class="text-center">{{ piano.importo_totale|format_currency }}</td>
-                        <td class="text-center">{{ piano.importo_rata|format_currency }}</td>
+                        <td class="text-center">{{ (piano.importo_totale | default(0) | abs) | format_currency('{:.2f}') }}</td>
+                        <td class="text-center">{{ (piano.importo_rata | default(0) | abs) | format_currency('{:.2f}') }}</td>
                         <td class="text-center">{{ piano.data_prima_rata.strftime('%d/%m/%Y') }}</td>
                         
                         <td class="text-center">

@@ -180,7 +180,7 @@
 								<tr>
 									<th class="text-center">Anno</th>
 									<th class="text-center">Data Pagamento</th>
-									<th class="text-center">Importo</th>
+									<th class="text-center">Importo (€)</th>
 									<th class="text-center">Azioni</th>
 								</tr>
 							</thead>
@@ -189,7 +189,7 @@
 								<tr>
 									<td class="text-center">{{ bollo.anno_riferimento }}</td>
 									<td class="text-center">{{ bollo.data_pagamento.strftime('%d/%m/%Y') }}</td>
-									<td class="text-center">{{ (bollo.importo or 0) | format_currency }}</td>
+									<td class="text-center">{{ (bollo.importo or 0) | abs | format_currency('{:.2f}') }}</td>
 									<td class="text-center">
 										<form method="POST" action="{{ url_for('veicoli.elimina_bollo', bollo_id=bollo.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo bollo?">
 											<input type="hidden" name="redirect_to_veicolo" value="1">
@@ -199,9 +199,9 @@
 											</button>
 										</form>
 									</td>
-								</tr>
-								{% endfor %}
-							</tbody>
+								<tr>
+									<td class="text-center">{{ manutenzione.km_intervento | format_number }}</td>
+									<td class="text-center">{{ (manutenzione.costo or 0) | abs | format_currency('{:.2f}') }}</td>
 						</table>
 					</div>
 					{% else %}
@@ -227,7 +227,7 @@
 									<th class="text-center">Tipo</th>
 									<th class="text-center">Data</th>
 									<th class="text-center">KM</th>
-									<th class="text-center">Costo</th>
+									<th class="text-center">Costo (€)</th>
 									<th class="text-center">Azioni</th>
 								</tr>
 							</thead>
@@ -241,7 +241,7 @@
 									</td>
 									<td class="text-center">{{ manutenzione.data_intervento.strftime('%d/%m/%Y') }}</td>
 									<td class="text-center">{{ manutenzione.km_intervento | format_number }}</td>
-									<td class="text-center">{{ (manutenzione.costo or 0) | format_currency }}</td>
+									<td class="text-center">{{ (manutenzione.costo or 0) | abs | format_currency('{:.2f}') }}</td>
 									<td class="text-center">
 										<form method="POST" action="{{ url_for('veicoli.elimina_manutenzione', manutenzione_id=manutenzione.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa manutenzione?">
 											<input type="hidden" name="redirect_to_veicolo" value="1">

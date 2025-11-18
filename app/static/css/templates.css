@@ -115,7 +115,7 @@
 /* Ensure icons inside buttons don't introduce extra height */
 .btn i, .nav-link i { line-height: 1; }
 
-/* Card header action area: align to center vertically */
+  /* Card header action area: align to center vertically */
 .card .card-header { display: flex; align-items: center; justify-content: space-between; }
 .card .card-header .btn { margin: 0; }
 
