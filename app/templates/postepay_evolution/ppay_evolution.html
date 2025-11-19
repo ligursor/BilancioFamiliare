@@ -354,20 +354,20 @@
             <form method="POST" action="{{ url_for('ppay.aggiungi_abbonamento') }}">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="nome" class="form-label">Nome</label>
-                        <input type="text" class="form-control" id="nome" name="nome" required>
+                        <label for="nome" class="visually-hidden">Nome</label>
+                        <input type="text" class="form-control" id="nome" name="nome" placeholder="Nome" required aria-label="Nome">
                     </div>
                     <div class="mb-3">
-                        <label for="descrizione" class="form-label">Descrizione</label>
-                        <input type="text" class="form-control" id="descrizione" name="descrizione">
+                        <label for="descrizione" class="visually-hidden">Descrizione</label>
+                        <input type="text" class="form-control" id="descrizione" name="descrizione" placeholder="Descrizione" aria-label="Descrizione">
                     </div>
                     <div class="mb-3">
-                        <label for="importo" class="form-label">Importo (€)</label>
-                        <input type="number" step="0.01" class="form-control" id="importo" name="importo" required>
+                        <label for="importo" class="visually-hidden">Importo (€)</label>
+                        <input type="number" step="0.01" class="form-control" id="importo" name="importo" placeholder="0.00" required aria-label="Importo">
                     </div>
                     <div class="mb-3">
-                        <label for="giorno_addebito" class="form-label">Giorno Addebito</label>
-                        <input type="number" min="1" max="31" class="form-control" id="giorno_addebito" name="giorno_addebito" required>
+                        <label for="giorno_addebito" class="visually-hidden">Giorno Addebito</label>
+                        <input type="number" min="1" max="31" class="form-control" id="giorno_addebito" name="giorno_addebito" placeholder="Giorno" required aria-label="Giorno addebito">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -390,20 +390,20 @@
             <form method="POST" id="formModificaAbbonamento">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="mod_nome" class="form-label">Nome</label>
-                        <input type="text" class="form-control" id="mod_nome" name="nome" required>
+                        <label for="mod_nome" class="visually-hidden">Nome</label>
+                        <input type="text" class="form-control" id="mod_nome" name="nome" placeholder="Nome" required aria-label="Nome">
                     </div>
                     <div class="mb-3">
-                        <label for="mod_descrizione" class="form-label">Descrizione</label>
-                        <input type="text" class="form-control" id="mod_descrizione" name="descrizione">
+                        <label for="mod_descrizione" class="visually-hidden">Descrizione</label>
+                        <input type="text" class="form-control" id="mod_descrizione" name="descrizione" placeholder="Descrizione" aria-label="Descrizione">
                     </div>
                     <div class="mb-3">
-                        <label for="mod_importo" class="form-label">Importo (€)</label>
-                        <input type="number" step="0.01" class="form-control" id="mod_importo" name="importo" required>
+                        <label for="mod_importo" class="visually-hidden">Importo (€)</label>
+                        <input type="number" step="0.01" class="form-control" id="mod_importo" name="importo" placeholder="0.00" required aria-label="Importo">
                     </div>
                     <div class="mb-3">
-                        <label for="mod_giorno_addebito" class="form-label">Giorno Addebito</label>
-                        <input type="number" min="1" max="31" class="form-control" id="mod_giorno_addebito" name="giorno_addebito" required>
+                        <label for="mod_giorno_addebito" class="visually-hidden">Giorno Addebito</label>
+                        <input type="number" min="1" max="31" class="form-control" id="mod_giorno_addebito" name="giorno_addebito" placeholder="Giorno" required aria-label="Giorno addebito">
                     </div>
                 </div>
                 <div class="modal-footer">

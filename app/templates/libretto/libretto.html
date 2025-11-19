@@ -220,33 +220,33 @@
             <form class="form-nuovo-deposito" method="POST" action="{{ url_for('libretto.aggiungi_deposito') }}">
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label for="descrizione_new" class="form-label">Descrizione</label>
-                        <input type="text" class="form-control" name="descrizione" 
+                        <label for="descrizione_new" class="visually-hidden">Descrizione</label>
+                        <input id="descrizione_new" type="text" class="form-control" name="descrizione" 
                                placeholder="Es: Deposito Gennaio 2025" required>
                     </div>
                     <div class="col-md-3">
-                        <label for="data_attivazione_new" class="form-label">Data Attivazione</label>
-                        <input type="date" class="form-control" name="data_attivazione" required>
+                        <label for="data_attivazione_new" class="visually-hidden">Data Attivazione</label>
+                        <input id="data_attivazione_new" type="date" class="form-control" name="data_attivazione" required>
                     </div>
                     <div class="col-md-3">
-                        <label for="data_scadenza_new" class="form-label">Data Scadenza</label>
-                        <input type="date" class="form-control" name="data_scadenza" required>
+                        <label for="data_scadenza_new" class="visually-hidden">Data Scadenza</label>
+                        <input id="data_scadenza_new" type="date" class="form-control" name="data_scadenza" required>
                     </div>
                 </div>
                 <div class="row mb-3">
                     <div class="col-md-4">
-                        <label for="tasso_new" class="form-label">Tasso (%)</label>
-                        <input type="number" step="0.01" class="form-control" name="tasso" 
+                        <label for="tasso_new" class="visually-hidden">Tasso (%)</label>
+                        <input id="tasso_new" type="number" step="0.01" class="form-control" name="tasso" 
                                placeholder="Es: 2.50" required>
                     </div>
                     <div class="col-md-4">
-                        <label for="deposito_new" class="form-label">Deposito (€)</label>
-                        <input type="number" step="0.01" class="form-control" name="deposito" 
+                        <label for="deposito_new" class="visually-hidden">Deposito (€)</label>
+                        <input id="deposito_new" type="number" step="0.01" class="form-control" name="deposito" 
                                placeholder="Es: 5000.00" required>
                     </div>
                     <div class="col-md-4">
-                        <label for="netto_new" class="form-label">Netto Atteso (€)</label>
-                        <input type="number" step="0.01" class="form-control" name="netto" 
+                        <label for="netto_new" class="visually-hidden">Netto Atteso (€)</label>
+                        <input id="netto_new" type="number" step="0.01" class="form-control" name="netto" 
                                placeholder="Es: 125.00" required>
                     </div>
                 </div>
