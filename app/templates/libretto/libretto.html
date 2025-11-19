@@ -58,9 +58,9 @@
                             <div class="d-flex justify-content-between">
                                 <div>
                                     <h5 class="card-title">Saldo Disponibile</h5>
-                                    <h3 class="mb-0">{{ (libretto.saldo_disponibile | default(0.0)) | format_currency('{:.2f}') }}</h3>
+                                    <h3 class="mb-0">{{ (libretto.saldo_disponibile | default(0.0)) | format_currency }}</h3>
                                     {# hidden numeric-only saldo used by JS (no €) #}
-                                    <span id="saldo_libretto_val" class="d-none">{{ (libretto.saldo_disponibile | default(0.0)) | format_currency('{:.2f}') }}</span>
+                                    <span id="saldo_libretto_val" class="d-none">{{ (libretto.saldo_disponibile | default(0.0)) | format_currency }}</span>
                                 </div>
                                 <div class="align-self-center">
                                     <i class="fas fa-euro-sign fa-2x"></i>
