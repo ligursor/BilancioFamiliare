@@ -63,7 +63,7 @@
                                     <span id="saldo_libretto_val" class="d-none">{{ (libretto.saldo_disponibile | default(0.0)) | format_currency('{:.2f}') }}</span>
                                 </div>
                                 <div class="align-self-center">
-                                    <i class="fas fa-wallet fa-2x"></i>
+                                    <i class="fas fa-euro-sign fa-2x"></i>
                                 </div>
                             </div>
                         </div>
@@ -92,7 +92,7 @@
                     <div class="card border-primary">
                         <div class="card-body">
                             <h6 class="card-title text-primary">Totale Depositato Attivo</h6>
-                            <h4 class="text-center">{{ (statistiche.totale_depositato_attivo | default(0.0)) | format_currency('{:.2f}') }}</h4>
+                            <h4 class="text-center"><i class="fas fa-euro-sign me-1"></i>{{ (statistiche.totale_depositato_attivo | default(0.0)) | format_currency('{:.2f}') }}</h4>
                         </div>
                     </div>
                 </div>
@@ -100,7 +100,7 @@
                     <div class="card border-success">
                         <div class="card-body">
                             <h6 class="card-title text-success">Netto Atteso</h6>
-                            <h4 class="text-center">{{ (statistiche.totale_netto_attivo | default(0.0)) | format_currency('{:.2f}') }}</h4>
+                            <h4 class="text-center"><i class="fas fa-euro-sign me-1"></i>{{ (statistiche.totale_netto_attivo | default(0.0)) | format_currency('{:.2f}') }}</h4>
                         </div>
                     </div>
                 </div>
@@ -108,7 +108,7 @@
                     <div class="card border-info">
                         <div class="card-body">
                             <h6 class="card-title text-info">Totale a Scadenza</h6>
-                            <h4 class="text-center">{{ (statistiche.totale_a_scadenza_attivo | default(0.0)) | format_currency('{:.2f}') }}</h4>
+                            <h4 class="text-center"><i class="fas fa-euro-sign me-1"></i>{{ (statistiche.totale_a_scadenza_attivo | default(0.0)) | format_currency('{:.2f}') }}</h4>
                         </div>
                     </div>
                 </div>
