@@ -220,9 +220,9 @@
             <form class="form-nuovo-deposito" method="POST" action="{{ url_for('libretto.aggiungi_deposito') }}">
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label for="descrizione_new" class="visually-hidden">Descrizione</label>
-                        <input id="descrizione_new" type="text" class="form-control" name="descrizione" 
-                               placeholder="Es: Deposito Gennaio 2025" required>
+               <label for="descrizione_new" class="visually-hidden">Descrizione</label>
+               <input id="descrizione_new" type="text" class="form-control" name="descrizione" 
+                   placeholder="Descrizione" required>
                     </div>
                     <div class="col-md-3">
                         <label for="data_attivazione_new" class="visually-hidden">Data Attivazione</label>
@@ -235,19 +235,19 @@
                 </div>
                 <div class="row mb-3">
                     <div class="col-md-4">
-                        <label for="tasso_new" class="visually-hidden">Tasso (%)</label>
-                        <input id="tasso_new" type="number" step="0.01" class="form-control" name="tasso" 
-                               placeholder="Es: 2.50" required>
+               <label for="tasso_new" class="visually-hidden">Tasso (%)</label>
+               <input id="tasso_new" type="number" step="0.01" class="form-control" name="tasso" 
+                   placeholder="Tasso (%)" required>
                     </div>
                     <div class="col-md-4">
-                        <label for="deposito_new" class="visually-hidden">Deposito (€)</label>
-                        <input id="deposito_new" type="number" step="0.01" class="form-control" name="deposito" 
-                               placeholder="Es: 5000.00" required>
+               <label for="deposito_new" class="visually-hidden">Deposito (€)</label>
+               <input id="deposito_new" type="number" step="0.01" class="form-control" name="deposito" 
+                   placeholder="Importo (€)" required>
                     </div>
                     <div class="col-md-4">
-                        <label for="netto_new" class="visually-hidden">Netto Atteso (€)</label>
-                        <input id="netto_new" type="number" step="0.01" class="form-control" name="netto" 
-                               placeholder="Es: 125.00" required>
+               <label for="netto_new" class="visually-hidden">Netto Atteso (€)</label>
+               <input id="netto_new" type="number" step="0.01" class="form-control" name="netto" 
+                   placeholder="Netto (€)" required>
                     </div>
                 </div>
                 <div class="row">
@@ -281,7 +281,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="saldo_disponibile_input" class="form-label">Inserisci il Saldo Reale (€)</label>
-                        <input type="number" step="0.01" class="form-control" id="saldo_disponibile_input" name="saldo_disponibile" required placeholder="0.00">
+                        <input type="number" step="0.01" class="form-control" id="saldo_disponibile_input" name="saldo_disponibile" required placeholder="Importo (€)">
                         <div class="form-text">
                             Il saldo del libretto verrà aggiornato con il valore inserito.
                         </div>

@@ -265,9 +265,9 @@
         <div class="card-body">
             <form class="form-nuovo-movimento" method="POST" action="{{ url_for('ppay.aggiungi_movimento') }}">
                 <div class="row g-2 align-items-center">
-                    <div class="col-auto min-w-120"><input type="date" class="form-control form-control-sm" name="data" required></div>
+                    <div class="col-auto min-w-120"><input type="date" class="form-control form-control-sm" name="data" placeholder="Data" required></div>
                     <div class="col"><input type="text" class="form-control form-control-sm" name="descrizione" placeholder="Descrizione" required></div>
-                    <div class="col-auto min-w-110"><input type="number" step="0.01" class="form-control form-control-sm text-end" name="importo" required></div>
+                    <div class="col-auto min-w-110"><input type="number" step="0.01" class="form-control form-control-sm text-end" name="importo" placeholder="Importo (€)" required></div>
                     <div class="col-auto min-w-120">
                         <select class="form-control form-control-sm" name="tipo" required>
                             <option value="entrata">Entrata (+)</option>
@@ -297,8 +297,8 @@
                 <div class="row g-2 align-items-center">
                     <div class="col-auto min-w-140"><input type="text" class="form-control form-control-sm" name="nome" placeholder="Nome" required></div>
                     <div class="col"><input type="text" class="form-control form-control-sm" name="descrizione" placeholder="Descrizione"></div>
-                    <div class="col-auto min-w-110"><input type="number" step="0.01" class="form-control form-control-sm text-end" name="importo" required></div>
-                    <div class="col-auto min-w-110"><input type="number" min="1" max="31" class="form-control form-control-sm" name="giorno_addebito" required></div>
+                    <div class="col-auto min-w-110"><input type="number" step="0.01" class="form-control form-control-sm text-end" name="importo" placeholder="Importo (€)" required></div>
+                    <div class="col-auto min-w-110"><input type="number" min="1" max="31" class="form-control form-control-sm" name="giorno_addebito" placeholder="Giorno" required></div>
                     <div class="col-auto"><button type="submit" id="btn-salva-abbonamento" class="btn btn-primary btn-sm">Salva</button></div>
                 </div>
             </form>
@@ -363,7 +363,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="importo" class="visually-hidden">Importo (€)</label>
-                        <input type="number" step="0.01" class="form-control" id="importo" name="importo" placeholder="0.00" required aria-label="Importo">
+                        <input type="number" step="0.01" class="form-control" id="importo" name="importo" placeholder="Importo (€)" required aria-label="Importo">
                     </div>
                     <div class="mb-3">
                         <label for="giorno_addebito" class="visually-hidden">Giorno Addebito</label>
@@ -399,7 +399,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="mod_importo" class="visually-hidden">Importo (€)</label>
-                        <input type="number" step="0.01" class="form-control" id="mod_importo" name="importo" placeholder="0.00" required aria-label="Importo">
+                        <input type="number" step="0.01" class="form-control" id="mod_importo" name="importo" placeholder="Importo (€)" required aria-label="Importo">
                     </div>
                     <div class="mb-3">
                         <label for="mod_giorno_addebito" class="visually-hidden">Giorno Addebito</label>
