@@ -311,6 +311,56 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gestione inserimento nuovo deposito con template
     const btnNuovoDeposito = document.getElementById('btn-nuovo-deposito');
     const inlineDepositoContainer = document.getElementById('inline-deposito-container');
+
+    // Inline deposit form container and new button
+
+    // Register delegated click handler globally so it works even if user doesn't open 'Nuovo Deposito' first
+    document.addEventListener('click', function(e){
+        var btn = e.target && e.target.closest && e.target.closest('.btn-edit-deposito');
+        if (!btn) return;
+        e.preventDefault();
+
+        // Rimuovi eventuale card inline di tipo diverso
+        var existingCard = document.querySelector('.inline-inserted');
+        if (existingCard && (!existingCard.dataset || existingCard.dataset.type !== 'deposito')) {
+            try { existingCard.remove(); } catch(e){}
+        }
+
+        // Trova o inserisci la card nel container (non facciamo affidamento su id perché viene rimosso)
+        var card = inlineDepositoContainer && (inlineDepositoContainer.querySelector('.card.inline-inserted') || inlineDepositoContainer.querySelector('.card'));
+        if (!card) {
+            var tmpl = document.getElementById('tmpl-nuovo-deposito');
+            if (!tmpl || !inlineDepositoContainer) return;
+            inlineDepositoContainer.insertBefore(tmpl.content.cloneNode(true), inlineDepositoContainer.firstChild);
+            card = inlineDepositoContainer.querySelector('.card');
+            if (card) {
+                card.querySelectorAll && card.querySelectorAll('[id]').forEach(function(el){ el.removeAttribute('id'); });
+                card.classList.add('inline-inserted');
+                try { card.dataset.type = 'deposito'; } catch(e){}
+            }
+        }
+
+        var form = card && card.querySelector('form');
+        if (!form) return;
+
+        // Popola i campi dal data-attributes del bottone (usiamo dataset con fallback a getAttribute per sicurezza)
+        var depositoId = btn.dataset.depositoId || btn.getAttribute('data-deposito-id') || '';
+        form.action = '/libretto/modifica_deposito/' + depositoId;
+
+        var descr = form.querySelector('[name="descrizione"]'); if (descr) descr.value = btn.dataset.descrizione || btn.getAttribute('data-descrizione') || '';
+        var dataAtt = form.querySelector('[name="data_attivazione"]'); if (dataAtt) dataAtt.value = btn.dataset.dataAttivazione || btn.getAttribute('data-data-attivazione') || '';
+        var dataScad = form.querySelector('[name="data_scadenza"]'); if (dataScad) dataScad.value = btn.dataset.dataScadenza || btn.getAttribute('data-data-scadenza') || '';
+        var tasso = form.querySelector('[name="tasso"]'); if (tasso) tasso.value = btn.dataset.tasso || btn.getAttribute('data-tasso') || '';
+        var depositoField = form.querySelector('[name="deposito"]'); if (depositoField) depositoField.value = btn.dataset.deposito || btn.getAttribute('data-deposito') || '';
+        var nettoField = form.querySelector('[name="netto"]'); if (nettoField) nettoField.value = btn.dataset.netto || btn.getAttribute('data-netto') || '';
+
+        // Aggiorna intestazione e bottone submit per modalità modifica
+        try { var hdr = card.querySelector('.card-header h5'); if (hdr) hdr.innerHTML = '<i class="fas fa-edit me-2"></i>Modifica Deposito'; } catch(e){}
+        var submit = form.querySelector('button[type="submit"]'); if (submit) submit.textContent = 'Salva Modifiche';
+
+    // Focus sul primo campo
+    try { form.querySelector('input,select,textarea').focus(); } catch(e){}
+    });
     
     if (btnNuovoDeposito && inlineDepositoContainer) {
         btnNuovoDeposito.addEventListener('click', function() {
@@ -366,6 +416,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 }
             }
+
+            // Delegated handler removed from here (now registered globally)
         });
     }
     
