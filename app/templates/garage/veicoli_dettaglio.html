@@ -199,9 +199,9 @@
 											</button>
 										</form>
 									</td>
-								<tr>
-									<td class="text-center">{{ manutenzione.km_intervento | format_number }}</td>
-									<td class="text-center">{{ (manutenzione.costo or 0) | abs | format_currency('{:.2f}') }}</td>
+								</tr>
+								{% endfor %}
+							</tbody>
 						</table>
 					</div>
 					{% else %}
