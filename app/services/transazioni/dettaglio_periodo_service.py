@@ -361,7 +361,24 @@ class DettaglioPeriodoService:
             pass
         
         # Crea un nome per il periodo
-        nome_periodo = f"{start_date.strftime('%d/%m')} - {end_date.strftime('%d/%m/%Y')}"
+        # Se il periodo corrisponde a un mese finanziario completo, usa il nome del mese
+        # altrimenti usa il formato data
+        try:
+            mesi_italiani = [
+                '', 'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+                'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
+            ]
+            # Verifica se start_date e end_date corrispondono ai confini di un mese finanziario
+            test_start, test_end = get_month_boundaries(end_date)
+            if start_date == test_start and end_date == test_end:
+                # È un mese completo, usa il nome del mese
+                nome_periodo = f"{mesi_italiani[end_date.month]} {end_date.year}"
+            else:
+                # È un periodo personalizzato, usa il formato data
+                nome_periodo = f"{start_date.strftime('%d/%m')} - {end_date.strftime('%d/%m/%Y')}"
+        except Exception:
+            # Fallback al formato data in caso di errore
+            nome_periodo = f"{start_date.strftime('%d/%m')} - {end_date.strftime('%d/%m/%Y')}"
         
         # Determina se il mese è futuro (inizia dopo oggi)
         oggi = datetime.now().date()
