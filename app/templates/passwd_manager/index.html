@@ -999,24 +999,85 @@
         }
 
         function copyToClipboard(text, label) {
-            try {
-                navigator.clipboard.writeText(text).then(() => {
-                    const message = `${label || 'Testo'} copiato negli appunti`;
-                    const feedback = document.getElementById('copyFeedback');
-                    if (feedback) {
-                        document.getElementById('copyMessage').textContent = message;
-                        feedback.classList.remove('d-none');
-                        setTimeout(() => feedback.classList.add('d-none'), 1500);
+            // Funzione helper per mostrare il messaggio di successo
+            const showSuccessMessage = () => {
+                const message = `${label || 'Testo'} copiato negli appunti`;
+                
+                // Mostra solo il feedback visivo
+                const feedback = document.getElementById('copyFeedback');
+                if (feedback) {
+                    document.getElementById('copyMessage').textContent = message;
+                    feedback.classList.remove('d-none');
+                    feedback.classList.add('show');
+                    setTimeout(() => {
+                        feedback.classList.remove('show');
+                        setTimeout(() => feedback.classList.add('d-none'), 300);
+                    }, 2000);
+                }
+            };
+
+            // Fallback method using temporary input element
+            const fallbackCopy = () => {
+                const tempInput = document.createElement('textarea');
+                tempInput.value = text;
+                tempInput.style.position = 'fixed';
+                tempInput.style.left = '-9999px';
+                tempInput.style.top = '0';
+                document.body.appendChild(tempInput);
+                tempInput.focus();
+                tempInput.select();
+                
+                try {
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(tempInput);
+                    
+                    if (successful) {
+                        showSuccessMessage();
+                        return true;
                     } else {
-                        try { if (typeof showToast === 'function') showToast(message, 'info'); else alert(message); } catch(e) { alert(message); }
+                        console.error('Fallback copy failed');
+                        return false;
                     }
-                }).catch(function(e){
-                    console.error('copyToClipboard failed', e);
-                    try { if (typeof showToast === 'function') showToast(text, 'info'); else alert(text); } catch(er) { alert(text); }
-                });
-            } catch (e) {
-                console.error('copyToClipboard failed', e);
-                try { if (typeof showToast === 'function') showToast(text, 'info'); else alert(text); } catch(er) { alert(text); }
+                } catch (err) {
+                    console.error('Fallback copy error:', err);
+                    document.body.removeChild(tempInput);
+                    return false;
+                }
+            };
+
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text)
+                    .then(() => {
+                        showSuccessMessage();
+                    })
+                    .catch((e) => {
+                        console.error('Clipboard API failed, trying fallback:', e);
+                        // Try fallback method
+                        if (!fallbackCopy()) {
+                            // Only show error message if both methods fail
+                            try { 
+                                if (typeof showToast === 'function') 
+                                    showToast('Impossibile copiare negli appunti. Prova a copiare manualmente.', 'warning'); 
+                                else 
+                                    alert('Impossibile copiare negli appunti. Il testo è: ' + text); 
+                            } catch(er) { 
+                                alert('Impossibile copiare negli appunti. Il testo è: ' + text); 
+                            }
+                        }
+                    });
+            } else {
+                // Browser doesn't support modern clipboard API, use fallback directly
+                if (!fallbackCopy()) {
+                    try { 
+                        if (typeof showToast === 'function') 
+                            showToast('Impossibile copiare negli appunti. Prova a copiare manualmente.', 'warning'); 
+                        else 
+                            alert('Impossibile copiare negli appunti. Il testo è: ' + text); 
+                    } catch(er) { 
+                        alert('Impossibile copiare negli appunti. Il testo è: ' + text); 
+                    }
+                }
             }
         }
 
