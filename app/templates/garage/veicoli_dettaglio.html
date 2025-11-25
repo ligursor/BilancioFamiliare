@@ -164,10 +164,10 @@
 	<!-- Azioni rapide non mostrate: il pulsante Rimuovi è presente nell'header sopra -->
 
 	<!-- Storico operazioni -->
-	<div class="row">
-		{%- if veicolo.tipo != 'bici' %}
-		<!-- Bolli -->
-		<div class="col-md-6">
+	{%- if veicolo.tipo != 'bici' %}
+	<!-- Bolli -->
+	<div class="row mb-4">
+		<div class="col-12">
 			<div class="card">
 				<div class="card-header">
 					<h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Bolli Pagati</h5>
@@ -175,11 +175,11 @@
 				<div class="card-body">
 					{% if bolli %}
 					<div class="table-responsive">
-							<table class="table table-striped table-sm det-mese-table">
+						<table id="table-bolli-dettaglio" class="table table-striped table-sm det-mese-table" data-page-size="3" tabindex="-1">
 							<thead>
 								<tr>
+									<th class="text-center">Data</th>
 									<th class="text-center">Anno</th>
-									<th class="text-center">Data Pagamento</th>
 									<th class="text-center">Importo (€)</th>
 									<th class="text-center">Azioni</th>
 								</tr>
@@ -187,8 +187,8 @@
 							<tbody>
 								{% for bollo in bolli %}
 								<tr>
-									<td class="text-center">{{ bollo.anno_riferimento }}</td>
 									<td class="text-center">{{ bollo.data_pagamento.strftime('%d/%m/%Y') }}</td>
+									<td class="text-center">{{ bollo.anno_riferimento }}</td>
 									<td class="text-center">{{ (bollo.importo or 0) | abs | format_currency('{:.2f}') }}</td>
 									<td class="text-center">
 										<form method="POST" action="{{ url_for('veicoli.elimina_bollo', bollo_id=bollo.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questo bollo?">
@@ -204,16 +204,69 @@
 							</tbody>
 						</table>
 					</div>
+					<nav id="pagination-bolli-dettaglio" class="mt-2 d-flex justify-content-center" aria-label="Paginazione bolli"></nav>
 					{% else %}
 					<p class="text-muted text-center">Nessun bollo registrato</p>
 					{% endif %}
 				</div>
 			</div>
 		</div>
-		{%- endif %}
+	</div>
+	{%- endif %}
 
-		<!-- Manutenzioni -->
-		<div class="{% if veicolo.tipo != 'bici' %}col-md-6{% else %}col-md-12{% endif %}">
+	<!-- Assicurazioni -->
+	{%- if veicolo.tipo != 'bici' %}
+	<div class="row mb-4">
+		<div class="col-12">
+			<div class="card">
+				<div class="card-header">
+					<h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Assicurazioni</h5>
+				</div>
+				<div class="card-body">
+					{% if assicurazioni %}
+					<div class="table-responsive">
+						<table id="table-assicurazioni-dettaglio" class="table table-striped table-sm det-mese-table" data-page-size="3" tabindex="-1">
+							<thead>
+								<tr>
+									<th class="text-center">Data</th>
+									<th class="text-center">Compagnia</th>
+									<th class="text-center">Importo (€)</th>
+									<th class="text-center">Azioni</th>
+								</tr>
+							</thead>
+							<tbody>
+								{% for assicurazione in assicurazioni %}
+								<tr>
+									<td class="text-center">{{ assicurazione.data_pagamento.strftime('%d/%m/%Y') }}</td>
+									<td class="text-center">{{ assicurazione.compagnia }}</td>
+									<td class="text-center">{{ (assicurazione.importo or 0) | abs | format_currency('{:.2f}') }}</td>
+									<td class="text-center">
+										<form method="POST" action="{{ url_for('veicoli.elimina_assicurazione', assicurazione_id=assicurazione.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa assicurazione?">
+											<input type="hidden" name="redirect_to_veicolo" value="1">
+											<button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina assicurazione" aria-label="Elimina assicurazione">
+												<i class="fas fa-trash" aria-hidden="true"></i>
+												<span class="visually-hidden">Elimina assicurazione</span>
+											</button>
+										</form>
+									</td>
+								</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+					<nav id="pagination-assicurazioni-dettaglio" class="mt-2 d-flex justify-content-center" aria-label="Paginazione assicurazioni"></nav>
+					{% else %}
+					<p class="text-muted text-center">Nessuna assicurazione registrata</p>
+					{% endif %}
+				</div>
+			</div>
+		</div>
+	</div>
+	{%- endif %}
+
+	<!-- Manutenzioni -->
+	<div class="row mb-4">
+		<div class="col-12">
 			<div class="card">
 				<div class="card-header">
 					<h5 class="mb-0"><i class="fas fa-wrench me-2"></i>Manutenzioni</h5>
@@ -221,12 +274,14 @@
 				<div class="card-body">
 					{% if manutenzioni %}
 					<div class="table-responsive">
-							<table class="table table-striped table-sm det-mese-table">
+						<table id="table-manutenzioni-dettaglio" class="table table-striped table-sm det-mese-table" data-page-size="3" tabindex="-1">
 							<thead>
 								<tr>
 									<th class="text-center">Tipo</th>
 									<th class="text-center">Data</th>
 									<th class="text-center">KM</th>
+									<th class="text-center">Officina</th>
+									<th class="text-center">Dettaglio</th>
 									<th class="text-center">Costo (€)</th>
 									<th class="text-center">Azioni</th>
 								</tr>
@@ -234,14 +289,20 @@
 							<tbody>
 								{% for manutenzione in manutenzioni %}
 								<tr>
-									<td class="text-start">
-										<span data-bs-toggle="tooltip" title="{{ manutenzione.dettaglio if manutenzione.dettaglio else '' }}">
-											{{ manutenzione.tipo_intervento }}
-										</span>
-									</td>
-									<td class="text-center">{{ manutenzione.data_intervento.strftime('%d/%m/%Y') }}</td>
-									<td class="text-center">{{ manutenzione.km_intervento | format_number }}</td>
-									<td class="text-center">{{ (manutenzione.costo or 0) | abs | format_currency('{:.2f}') }}</td>
+							<td class="text-center">{{ manutenzione.tipo_intervento }}</td>
+							<td class="text-center">{{ manutenzione.data_intervento.strftime('%d/%m/%Y') }}</td>
+							<td class="text-center">{{ manutenzione.km_intervento | format_number }}</td>
+							<td class="text-center">{{ manutenzione.officina if manutenzione.officina else '-' }}</td>
+							<td class="text-center">
+								{% if manutenzione.descrizione %}
+								<button class="btn btn-outline-info btn-sm" onclick="showDettaglioManutenzione('{{ manutenzione.descrizione | replace('\'', '\\\'') | replace('\n', '\\n') }}')" title="Mostra dettaglio">
+									<i class="fas fa-info-circle"></i>
+								</button>
+								{% else %}
+								-
+								{% endif %}
+							</td>
+							<td class="text-center">{{ (manutenzione.costo or 0) | abs | format_currency('{:.2f}') }}</td>
 									<td class="text-center">
 										<form method="POST" action="{{ url_for('veicoli.elimina_manutenzione', manutenzione_id=manutenzione.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa manutenzione?">
 											<input type="hidden" name="redirect_to_veicolo" value="1">
@@ -256,6 +317,7 @@
 							</tbody>
 						</table>
 					</div>
+					<nav id="pagination-manutenzioni-dettaglio" class="mt-2 d-flex justify-content-center" aria-label="Paginazione manutenzioni"></nav>
 					{% else %}
 					<p class="text-muted text-center">Nessuna manutenzione registrata</p>
 					{% endif %}
@@ -264,6 +326,69 @@
 		</div>
 	</div>
 </div>
+
+<script>
+// Funzione per mostrare il dettaglio manutenzione - DEFINITA PRIMA DELL'USO
+function showDettaglioManutenzione(descrizione) {
+	if (!descrizione) return;
+	
+	try {
+		var modalEl = document.getElementById('globalMessageModal');
+		var titleEl = document.getElementById('globalMessageTitle');
+		var headerEl = document.getElementById('globalMessageHeader');
+		var bodyEl = document.getElementById('globalMessageBody');
+		
+		if (!modalEl || !titleEl || !bodyEl || !headerEl) {
+			console.error('Modal globale non trovato');
+			alert(descrizione);
+			return;
+		}
+		
+		// Configura il modal
+		headerEl.className = 'modal-header bg-info text-white';
+		titleEl.textContent = 'Dettaglio Manutenzione';
+		
+		// Escape HTML e formatta il testo
+		var escaped = String(descrizione)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#039;')
+			.replace(/\n/g, '<br>');
+		
+		bodyEl.innerHTML = '<div class="d-flex align-items-start"><i class="fas fa-info-circle fa-2x me-3 text-info" aria-hidden="true"></i><div style="white-space: pre-wrap; word-wrap: break-word; max-height: 400px; overflow-y: auto;">' + escaped + '</div></div>';
+		
+		// Mostra il modal
+		if (window.bootstrap && window.bootstrap.Modal) {
+			var bsModal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+			bsModal.show();
+		} else if (typeof Modal !== 'undefined') {
+			var bsModal = new Modal(modalEl, { backdrop: 'static' });
+			bsModal.show();
+		} else {
+			console.error('Bootstrap Modal non disponibile');
+			alert(descrizione);
+		}
+	} catch (e) {
+		console.error('Errore showDettaglioManutenzione:', e);
+		alert(descrizione);
+	}
+}
+
+// Inizializza la paginazione client-side per le tabelle
+document.addEventListener('DOMContentLoaded', function() {
+	try {
+		if (typeof initClientPagination === 'function') {
+			initClientPagination('table-bolli-dettaglio', 'pagination-bolli-dettaglio');
+			initClientPagination('table-assicurazioni-dettaglio', 'pagination-assicurazioni-dettaglio');
+			initClientPagination('table-manutenzioni-dettaglio', 'pagination-manutenzioni-dettaglio');
+		}
+	} catch(e) {
+		console.error('Errore inizializzazione paginazione:', e);
+	}
+});
+</script>
 
 <!-- Modal modifica non utilizzato in questa vista -->
 
@@ -364,7 +489,6 @@
 	</div>
 </div>
 
-{% endblock %}
 
 <script>
 // Support inline insertion on dettaglio veicolo page if buttons use data-action="open-inline-*"
@@ -427,4 +551,9 @@ document.addEventListener('click', function(evt){
 		}
 	} catch(e) {}
 }, false);
+
+
 </script>
+
+
+{% endblock %}

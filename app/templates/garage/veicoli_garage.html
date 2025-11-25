@@ -298,8 +298,11 @@
                                     <tr>
                                         <th class="text-center">Veicolo</th>
                                         <th class="text-center">Data</th>
-                                        <th class="text-center">Dettaglio</th>
-                                        <th class="text-center">Importo (€)</th>
+                                        <th class="text-center">Tipo Intervento</th>
+                                        <th class="text-center">Descrizione</th>
+                                        <th class="text-center">Costo (€)</th>
+                                        <th class="text-center">KM</th>
+                                        <th class="text-center">Officina</th>
                                         <th class="text-center">Azioni</th>
                                     </tr>
                                 </thead>
@@ -308,8 +311,19 @@
                                     <tr>
                                         <td class="text-start">{{ manutenzione.veicolo.nome_completo }}</td>
                                         <td class="text-center">{{ manutenzione.data_intervento.strftime('%d/%m/%Y') }}</td>
-                                        <td class="text-start">{{ manutenzione.tipo_intervento }}<br><small class="text-muted">{{ manutenzione.officina }} - KM {{ manutenzione.km_intervento | format_number }}</small></td>
+                                        <td class="text-center">{{ manutenzione.tipo_intervento }}</td>
+                                        <td class="text-center">
+                                            {% if manutenzione.descrizione %}
+                                            <button class="btn btn-outline-info btn-sm" onclick="showDettaglioManutenzione('{{ manutenzione.descrizione | replace('\'', '\\\'') | replace('\n', '\\n') }}')"	title="Mostra dettaglio">
+                                                <i class="fas fa-info-circle"></i>
+                                            </button>
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
                                         <td class="text-center">{{ (manutenzione.costo | default(0) | abs) | format_currency('{:.2f}') }}</td>
+                                        <td class="text-center">{{ manutenzione.km_intervento | format_number }}</td>
+                                        <td class="text-center">{{ manutenzione.officina if manutenzione.officina else '-' }}</td>
                                         <td class="text-center">
                                             <form method="POST" action="{{ url_for('veicoli.elimina_manutenzione', manutenzione_id=manutenzione.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa manutenzione?">
                                                 <button type="submit" class="btn btn-outline-danger btn-sm" title="Elimina manutenzione" aria-label="Elimina manutenzione">
@@ -785,6 +799,54 @@ function calcolaRataMensile(context){
 
 {% block scripts %}
 <script>
+// Funzione per mostrare il dettaglio manutenzione
+function showDettaglioManutenzione(descrizione) {
+	if (!descrizione) return;
+	
+	try {
+		var modalEl = document.getElementById('globalMessageModal');
+		var titleEl = document.getElementById('globalMessageTitle');
+		var headerEl = document.getElementById('globalMessageHeader');
+		var bodyEl = document.getElementById('globalMessageBody');
+		
+		if (!modalEl || !titleEl || !bodyEl || !headerEl) {
+			console.error('Modal globale non trovato');
+			alert(descrizione);
+			return;
+		}
+		
+		// Configura il modal
+		headerEl.className = 'modal-header bg-info text-white';
+		titleEl.textContent = 'Dettaglio Manutenzione';
+		
+		// Escape HTML e formatta il testo
+		var escaped = String(descrizione)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#039;')
+			.replace(/\n/g, '<br>');
+		
+		bodyEl.innerHTML = '<div class="d-flex align-items-start"><i class="fas fa-info-circle fa-2x me-3 text-info" aria-hidden="true"></i><div style="white-space: pre-wrap; word-wrap: break-word; max-height: 400px; overflow-y: auto;">' + escaped + '</div></div>';
+		
+		// Mostra il modal
+		if (window.bootstrap && window.bootstrap.Modal) {
+			var bsModal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+			bsModal.show();
+		} else if (typeof Modal !== 'undefined') {
+			var bsModal = new Modal(modalEl, { backdrop: 'static' });
+			bsModal.show();
+		} else {
+			console.error('Bootstrap Modal non disponibile');
+			alert(descrizione);
+		}
+	} catch (e) {
+		console.error('Errore showDettaglioManutenzione:', e);
+		alert(descrizione);
+	}
+}
+
 // Reusable client-side pagination for tables similar to PostePay Evolution
 function initClientPagination(tableId, paginationId) {
     var table = document.getElementById(tableId);

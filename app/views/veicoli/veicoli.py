@@ -256,18 +256,22 @@ def dettaglio(veicolo_id):
             veicolo = VehicleProxySingle(row)
 
         bolli = AutoBolli.query.filter_by(veicolo_id=veicolo_id).order_by(AutoBolli.anno_riferimento.desc()).all()
+        assicurazioni = Assicurazioni.query.filter_by(veicolo_id=veicolo_id).order_by(Assicurazioni.anno_riferimento.desc()).all()
         manutenzioni = AutoManutenzioni.query.filter_by(veicolo_id=veicolo_id).order_by(AutoManutenzioni.data_intervento.desc()).all()
 
         totale_bolli = sum(b.importo for b in bolli) if bolli else 0
+        totale_assicurazioni = sum(a.importo for a in assicurazioni) if assicurazioni else 0
         totale_manutenzioni = sum(m.costo for m in manutenzioni)
-        costo_totale = (veicolo.costo_finanziamento or 0) + totale_bolli + totale_manutenzioni
+        costo_totale = (veicolo.costo_finanziamento or 0) + totale_bolli + totale_assicurazioni + totale_manutenzioni
 
         current_app.logger.debug('Rendering dettaglio veicolo id=%s nome=%s', veicolo_id, getattr(veicolo, 'nome_completo', None))
         return render_template('garage/veicoli_dettaglio.html',
                     veicolo=veicolo,
                     bolli=bolli,
+                    assicurazioni=assicurazioni,
                     manutenzioni=manutenzioni,
                     totale_bolli=totale_bolli,
+                    totale_assicurazioni=totale_assicurazioni,
                     totale_manutenzioni=totale_manutenzioni,
                     costo_totale=costo_totale)
     except Exception as e:
