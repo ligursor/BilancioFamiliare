@@ -446,8 +446,40 @@ def aggiungi_transazione_periodo(start_date, end_date):
 			# best-effort: leave id_periodo None on failure
 			pass
 
-		db.session.add(transazioni)
-		db.session.commit()
+
+		# If category indicates PPay recharge (id 10): uscita dal conto principale = entrata su PostePay
+		try:
+			# Add transaction to session and commit it so it has an id
+			db.session.add(transazioni)
+			db.session.commit()
+
+			if categoria_id == 10:
+				# Use the PostePayEvolution service so the instrument balance is updated
+				# Transazione uscita dal conto principale = ricarica (entrata) su PostePay Evolution
+				try:
+					from app.services.ppay_evolution.ppay_evolution_service import PostePayEvolutionService
+					from flask import current_app
+
+					ppay_svc = PostePayEvolutionService()
+					current_app.logger.info(f"Creazione movimento PPay per transazione {transazioni.id}, importo {importo}")
+					# create_movimento con tipo_movimento='entrata' incrementa saldo dello Strumento
+					movimento = ppay_svc.create_movimento(
+						data=data_obj,
+						importo=importo,
+						tipo='Ricarica',
+						descrizione='Ricarica PPay Evolution',
+						abbonamento_id=None,
+						tipo_movimento='entrata'
+					)
+					current_app.logger.info(f"Movimento PPay creato: {movimento.id if movimento else 'None'}")
+				except Exception as e:
+					current_app.logger.error(f"Errore creazione movimento PPay: {str(e)}")
+					# Non bloccare l'intera operazione ma loggare
+					raise
+		except Exception as ex:
+			db.session.rollback()
+			current_app.logger.error(f"Errore aggiunta transazione: {str(ex)}")
+			raise
 
 		# update summaries
 		try:
@@ -851,8 +883,28 @@ def correggi_saldo(start_date, end_date):
 		except Exception:
 			pass
 
-		db.session.add(transazione)
-		db.session.commit()
+
+		# Add the transaction and, if applicable, the PostePay movement in the same DB transaction
+		try:
+			db.session.add(transazione)
+			db.session.commit()
+			if getattr(transazione, 'categoria_id', None) == 10:
+				# Transazione categoria 10: uscita dal conto principale = entrata su PostePay Evolution
+				from app.services.ppay_evolution.ppay_evolution_service import PostePayEvolutionService
+
+				ppay_svc = PostePayEvolutionService()
+				# create_movimento con tipo_movimento='entrata' incrementa saldo dello Strumento
+				ppay_svc.create_movimento(
+					data=data_transazione,
+					importo=importo,
+					tipo='Ricarica',
+					descrizione='Ricarica PPay Evolution',
+					abbonamento_id=None,
+					tipo_movimento='entrata'
+				)
+		except Exception:
+			db.session.rollback()
+			raise
 
 		# If this is an expense correction, decrement the monthly budget for the category
 		# and update persisted monthly summary so Saldo Attuale reflects the change immediately.

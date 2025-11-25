@@ -169,7 +169,7 @@ class PostePayEvolutionService(BaseService):
         ).first()
     
     def create_movimento(self, data, importo, tipo, descrizione=None, 
-                        abbonamento_id=None, categoria_id=None, tipo_movimento=None):
+                        abbonamento_id=None, tipo_movimento=None):
         """Crea un nuovo movimento PostePay.
         importo: sempre positivo
         tipo_movimento: 'entrata' o 'uscita'
@@ -180,8 +180,7 @@ class PostePayEvolutionService(BaseService):
             tipo=tipo,
             tipo_movimento=tipo_movimento or ('entrata' if importo >= 0 else 'uscita'),
             descrizione=descrizione,
-            abbonamento_id=abbonamento_id,
-            categoria_id=categoria_id
+            abbonamento_id=abbonamento_id
         )
         db.session.add(movimento)
         # Persistiamo il movimento e aggiorniamo lo Strumento (source of truth)

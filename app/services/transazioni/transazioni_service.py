@@ -131,13 +131,52 @@ class TransazioneService(BaseService):
                 tx_ricorrente=tx_ricorrente,
                 id_periodo=id_periodo_val,
             )
-            
-            success, message = self.save(transazioni)
-            
+
+            try:
+                # Aggiungi la transazione alla sessione
+                db.session.add(transazioni)
+
+                # If categoria_id == 10 (Ricarica PPay Ev): questa è un'uscita dal conto principale
+                # che corrisponde a un'entrata (ricarica) su PostePay Evolution.
+                # Commit the transazione first so it has a proper primary key.
+                if categoria_id == 10:
+                    db.session.commit()
+                    current_app.logger.info(f"Transazione cat 10 creata con id {transazioni.id}, importo {importo}")
+
+                    try:
+                        # Usa il servizio dedicato per creare il movimento in modo che venga
+                        # aggiornato anche lo Strumento (saldo) correttamente.
+                        from app.services.ppay_evolution.ppay_evolution_service import PostePayEvolutionService
+
+                        ppay_svc = PostePayEvolutionService()
+                        # create_movimento con tipo_movimento='entrata' incrementa il saldo dello Strumento
+                        movimento = ppay_svc.create_movimento(
+                            data=data,
+                            importo=importo,
+                            tipo='Ricarica',
+                            descrizione='Ricarica PPay Evolution',
+                            abbonamento_id=None,
+                            tipo_movimento='entrata'
+                        )
+                        current_app.logger.info(f"Movimento PostePay creato con id {movimento.id if movimento else 'None'}")
+                    except Exception as e:
+                        current_app.logger.error(f"Errore creazione movimento PostePay: {str(e)}")
+                        # Non blocchiamo la transazione principale, ma registriamo l'errore
+                        raise
+                else:
+                    # No PostePay movement: commit the transazione normally
+                    db.session.commit()
+                success, message = True, "Operazione completata con successo"
+
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.error(f"Errore creazione transazione: {str(e)}")
+                return False, str(e), None
+
             if success and tx_ricorrente and frequenza_giorni > 0:
                 # Crea istanze future per transazioni ricorrenti
                 self._create_recurring_instances(transazioni, frequenza_giorni)
-            
+
             return success, message, transazioni
             
         except Exception as e:
