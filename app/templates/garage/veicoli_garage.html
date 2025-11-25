@@ -261,7 +261,7 @@
                                     <tr>
                                         <td class="text-start">{{ assicurazione.veicolo.nome_completo }}</td>
                                         <td class="text-center">{{ assicurazione.data_pagamento.strftime('%d/%m/%Y') }}</td>
-                                        <td class="text-start">{{ assicurazione.compagnia }}</td>
+                                        <td class="text-center">{{ assicurazione.compagnia }}</td>
                                         <td class="text-center">{{ (assicurazione.importo | default(0) | abs) | format_currency('{:.2f}') }}</td>
                                         <td class="text-center">
                                             <form method="POST" action="{{ url_for('veicoli.elimina_assicurazione', assicurazione_id=assicurazione.id) }}" class="d-inline" data-action="confirm-delete" data-message="Sei sicuro di voler eliminare questa assicurazione?">
