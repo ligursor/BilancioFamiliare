@@ -60,6 +60,7 @@ def create_app(config_name='default'):
             'dettaglio_periodo.index': {'name': 'Dettaglio Mese', 'icon': 'fas fa-calendar-alt'},
             'dettaglio_periodo.mese': {'name': 'Dettaglio Mese', 'icon': 'fas fa-calendar-alt'},
             'dettaglio_periodo.dettaglio': {'name': 'Dettaglio Periodo', 'icon': 'fas fa-calendar-alt'},
+            'dettaglio_periodo.dettaglio_periodo': {'name': 'Dettaglio Mese', 'icon': 'fas fa-calendar-alt'},
             'categorie.lista': {'name': 'Categorie', 'icon': 'fas fa-tags'},
             'ricorrenti.lista': {'name': 'Ricorrenti', 'icon': 'fas fa-sync-alt'},
             'paypal.dashboard': {'name': 'PayPal', 'icon': 'fab fa-paypal'},
@@ -238,6 +239,9 @@ def create_app(config_name='default'):
             # Allow health endpoints or probes if present
             if path.startswith('/_health') or path.startswith('/health'):
                 return
+            # For AJAX requests, return JSON error instead of redirect
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'status': 'error', 'message': 'Non autenticato', 'redirect': url_for('passwd.login')}), 401
             # Otherwise redirect to passwd login
             return redirect(url_for('passwd.login'))
         except Exception:

@@ -563,6 +563,23 @@ def elimina_movimento(movimento_id):
         movimento = MovimentoPostePay.query.get_or_404(movimento_id)
         from flask import current_app
         current_app.logger.info(f"elimina_movimento called for id={movimento_id} -> movimento={movimento}")
+        
+        # Se il movimento è di tipo Ricarica, cerca e cancella la transazione corrispondente
+        if movimento.tipo == 'Ricarica':
+            try:
+                from app.models.Transazioni import Transazioni
+                # Cerca transazione con categoria_id=10, stessa data e stesso importo
+                tx_correlata = Transazioni.query.filter(
+                    Transazioni.categoria_id == 10,
+                    Transazioni.data == movimento.data,
+                    Transazioni.importo == movimento.importo
+                ).first()
+                if tx_correlata:
+                    current_app.logger.info(f"Trovata transazione correlata id={tx_correlata.id}, la elimino")
+                    db.session.delete(tx_correlata)
+            except Exception as e:
+                current_app.logger.error(f"Errore ricerca/cancellazione transazione correlata: {e}")
+        
         # Calculate signed value to subtract from balance
         signed_value = -abs(movimento.importo) if movimento.tipo_movimento == 'uscita' else abs(movimento.importo)
 
@@ -592,80 +609,8 @@ def elimina_movimento(movimento_id):
         except Exception:
             pass
     
-    # Return rendered template for fetch-based updates (no redirect)
-    # Recupera dati aggiornati come fa evolution()
-    try:
-        inizializza_postepay()
-        ss = StrumentiService()
-        strum = ss.get_by_descrizione('Postepay Evolution')
-        if strum is not None:
-            postepay = SimpleNamespace(saldo_attuale=(strum.saldo_corrente or 0.0))
-        else:
-            postepay = SimpleNamespace(saldo_attuale=0.0)
-        abbonamenti = AbbonamentoPostePay.query.order_by(AbbonamentoPostePay.nome).all()
-        movimenti = MovimentoPostePay.query.order_by(MovimentoPostePay.data.desc()).limit(10).all()
-        
-        abbonamenti_attivi = [a for a in abbonamenti if a.attivo]
-        spesa_mensile = sum(a.importo for a in abbonamenti_attivi)
-        
-        # Calcola prossimi addebiti con saldo sufficiente
-        oggi = date.today()
-        prossimi_addebiti = []
-        for abbonamento in abbonamenti_attivi:
-            prossimo = abbonamento.prossimo_addebito
-            if (prossimo - oggi).days <= 30:
-                prossimi_addebiti.append({
-                    'abbonamento': abbonamento,
-                    'data': prossimo,
-                    'giorni': (prossimo - oggi).days
-                })
-        prossimi_addebiti.sort(key=lambda x: x['data'])
-        
-        # Calcola saldo sufficiente per ogni addebito (progressivo)
-        saldo_simulato = postepay.saldo_attuale if postepay else 0
-        for addebito in prossimi_addebiti:
-            if saldo_simulato >= addebito['abbonamento'].importo:
-                addebito['saldo_sufficiente'] = True
-                saldo_simulato -= addebito['abbonamento'].importo
-            else:
-                addebito['saldo_sufficiente'] = False
-        
-        # Calcola addebiti problematici (per alert)
-        saldo_alert = postepay.saldo_attuale if postepay else 0
-        addebiti_problematici = []
-        for addebito in prossimi_addebiti:
-            if saldo_alert < addebito['abbonamento'].importo:
-                addebiti_problematici.append({
-                    'abbonamento': addebito['abbonamento'],
-                    'data': addebito['data'],
-                    'giorni': addebito['giorni'],
-                    'importo_mancante': addebito['abbonamento'].importo - saldo_alert
-                })
-            saldo_alert -= addebito['abbonamento'].importo
-        
-        # Serializza abbonamenti per JavaScript
-        import json
-        abbonamenti_serializzati = json.dumps([{
-            'id': a.id,
-            'nome': a.nome,
-            'importo': float(a.importo),
-            'giorno_addebito': a.giorno_addebito,
-            'attivo': a.attivo
-        } for a in abbonamenti])
-        
-        return render_template('postepay_evolution/ppay_evolution.html',
-                             postepay=postepay,
-                             abbonamenti=abbonamenti,
-                             abbonamenti_json=abbonamenti_serializzati,
-                             movimenti=movimenti,
-                             spesa_mensile=spesa_mensile,
-                             prossimi_addebiti=prossimi_addebiti,
-                             addebiti_problematici=addebiti_problematici)
-    except Exception as e:
-        from flask import current_app
-        current_app.logger.exception(f"Errore nel rendering dopo eliminazione: {e}")
-        # Fallback to redirect if rendering fails
-        return redirect(url_for('ppay.evolution', skip_auto=1))
+    # Redirect back to PostePay Evolution page (not Dashboard)
+    return redirect(url_for('ppay.evolution'))
 
 @ppay_bp.route('/modifica_saldo', methods=['POST'])
 def modifica_saldo():

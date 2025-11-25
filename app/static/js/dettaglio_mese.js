@@ -265,7 +265,20 @@
                 confirmFn(msg).then(function(ok){
                     if (!ok) return;
                     var action = form.getAttribute('action') || form.action;
-                        postForm(action, null).then(function(json){ if (!json || json.status !== 'ok') throw new Error('Errore cancellazione'); if (json.summary) applySummary(json.summary); var row = form.closest('tr'); if (row) row.parentNode.removeChild(row); }).catch(function(err){ console.error('Errore cancellazione transazione', err); showToast('Errore durante la cancellazione. Riprova.','danger'); });
+                        postForm(action, null).then(function(json){ 
+                            // Handle authentication errors
+                            if (json.status === 'error' && json.redirect) {
+                                window.location.href = json.redirect;
+                                return;
+                            }
+                            if (!json || json.status !== 'ok') throw new Error(json.message || 'Errore cancellazione'); 
+                            if (json.summary) applySummary(json.summary); 
+                            var row = form.closest('tr'); 
+                            if (row) row.parentNode.removeChild(row); 
+                        }).catch(function(err){ 
+                            console.error('Errore cancellazione transazione', err); 
+                            showToast('Errore durante la cancellazione. Riprova.','danger'); 
+                        });
                 }).catch(function(){ /* ignore */ });
             }
         });

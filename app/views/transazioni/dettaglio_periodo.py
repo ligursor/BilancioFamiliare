@@ -277,10 +277,51 @@ def dettaglio_periodo(start_date, end_date):
 @dettaglio_periodo_bp.route('/<start_date>/<end_date>/elimina_transazione/<int:id>', methods=['POST'])
 def elimina_transazione_periodo(start_date, end_date, id):
 	"""Elimina la transazioni indicata e ritorna al dettaglio del periodo."""
+	is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+	success = False
+	
 	try:
 		tx = Transazioni.query.get_or_404(id)
+		
+		# Se la transazione è categoria 10 (Ricarica PPay), cerca e cancella il movimento correlato
+		if tx.categoria_id == 10:
+			try:
+				from app.models.PostePayEvolution import MovimentoPostePay
+				from app.services.conti_finanziari.strumenti_service import StrumentiService
+				from flask import current_app
+				
+				# Cerca movimento correlato con stessa data e importo, tipo Ricarica
+				mov_correlato = MovimentoPostePay.query.filter(
+					MovimentoPostePay.tipo == 'Ricarica',
+					MovimentoPostePay.data == tx.data,
+					MovimentoPostePay.importo == tx.importo
+				).first()
+				
+				if mov_correlato:
+					current_app.logger.info(f"Trovato movimento PostePay correlato id={mov_correlato.id}, lo elimino")
+					# Calcola l'effetto del movimento sul saldo (da invertire)
+					signed_value = -abs(mov_correlato.importo) if mov_correlato.tipo_movimento == 'uscita' else abs(mov_correlato.importo)
+					
+					db.session.delete(mov_correlato)
+					
+					# Aggiorna saldo dello Strumento PostePay invertendo l'effetto
+					try:
+						ss = StrumentiService()
+						strum = ss.get_by_descrizione('Postepay Evolution')
+						if strum:
+							new_bal = (strum.saldo_corrente or 0.0) - signed_value
+							ss.update_saldo_by_id(strum.id_conto, new_bal)
+							current_app.logger.info(f"Saldo PostePay aggiornato: {new_bal}")
+					except Exception as e:
+						current_app.logger.error(f"Errore aggiornamento saldo PostePay: {e}")
+			except Exception as e:
+				from flask import current_app
+				current_app.logger.error(f"Errore ricerca/cancellazione movimento PostePay correlato: {e}")
+		
 		db.session.delete(tx)
 		db.session.commit()
+		success = True
+		
 		# Recompute monthly summaries starting from the month of the deleted transaction
 		try:
 			if getattr(tx, 'data', None):
@@ -289,17 +330,26 @@ def elimina_transazione_periodo(start_date, end_date, id):
 				_recompute_summaries_from()
 		except Exception:
 			pass
-		flash('Transazioni eliminata con successo', 'success')
+		
+		if not is_ajax:
+			flash('Transazioni eliminata con successo', 'success')
 	except Exception as e:
 		try:
 			db.session.rollback()
 		except Exception:
 			pass
-		flash(f'Errore durante l\'eliminazione della transazioni: {str(e)}', 'error')
+		if not is_ajax:
+			flash(f'Errore durante l\'eliminazione della transazioni: {str(e)}', 'error')
+		elif is_ajax:
+			# Return error JSON for AJAX
+			return jsonify({'status': 'error', 'message': str(e)}), 400
 
 	# If this was an AJAX request, return updated totals so the client can
 	# update the summary boxes without reloading the page.
-	if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+	if is_ajax:
+		if not success:
+			return jsonify({'status': 'error', 'message': 'Errore durante l\'eliminazione'}), 400
+			
 		try:
 			from datetime import datetime as _dt
 			start_dt = _dt.strptime(start_date, '%Y-%m-%d').date()
@@ -361,7 +411,7 @@ def elimina_transazione_periodo(start_date, end_date, id):
 					'saldo_iniziale_mese': float(summary.get('saldo_iniziale_mese') or 0.0),
 					'saldo_attuale_mese': float(summary.get('saldo_attuale_mese') or 0.0),
 					'saldo_finale_mese': float(summary.get('saldo_finale_mese') or 0.0),
-					'saldo_previsto_fine_mese': float(ms_row.saldo_finale if ms_row.saldo_finale is not None else (ms_row.saldo_iniziale + ((ms_row.entrate or 0.0) - (ms_row.uscite or 0.0)))),
+					'saldo_previsto_fine_mese': float(summary.get('saldo_previsto_fine_mese') or 0.0),
 					'budget_items': summary.get('budget_items') or [],
 					'stats_categorie': stats_serial
 				}
@@ -375,8 +425,9 @@ def elimina_transazione_periodo(start_date, end_date, id):
 				except Exception:
 					out['saldo_finale_plus_residui'] = float(out.get('saldo_finale_mese') or 0.0)
 			return jsonify({'status': 'ok', 'summary': out})
-		except Exception:
-			return jsonify({'status': 'error'}), 500
+		except Exception as ex:
+			return jsonify({'status': 'error', 'message': str(ex)}), 500
+	
 	# non-AJAX fallback
 	return redirect(url_for('dettaglio_periodo.dettaglio_periodo', start_date=start_date, end_date=end_date))
 
