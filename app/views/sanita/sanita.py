@@ -211,6 +211,96 @@ def confirm_delivery(did):
         return jsonify({'error': 'internal'}), 500
 
 
+@sanita_bp.route('/api/delivery/click-date', methods=['POST'])
+def click_delivery_date():
+    """Handle calendar date click for delivery management.
+    - If date has no scheduled delivery: find a delivery without scheduled_delivery_date and assign it
+    - If date has scheduled delivery not confirmed: ask to confirm or cancel
+    Expected JSON: { date: 'YYYY-MM-DD', action: 'schedule'|'confirm'|'cancel' }
+    """
+    data = request.get_json() or {}
+    date_str = data.get('date')
+    action = data.get('action', 'schedule')  # default: schedule
+    
+    try:
+        if not date_str:
+            return jsonify({'error': 'missing_date'}), 400
+        
+        plan = TerapiaPlan.query.first()
+        if not plan:
+            return jsonify({'error': 'no_plan'}), 404
+        
+        # Parse the date
+        parts = date_str.split('-')
+        clicked_date = date(int(parts[0]), int(parts[1]), int(parts[2]))
+        
+        # Check if any delivery is already scheduled for this date
+        existing = TerapiaDelivery.query.filter_by(
+            plan_id=plan.id, 
+            scheduled_delivery_date=clicked_date
+        ).first()
+        
+        if action == 'schedule':
+            # Schedule a new delivery for this date
+            if existing:
+                return jsonify({'error': 'already_scheduled', 'message': 'Questa data ha già una consegna programmata.'}), 400
+            
+            # Find first delivery without a scheduled date
+            available = TerapiaDelivery.query.filter_by(
+                plan_id=plan.id, 
+                scheduled_delivery_date=None
+            ).order_by(TerapiaDelivery.delivery_number).first()
+            
+            if not available:
+                return jsonify({'error': 'no_available', 'message': 'Non ci sono consegne disponibili da programmare.'}), 400
+            
+            available.scheduled_delivery_date = clicked_date
+            db.session.add(available)
+            db.session.commit()
+            
+            plan = TerapiaPlan.query.get(plan.id)
+            return jsonify({'plan': plan.to_dict(), 'message': f'Consegna #{available.delivery_number} programmata per {date_str}'})
+        
+        elif action == 'confirm':
+            # Confirm the delivery
+            if not existing:
+                return jsonify({'error': 'not_found', 'message': 'Nessuna consegna programmata per questa data.'}), 404
+            
+            if existing.delivery_confirmed:
+                return jsonify({'error': 'already_confirmed', 'message': 'Questa consegna è già stata confermata.'}), 400
+            
+            existing.delivery_confirmed = True
+            existing.received = True
+            db.session.add(existing)
+            db.session.commit()
+            
+            plan = TerapiaPlan.query.get(plan.id)
+            return jsonify({'plan': plan.to_dict(), 'message': 'Consegna confermata'})
+        
+        elif action == 'cancel':
+            # Cancel the scheduled delivery (set date to NULL)
+            if not existing:
+                return jsonify({'error': 'not_found', 'message': 'Nessuna consegna programmata per questa data.'}), 404
+            
+            if existing.delivery_confirmed:
+                return jsonify({'error': 'already_confirmed', 'message': 'Non puoi cancellare una consegna già confermata.'}), 400
+            
+            existing.scheduled_delivery_date = None
+            db.session.add(existing)
+            db.session.commit()
+            
+            plan = TerapiaPlan.query.get(plan.id)
+            return jsonify({'plan': plan.to_dict(), 'message': 'Programmazione cancellata'})
+        
+        else:
+            return jsonify({'error': 'invalid_action'}), 400
+            
+    except Exception:
+        current_app.logger.exception('Errore click delivery date')
+        db.session.rollback()
+        return jsonify({'error': 'internal'}), 500
+
+
 
 
 
