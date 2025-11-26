@@ -158,6 +158,59 @@ def delete_plan():
         return jsonify({'error': 'internal'}), 500
 
 
+@sanita_bp.route('/api/delivery/<int:did>/schedule', methods=['POST'])
+def schedule_delivery(did):
+    """Set or update the scheduled delivery date for a specific delivery."""
+    try:
+        delivery = TerapiaDelivery.query.get(did)
+        if not delivery:
+            return jsonify({'error': 'not_found'}), 404
+        
+        data = request.get_json() or {}
+        date_str = data.get('date')
+        if not date_str:
+            return jsonify({'error': 'missing_date'}), 400
+        
+        # Parse the date
+        parts = date_str.split('-')
+        scheduled_date = date(int(parts[0]), int(parts[1]), int(parts[2]))
+        
+        delivery.scheduled_delivery_date = scheduled_date
+        db.session.add(delivery)
+        db.session.commit()
+        
+        # Return the full plan to update UI
+        plan = TerapiaPlan.query.get(delivery.plan_id)
+        return jsonify({'plan': plan.to_dict() if plan else None})
+    except Exception:
+        current_app.logger.exception('Errore scheduling delivery')
+        db.session.rollback()
+        return jsonify({'error': 'internal'}), 500
+
+
+@sanita_bp.route('/api/delivery/<int:did>/confirm-delivery', methods=['POST'])
+def confirm_delivery(did):
+    """Confirm that scheduled delivery has arrived."""
+    try:
+        delivery = TerapiaDelivery.query.get(did)
+        if not delivery:
+            return jsonify({'error': 'not_found'}), 404
+        
+        # Mark delivery as confirmed
+        delivery.delivery_confirmed = True
+        delivery.received = True  # Mark as received
+        db.session.add(delivery)
+        db.session.commit()
+        
+        # Return the full plan to update UI
+        plan = TerapiaPlan.query.get(delivery.plan_id)
+        return jsonify({'plan': plan.to_dict() if plan else None})
+    except Exception:
+        current_app.logger.exception('Errore confirming delivery')
+        db.session.rollback()
+        return jsonify({'error': 'internal'}), 500
+
+
 
 
 

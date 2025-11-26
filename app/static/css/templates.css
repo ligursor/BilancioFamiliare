@@ -394,6 +394,12 @@ body.setup-required { display: flex; align-items: center; justify-content: cente
 .badge.bg-somministrazione { background-color: #6f42c1 !important; color: #fff !important; }
 .covered { background: #198754 !important; color: #fff; }
 .uncovered { background: #dc3545 !important; color: #fff; }
+/* Scheduled delivery (consegna programmata) - orange */
+.scheduled-delivery { background: #fd7e14 !important; color: #fff; }
+.badge.bg-scheduled-delivery { background-color: #fd7e14 !important; color: #fff !important; }
+/* Actual delivery (consegna avvenuta) - teal/cyan */
+.actual-delivery { background: #17a2b8 !important; color: #fff; }
+.badge.bg-delivered { background-color: #17a2b8 !important; color: #fff !important; }
 .today { box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.12) inset; }
 .day[data-date] { cursor: default; }
 

@@ -31,6 +31,9 @@ class TerapiaDelivery(db.Model):
     # Track individual doses inside a delivery (typically 2 doses)
     dose1 = db.Column(db.Boolean, nullable=False, default=False)
     dose2 = db.Column(db.Boolean, nullable=False, default=False)
+    # Delivery scheduling: scheduled date and confirmation flag
+    scheduled_delivery_date = db.Column(db.Date, nullable=True)  # Data programmata consegna
+    delivery_confirmed = db.Column(db.Boolean, nullable=False, default=False)  # Consegna confermata
 
     def to_dict(self):
         return {
@@ -40,5 +43,7 @@ class TerapiaDelivery(db.Model):
             'quantity': self.quantity,
             'received': bool(self.received),
             'dose1': bool(self.dose1),
-            'dose2': bool(self.dose2)
+            'dose2': bool(self.dose2),
+            'scheduled_delivery_date': self.scheduled_delivery_date.isoformat() if self.scheduled_delivery_date else None,
+            'delivery_confirmed': bool(self.delivery_confirmed)
         }
