@@ -164,6 +164,41 @@ def mese(anno, mese):
 			# ensure the 'saldo_previsto_fine_mese' used by the template for future months
 			dettaglio['saldo_previsto_fine_mese'] = float(ms.saldo_finale if ms.saldo_finale is not None else (ms.saldo_iniziale + (ms.entrate - ms.uscite)))
 
+			# Align 'saldo_attuale_mese' with persisted summary for consistency with dashboard.
+			# For the current month, compute the actual performed transactions up to today
+			try:
+				from datetime import datetime as _dt
+				oggi = _dt.now().date()
+				# compute performed transactions for this month (data <= oggi)
+				transazioni_mese = Transazioni.query.filter(
+					Transazioni.data >= dettaglio.get('start_date'),
+					Transazioni.data <= dettaglio.get('end_date'),
+					Transazioni.categoria_id.isnot(None)
+				).all()
+				entrate_eff = 0.0
+				uscite_eff = 0.0
+				for t in transazioni_mese:
+					if t.data <= oggi:
+						if t.tipo == 'entrata':
+							entrate_eff += t.importo
+						else:
+							uscite_eff += t.importo
+				# Use saldo_iniziale from the persisted summary as anchor
+				base_ini = float(ms.saldo_iniziale or 0.0)
+				# If viewing the current financial month, compute actual available balance
+				if (dettaglio.get('start_date') and dettaglio.get('end_date')):
+					_dtt = _dt.now().date()
+					# if today is inside the period, compute saldo_attuale as base + executed
+					if dettaglio.get('start_date') <= _dtt <= dettaglio.get('end_date'):
+						dettaglio['saldo_attuale_mese'] = base_ini + entrate_eff - uscite_eff
+					else:
+						dettaglio['saldo_attuale_mese'] = float(dettaglio.get('saldo_finale_mese', base_ini))
+				else:
+					dettaglio['saldo_attuale_mese'] = float(dettaglio.get('saldo_finale_mese', base_ini))
+			except Exception:
+				# fallback: keep whatever the service computed originally
+				pass
+
 		return render_template('bilancio/dettaglio_mese.html',
 			     # Spacchetta il dizionario dettaglio per compatibilità template
 			     **dettaglio,

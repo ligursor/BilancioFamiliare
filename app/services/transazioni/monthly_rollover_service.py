@@ -178,6 +178,24 @@ def do_monthly_rollover(force=False, months=1, base_date=None):
             db.session.add(seed_row)
             db.session.commit()
             result['new_seed_created'] = True
+
+            # Aggiorna anche il saldo_iniziale dello strumento 'Conto Bancoposta'
+            # in modo che il nuovo seed venga riflesso come saldo iniziale dell'account.
+            try:
+                from app.services.conti_finanziari.strumenti_service import StrumentiService
+                ss = StrumentiService()
+                s = ss.get_by_descrizione('Conto Bancoposta')
+                if s:
+                    # update_saldo_iniziale_by_id adjusts saldo_corrente in modo coerente
+                    ss.update_saldo_iniziale_by_id(s.id_conto, float(new_seed_saldo or 0.0))
+                else:
+                    # se lo strumento non esiste, crealo con il nuovo saldo
+                    ss.ensure_strumento('Conto Bancoposta', 'conto_bancario', float(new_seed_saldo or 0.0))
+            except Exception:
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
             
             # Rigenera i saldi mensili partendo dal seed
             from app.services.transazioni.monthly_summary_service import MonthlySummaryService

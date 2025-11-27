@@ -1,5 +1,5 @@
 """Blueprint principale per le route di base"""
-from flask import Blueprint, render_template, current_app
+from flask import Blueprint, render_template, current_app, jsonify
 from app.utils.formatting import format_currency
 from app.models.Categorie import Categorie
 from app.services.conti_finanziari.strumenti_service import StrumentiService
@@ -251,6 +251,94 @@ def index():
                          ultime_transazioni=ultime_transazioni,
                          saldo_iniziale=saldo_iniziale_importo,
                          categorie=categorie_dict)
+
+
+@main_bp.route('/debug/saldo_check')
+def debug_saldo_check():
+    """Debug endpoint (only in debug mode) to inspect how the dashboard saldo is computed."""
+    if not current_app.debug:
+        return jsonify({'error': 'not_allowed', 'message': 'Endpoint disponibile solo in debug mode'}), 403
+    try:
+        from datetime import date as _date
+        from app.services.transazioni.dettaglio_periodo_service import DettaglioPeriodoService
+        servizio = DettaglioPeriodoService()
+        today = _date.today()
+        start_date, end_date = get_month_boundaries(today)
+        dettaglio = servizio.dettaglio_periodo_interno(start_date, end_date)
+    except Exception as e:
+        dettaglio = {'error': str(e)}
+
+    try:
+        from app.models.SaldiMensili import SaldiMensili
+        ms = SaldiMensili.query.filter_by(year=end_date.year, month=end_date.month).first()
+        if ms:
+            ms_info = {
+                'exists': True,
+                'year': ms.year,
+                'month': ms.month,
+                'saldo_iniziale': float(ms.saldo_iniziale) if getattr(ms, 'saldo_iniziale', None) is not None else None,
+                'saldo_finale': float(ms.saldo_finale) if getattr(ms, 'saldo_finale', None) is not None else None,
+                'entrate': float(ms.entrate) if getattr(ms, 'entrate', None) is not None else None,
+                'uscite': float(ms.uscite) if getattr(ms, 'uscite', None) is not None else None
+            }
+        else:
+            ms_info = {'exists': False}
+    except Exception as e:
+        ms_info = {'error': str(e)}
+
+    try:
+        ss = StrumentiService()
+        s = ss.get_by_descrizione('Conto Bancoposta')
+        strum = {'saldo_iniziale': getattr(s, 'saldo_iniziale', None), 'saldo_corrente': getattr(s, 'saldo_corrente', None)}
+    except Exception as e:
+        strum = {'error': str(e)}
+
+    # Sanitize `dettaglio` to ensure all objects (models, dates) are JSON serializable.
+    try:
+        from datetime import date as _date, datetime as _dt
+
+        def _serialize_tx(tx):
+            try:
+                return {
+                    'id': getattr(tx, 'id', None),
+                    'data': getattr(tx, 'data').isoformat() if getattr(tx, 'data', None) else None,
+                    'data_effettiva': getattr(tx, 'data_effettiva').isoformat() if getattr(tx, 'data_effettiva', None) else None,
+                    'descrizione': getattr(tx, 'descrizione', None),
+                    'importo': float(getattr(tx, 'importo', 0.0) or 0.0),
+                    'tipo': getattr(tx, 'tipo', None),
+                    'categoria_id': getattr(tx, 'categoria_id', None),
+                    'id_periodo': getattr(tx, 'id_periodo', None),
+                    'tx_ricorrente': getattr(tx, 'tx_ricorrente', None),
+                    'id_recurring_tx': getattr(tx, 'id_recurring_tx', None),
+                }
+            except Exception:
+                return None
+
+        detalhe_safe = {}
+        if isinstance(dettaglio, dict):
+            for k, v in dettaglio.items():
+                if k in ('transazioni', 'transazioni_in_attesa') and isinstance(v, list):
+                    detalhe_safe[k] = [_serialize_tx(t) for t in v]
+                elif isinstance(v, (_date, _dt)):
+                    detalhe_safe[k] = v.isoformat()
+                else:
+                    # Best-effort: if value is not JSON-serializable, stringify it
+                    try:
+                        import json as _json
+                        _json.dumps(v)
+                        detalhe_safe[k] = v
+                    except Exception:
+                        try:
+                            detalhe_safe[k] = str(v)
+                        except Exception:
+                            detalhe_safe[k] = None
+        else:
+            detalhe_safe = str(dettaglio)
+
+    except Exception:
+        detalhe_safe = {'error': 'failed_to_serialize_dettaglio'}
+
+    return jsonify({'dettaglio': detalhe_safe, 'saldi_mensili': ms_info, 'strumento': strum})
 
 @main_bp.route('/saldo_iniziale')
 def saldo_iniziale():
