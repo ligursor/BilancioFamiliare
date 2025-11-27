@@ -201,7 +201,7 @@ function modificaMonthlyBudget(btn) {
                         <div class="card {% if bilancio >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
                             <div class="card-body text-center">
                                 <h6>Bilancio Previsto</h6>
-                                <h4 id="bilancio_val">{% if bilancio >= 0 %}+{% endif %}{{ bilancio|format_currency }}</h4>
+                                <h4 id="bilancio_val">{{ bilancio|format_currency }}</h4>
                             </div>
                         </div>
                     </div>

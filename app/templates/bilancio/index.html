@@ -41,7 +41,7 @@
                                         <div class="col-6 mb-2">
                                             <small class="text-muted">Bilancio Mensile</small><br>
                                                 <span class="h6 {% if mese.bilancio >= 0 %}positive{% else %}negative{% endif %}">
-                                                    {% if mese.bilancio >= 0 %}+{% endif %}{{ mese.bilancio|format_currency }}
+                                                    {{ mese.bilancio|format_currency }}
                                                 </span>
                                         </div>
                                         <div class="col-6 mb-2">

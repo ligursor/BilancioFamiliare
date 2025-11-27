@@ -13,6 +13,7 @@ def do_monthly_rollover(force=False, months=1, base_date=None):
     2. Calcola il saldo iniziale del mese corrente = saldo_finale + budget_residui del mese precedente
     3. Svuota e ricrea saldi_mensili con seed = mese precedente + nuovo saldo calcolato
     4. Elimina le transazioni del mese precedente (pulizia storico)
+    5. Elimina i budget mensili del mese precedente e crea budget per il nuovo 7° mese (mantenendo orizzonte 6 mesi)
     """
     if base_date is None:
         base_date = date.today()
@@ -32,6 +33,9 @@ def do_monthly_rollover(force=False, months=1, base_date=None):
         'new_seed_created': False,
         'seed_saldo_iniziale': 0.0,
         'total_budget_residui': 0.0,
+        'deleted_old_budget_mensili': 0,
+        'budget_mensili_created': 0,
+        'budget_mensili_future_created': 0,
     }
 
     try:
@@ -124,6 +128,26 @@ def do_monthly_rollover(force=False, months=1, base_date=None):
             db.session.rollback()
             result['delete_old_error'] = str(e)
         
+        # STEP 3b: Elimina budget mensili del mese passato (precedente al mese corrente)
+        try:
+            from app.models.BudgetMensili import BudgetMensili
+            
+            # Elimina tutti i budget mensili con (year, month) precedenti al mese corrente
+            deleted_budgets = BudgetMensili.query.filter(
+                db.or_(
+                    BudgetMensili.year < current_month_start.year,
+                    db.and_(
+                        BudgetMensili.year == current_month_start.year,
+                        BudgetMensili.month < current_month_start.month
+                    )
+                )
+            ).delete(synchronize_session=False)
+            db.session.commit()
+            result['deleted_old_budget_mensili'] = int(deleted_budgets)
+        except Exception as e:
+            db.session.rollback()
+            result['delete_budget_error'] = str(e)
+        
         # STEP 4: Trova l'ultimo mese con transazioni generate per determinare da dove generare
         try:
             # Trova l'id_periodo massimo presente nelle transazioni generate
@@ -154,6 +178,19 @@ def do_monthly_rollover(force=False, months=1, base_date=None):
                 mark_generated_tx_modificata=False
             )
             result['created_generated_transactions'] = int(created or 0)
+            
+            # Crea anche i budget mensili per il nuovo mese futuro (7° mese = 6 mesi avanti dal corrente)
+            try:
+                future_month_date = current_month_start + relativedelta(months=6)
+                future_month_start, future_month_end = get_month_boundaries(future_month_date)
+                
+                created_future_budget = budget_service.populate_month_from_base_budget(
+                    future_month_end.year, 
+                    future_month_end.month
+                )
+                result['budget_mensili_future_created'] = int(created_future_budget)
+            except Exception as e:
+                result['budget_future_error'] = str(e)
             
         except Exception as e:
             result['generation_error'] = str(e)
@@ -204,6 +241,7 @@ def do_monthly_rollover(force=False, months=1, base_date=None):
             # Rigenera per i prossimi 6 mesi a partire dal mese corrente
             regenerated = 0
             period_list = []
+            budget_created = 0
             for i in range(6):
                 periodo_date = current_month_start + relativedelta(months=i)
                 periodo_start, periodo_end = get_month_boundaries(periodo_date)
@@ -213,7 +251,8 @@ def do_monthly_rollover(force=False, months=1, base_date=None):
                     # non creare/alterare budget per il mese seed (prev_month)
                     if not (periodo_end.year == prev_month_end.year and periodo_end.month == prev_month_end.month):
                         try:
-                            budget_service.populate_month_from_base_budget(periodo_end.year, periodo_end.month)
+                            created = budget_service.populate_month_from_base_budget(periodo_end.year, periodo_end.month)
+                            budget_created += created
                         except Exception:
                             # best-effort: non bloccare la rigenerazione se la creazione dei budget fallisce
                             pass
@@ -226,6 +265,7 @@ def do_monthly_rollover(force=False, months=1, base_date=None):
                     period_list.append((periodo_end.year, periodo_end.month))
 
             result['monthly_summary_regenerated'] = regenerated
+            result['budget_mensili_created'] = budget_created
             
             # Applica chaining: propaga saldo_finale -> saldo_iniziale
             if period_list:
