@@ -13,7 +13,7 @@ def do_monthly_rollover(force=False, months=1, base_date=None):
     2. Calcola il saldo iniziale del mese corrente = saldo_finale + budget_residui del mese precedente
     3. Svuota e ricrea saldi_mensili con seed = mese precedente + nuovo saldo calcolato
     4. Elimina le transazioni del mese precedente (pulizia storico)
-    5. Elimina i budget mensili del mese precedente e crea budget per il nuovo 7° mese (mantenendo orizzonte 6 mesi)
+    5. Elimina i budget mensili del mese precedente (mantiene orizzonte 6 mesi dal mese corrente)
     """
     if base_date is None:
         base_date = date.today()
@@ -35,7 +35,6 @@ def do_monthly_rollover(force=False, months=1, base_date=None):
         'total_budget_residui': 0.0,
         'deleted_old_budget_mensili': 0,
         'budget_mensili_created': 0,
-        'budget_mensili_future_created': 0,
     }
 
     try:
@@ -132,13 +131,14 @@ def do_monthly_rollover(force=False, months=1, base_date=None):
         try:
             from app.models.BudgetMensili import BudgetMensili
             
-            # Elimina tutti i budget mensili con (year, month) precedenti al mese corrente
+            # Elimina i budget mensili del mese precedente e tutti quelli prima
+            # Es: se oggi è 27 nov, siamo nel mese dic (27 nov - 26 dic), eliminiamo nov (27 ott - 26 nov) e precedenti
             deleted_budgets = BudgetMensili.query.filter(
                 db.or_(
-                    BudgetMensili.year < current_month_start.year,
+                    BudgetMensili.year < prev_month_end.year,
                     db.and_(
-                        BudgetMensili.year == current_month_start.year,
-                        BudgetMensili.month < current_month_start.month
+                        BudgetMensili.year == prev_month_end.year,
+                        BudgetMensili.month <= prev_month_end.month
                     )
                 )
             ).delete(synchronize_session=False)
@@ -178,19 +178,6 @@ def do_monthly_rollover(force=False, months=1, base_date=None):
                 mark_generated_tx_modificata=False
             )
             result['created_generated_transactions'] = int(created or 0)
-            
-            # Crea anche i budget mensili per il nuovo mese futuro (7° mese = 6 mesi avanti dal corrente)
-            try:
-                future_month_date = current_month_start + relativedelta(months=6)
-                future_month_start, future_month_end = get_month_boundaries(future_month_date)
-                
-                created_future_budget = budget_service.populate_month_from_base_budget(
-                    future_month_end.year, 
-                    future_month_end.month
-                )
-                result['budget_mensili_future_created'] = int(created_future_budget)
-            except Exception as e:
-                result['budget_future_error'] = str(e)
             
         except Exception as e:
             result['generation_error'] = str(e)
