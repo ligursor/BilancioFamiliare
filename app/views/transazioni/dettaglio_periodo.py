@@ -773,7 +773,7 @@ def modifica_transazione_periodo(start_date, end_date, id):
 					'saldo_iniziale_mese': float(ms_row.saldo_iniziale or 0.0),
 					'saldo_attuale_mese': float(summary.get('saldo_attuale_mese') or 0.0),
 					'saldo_finale_mese': float(ms_row.saldo_finale if ms_row.saldo_finale is not None else (ms_row.saldo_iniziale + ((ms_row.entrate or 0.0) - (ms_row.uscite or 0.0)))),
-					'saldo_previsto_fine_mese': float(summary.get('saldo_previsto_fine_mese') or 0.0),
+					'saldo_previsto_fine_mese': float(ms_row.saldo_finale if ms_row.saldo_finale is not None else (ms_row.saldo_iniziale + ((ms_row.entrate or 0.0) - (ms_row.uscite or 0.0)))),
 					'budget_items': summary.get('budget_items') or [],
 					'stats_categorie': stats_serial
 				}

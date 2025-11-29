@@ -67,6 +67,7 @@
             if (summary.saldo_iniziale_mese !== undefined && document.getElementById('saldo_iniziale_val')) document.getElementById('saldo_iniziale_val').textContent = formatEuro(summary.saldo_iniziale_mese);
             if (summary.saldo_attuale_mese !== undefined && document.getElementById('saldo_attuale_val')) document.getElementById('saldo_attuale_val').textContent = formatEuro(summary.saldo_attuale_mese);
             if (summary.saldo_finale_mese !== undefined && document.getElementById('saldo_finale_val')) document.getElementById('saldo_finale_val').textContent = formatEuro(summary.saldo_finale_mese);
+            if (summary.saldo_previsto_fine_mese !== undefined && document.getElementById('saldo_previsto_fine_mese_val')) document.getElementById('saldo_previsto_fine_mese_val').textContent = formatEuro(summary.saldo_previsto_fine_mese);
             // If template shows combined "saldo finale + residui" element, update it as well
             try{
                 var el = document.getElementById('saldo_finale_plus_residui_val');

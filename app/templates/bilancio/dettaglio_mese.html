@@ -67,7 +67,7 @@ function modificaTransazioneAttr(btn) {
                 try { if (json.summary) applySummary(json.summary); } catch(e) { console && console.error && console.error('applySummary failed', e); }
                 // Update the amount cell locally to reflect the new value
                 try {
-                    amountCell.textContent = formatEuro(Number(input.value || 0));
+                    amountCell.textContent = formatNumber(Number(input.value || 0), 2);
                     // keep the edit button's data-importo in sync so future inline edits pick the updated value
                     try { btn.setAttribute('data-importo', Number(input.value || 0).toFixed(2)); } catch(e) {}
                 } catch(e){}
@@ -258,7 +258,7 @@ function modificaMonthlyBudget(btn) {
                         <div class="card {% if saldo_previsto_fine_mese >= 0 %}bg-dark{% else %}bg-secondary{% endif %} text-white">
                             <div class="card-body text-center">
                                 <h6><i class="fas fa-crystal-ball me-1"></i>Saldo Previsto Fine Mese</h6>
-                                <h4>{{ saldo_previsto_fine_mese|format_currency }}</h4>
+                                <h4 id="saldo_previsto_fine_mese_val">{{ saldo_previsto_fine_mese|format_currency }}</h4>
                             </div>
                         </div>
                     </div>
