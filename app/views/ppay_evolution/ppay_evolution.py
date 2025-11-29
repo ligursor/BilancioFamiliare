@@ -32,32 +32,25 @@ def evolution():
         # Inizializza il sistema PostePay se necessario
         inizializza_postepay()
         
-        # Recupera dati
-        ss = StrumentiService()
-        strum = ss.get_by_descrizione('Postepay Evolution')
-        # create a small proxy so templates expecting postepay.saldo_attuale keep working
-        if strum is not None:
-            postepay = SimpleNamespace(saldo_attuale=(strum.saldo_corrente or 0.0))
-        else:
-            postepay = SimpleNamespace(saldo_attuale=0.0)
-        abbonamenti = AbbonamentoPostePay.query.order_by(AbbonamentoPostePay.nome).all()
-        movimenti = MovimentoPostePay.query.order_by(MovimentoPostePay.data.desc()).limit(10).all()
-
-        # Calcola statistiche
-        abbonamenti_attivi = [a for a in abbonamenti if a.attivo]
-        spesa_mensile = sum(a.importo for a in abbonamenti_attivi)
-
         # Optionally skip auto-generation (used when redirecting after a manual delete)
         skip_auto = request.args.get('skip_auto')
 
         # --- Generazione automatica movimenti per abbonamenti scaduti oggi ---
+        # IMPORTANTE: questa operazione deve essere fatta PRIMA di recuperare i dati
         if not skip_auto:
             try:
+                ss = StrumentiService()
                 oggi = date.today()
                 first_of_month = date(oggi.year, oggi.month, 1)
                 ultimo_giorno = calendar.monthrange(oggi.year, oggi.month)[1]
                 last_of_month = date(oggi.year, oggi.month, ultimo_giorno)
 
+                # Recupera gli abbonamenti attivi
+                abbonamenti_attivi = AbbonamentoPostePay.query.filter(
+                    AbbonamentoPostePay.attivo == True
+                ).all()
+
+                movimenti_creati = []  # Tiene traccia dei movimenti effettivamente creati
                 for abbonamento in abbonamenti_attivi:
                     # Calcola la data di addebito per il mese corrente (gestendo
                     # mesi con meno giorni del giorno_addebito impostato)
@@ -81,7 +74,6 @@ def evolution():
                         ).first()
 
                         if not esistente:
-                            # Also check deleted-generation tombstones to avoid recreating recently-deleted auto-generated movements
                             mov = MovimentoPostePay(
                                 data=addebito_this_month,
                                 descrizione=f"{abbonamento.nome} {addebito_this_month.strftime('%m/%Y')}",
@@ -91,23 +83,49 @@ def evolution():
                                 abbonamento_id=abbonamento.id
                             )
                             db.session.add(mov)
-                            db.session.commit()
-                            # update strumento balance
-                            try:
-                                strum = ss.get_by_descrizione('Postepay Evolution')
-                                if strum:
-                                    # Calculate signed value: importo is positive, tipo_movimento='uscita' means subtract
-                                    signed_value = -abs(mov.importo) if mov.tipo_movimento == 'uscita' else abs(mov.importo)
-                                    new_bal = (strum.saldo_corrente or 0.0) + signed_value
-                                    ss.update_saldo_by_id(strum.id_conto, new_bal)
-                            except Exception:
-                                pass
-            except Exception:
+                            movimenti_creati.append(mov)
+                
+                # Commit una sola volta alla fine, se sono stati generati movimenti
+                if movimenti_creati:
+                    db.session.flush()  # Assicura che i movimenti siano visibili nella sessione
+                    
+                    # Aggiorna il saldo dello strumento per i movimenti appena generati
+                    try:
+                        strum = ss.get_by_descrizione('Postepay Evolution')
+                        if strum:
+                            # Aggiorna il saldo solo per i movimenti effettivamente creati
+                            for mov in movimenti_creati:
+                                signed_value = -abs(mov.importo) if mov.tipo_movimento == 'uscita' else abs(mov.importo)
+                                strum.saldo_corrente = (strum.saldo_corrente or 0.0) + signed_value
+                            
+                            db.session.commit()  # Commit finale con saldo aggiornato
+                    except Exception as e:
+                        from flask import current_app
+                        current_app.logger.error(f"Errore aggiornamento saldo dopo generazione automatica: {e}")
+                        db.session.rollback()
+            except Exception as e:
                 # Non vogliamo rompere la visualizzazione se la generazione automatica fallisce
+                from flask import current_app
+                current_app.logger.error(f"Errore generazione automatica movimenti: {e}")
                 try:
                     db.session.rollback()
                 except Exception:
                     pass
+        
+        # Recupera dati DOPO la generazione automatica
+        ss = StrumentiService()
+        strum = ss.get_by_descrizione('Postepay Evolution')
+        # create a small proxy so templates expecting postepay.saldo_attuale keep working
+        if strum is not None:
+            postepay = SimpleNamespace(saldo_attuale=(strum.saldo_corrente or 0.0))
+        else:
+            postepay = SimpleNamespace(saldo_attuale=0.0)
+        abbonamenti = AbbonamentoPostePay.query.order_by(AbbonamentoPostePay.nome).all()
+        movimenti = MovimentoPostePay.query.order_by(MovimentoPostePay.data.desc()).limit(10).all()
+
+        # Calcola statistiche
+        abbonamenti_attivi = [a for a in abbonamenti if a.attivo]
+        spesa_mensile = sum(a.importo for a in abbonamenti_attivi)
 
         # Prossimi addebiti (entro 30 giorni)
         oggi = date.today()
