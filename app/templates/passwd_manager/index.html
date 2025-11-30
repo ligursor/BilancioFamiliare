@@ -965,10 +965,7 @@
                 } else {
                     result = await postForm(`/passwd/api/credentials`, payload);
                 }
-
-                // Check if the result indicates success (postForm throws on HTTP errors)
-                // So if we reach here, the request was successful
-
+                
                 // Close modal first
                 const modalEl = document.getElementById('credentialModal');
                 const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
