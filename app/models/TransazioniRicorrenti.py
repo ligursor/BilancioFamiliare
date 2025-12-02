@@ -18,6 +18,7 @@ class TransazioniRicorrenti(db.Model):
 	# se True: per questo recurring mensile NON generare la riga nel mese se
 	# esiste un recurring annuale equivalente (es. stipendio mensile vs stipendio dicembre)
 	skip_month_if_annual = db.Column(db.Integer, nullable=False, default=0)
+	attivo = db.Column(db.Integer, nullable=False, default=1)
 
 	# Relationship
 	categoria = db.relationship('Categorie', backref='transazioni_ricorrenti')

@@ -52,7 +52,8 @@ class TransazioniRicorrentiService:
                 giorno=giorno,
                 categoria_id=categoria_id,
                 cadenza=cadenza,
-                skip_month_if_annual=1 if skip_month_if_annual else 0
+                skip_month_if_annual=1 if skip_month_if_annual else 0,
+                attivo=1
             )
             
             db.session.add(ricorrente)

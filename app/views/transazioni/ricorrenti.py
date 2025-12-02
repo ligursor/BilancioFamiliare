@@ -4,10 +4,12 @@ from app import db
 from app.models.TransazioniRicorrenti import TransazioniRicorrenti
 from app.models.Categorie import Categorie
 from app.services.transazioni.transazioni_ricorrenti_service import TransazioniRicorrentiService
+from app.services.transazioni.generated_transaction_service import GeneratedTransactionService
 from datetime import datetime, date
 
 ricorrenti_bp = Blueprint('ricorrenti', __name__, url_prefix='/ricorrenti')
 service = TransazioniRicorrentiService()
+generated_service = GeneratedTransactionService()
 
 
 @ricorrenti_bp.route('/')
@@ -58,6 +60,17 @@ def aggiungi():
         
         if success:
             flash(message, 'success')
+            # Propaga la nuova transazione ricorrente nell'orizzonte temporale
+            try:
+                created_count = generated_service.populate_horizon_from_recurring(
+                    months=6,
+                    base_date=date.today(),
+                    create_only_future=False
+                )
+                if created_count > 0:
+                    flash(f'{created_count} transazioni generate dall\'orizzonte temporale', 'info')
+            except Exception as e:
+                flash(f'Attenzione: transazione ricorrente creata ma errore nella generazione: {str(e)}', 'warning')
         else:
             flash(message, 'error')
             
@@ -92,6 +105,38 @@ def modifica(ricorrente_id):
         
         if success:
             flash(message, 'success')
+            # Aggiorna le transazioni generate nell'orizzonte temporale
+            try:
+                from app.models.Transazioni import Transazioni
+                # Recupera la transazione ricorrente aggiornata
+                ricorrente = service.get_by_id(ricorrente_id)
+                if ricorrente:
+                    # Aggiorna tutte le transazioni generate non ancora effettuate (data_effettiva=NULL)
+                    # e non modificate manualmente (tx_modificata=False)
+                    generated_txs = Transazioni.query.filter(
+                        Transazioni.id_recurring_tx == ricorrente_id,
+                        Transazioni.data_effettiva.is_(None),
+                        Transazioni.tx_modificata == False
+                    ).all()
+                    
+                    updated_count = 0
+                    for tx in generated_txs:
+                        if descrizione:
+                            tx.descrizione = ricorrente.descrizione
+                        if importo is not None:
+                            tx.importo = ricorrente.importo
+                        if tipo:
+                            tx.tipo = ricorrente.tipo
+                        if categoria_id is not None:
+                            tx.categoria_id = ricorrente.categoria_id
+                        updated_count += 1
+                    
+                    if updated_count > 0:
+                        db.session.commit()
+                        flash(f'{updated_count} transazioni programmate aggiornate', 'info')
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Attenzione: transazione ricorrente modificata ma errore nell\'aggiornamento delle transazioni generate: {str(e)}', 'warning')
         else:
             flash(message, 'error')
             
@@ -105,10 +150,26 @@ def modifica(ricorrente_id):
 def elimina(ricorrente_id):
     """Elimina una transazione ricorrente"""
     try:
+        # Prima elimina le transazioni generate associate
+        from app.models.Transazioni import Transazioni
+        deleted_count = 0
+        try:
+            generated_txs = Transazioni.query.filter_by(id_recurring_tx=ricorrente_id).all()
+            deleted_count = len(generated_txs)
+            for tx in generated_txs:
+                db.session.delete(tx)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Errore nell\'eliminazione delle transazioni generate: {str(e)}', 'warning')
+        
+        # Poi elimina la transazione ricorrente
         success, message = service.delete(ricorrente_id)
         
         if success:
             flash(message, 'success')
+            if deleted_count > 0:
+                flash(f'{deleted_count} transazioni generate eliminate dall\'orizzonte temporale', 'info')
         else:
             flash(message, 'error')
             
