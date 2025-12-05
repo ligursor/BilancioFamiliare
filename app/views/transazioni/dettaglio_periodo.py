@@ -713,20 +713,25 @@ def modifica_transazione_periodo(start_date, end_date, id):
 			from app.services import get_month_boundaries as _gmb
 			period_end = _gmb(tx.data_effettiva or tx.data)[1]
 			tx.id_periodo = int(period_end.year) * 100 + int(period_end.month)
-		except Exception:
-			pass
+		except Exception as ex:
+			print(f"Error updating id_periodo: {ex}")
 
 		db.session.commit()
+		print(f"Transaction {id} modified: data={tx.data}, importo={tx.importo}")
+		
 		# After modifying a transaction, update monthly summaries starting from the transaction month
 		try:
 			if getattr(tx, 'data', None):
 				_recompute_summaries_from(tx.data.year, tx.data.month)
 			else:
 				_recompute_summaries_from()
-		except Exception:
-			pass
+		except Exception as ex:
+			print(f"Error recomputing summaries: {ex}")
 		flash('Transazioni modificata con successo', 'success')
 	except Exception as e:
+		print(f"Error modifying transaction {id}: {e}")
+		import traceback
+		traceback.print_exc()
 		try:
 			db.session.rollback()
 		except Exception:

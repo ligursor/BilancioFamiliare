@@ -7,7 +7,7 @@
     
 /* Inline-only editing enforced; no fallback editor. */
 function modificaTransazioneAttr(btn) {
-    // Inline-only edit of importo (fall back to full modal if anything goes wrong)
+    // Inline edit of both date and amount
     try {
         const id = btn.getAttribute('data-id');
         // Normalize stored importo (someflows may leave a formatted string like "-€ 6.00")
@@ -17,6 +17,7 @@ function modificaTransazioneAttr(btn) {
             // parseEuro is provided by app/static/js/utils-format.js
             rawImporto = parseEuro(rawImporto) || 0;
         } catch (e) { rawImporto = 0; }
+        const rawData = btn.getAttribute('data-data') ? JSON.parse(btn.getAttribute('data-data')) : '';
         const startDate = '{{ start_date }}';
         const endDate = '{{ end_date }}';
 
@@ -28,57 +29,142 @@ function modificaTransazioneAttr(btn) {
         }
 
         const tds = row.querySelectorAll('td');
+        const dateCell = tds && tds.length >= 2 ? tds[1] : null;
         const amountCell = tds && tds.length >= 5 ? tds[4] : null;
-        if (!amountCell) return;
-        if (amountCell.querySelector('.inline-edit-form')) return; // already editing
+        if (!dateCell || !amountCell) return;
+        if (row.querySelector('.inline-edit-form')) return; // already editing
 
-        const originalHtml = amountCell.innerHTML;
+        const originalDateHtml = dateCell.innerHTML;
+        const originalAmountHtml = amountCell.innerHTML;
 
-    const form = document.createElement('form');
-    form.className = 'd-inline inline-edit-form';
-    form.style.display = 'inline-flex';
-    form.style.alignItems = 'center';
-    form.style.flexWrap = 'nowrap';
+        // Create form for date field
+        const dateForm = document.createElement('form');
+        dateForm.className = 'd-inline inline-edit-form';
+        dateForm.style.display = 'inline-flex';
+        dateForm.style.alignItems = 'center';
+        dateForm.style.flexWrap = 'nowrap';
 
-    const input = document.createElement('input');
-    input.type = 'number'; input.name = 'importo'; input.step = '0.01'; input.min = '0';
-    input.className = 'form-control form-control-sm no-spinner'; input.style.width = '120px';
+        const dateInput = document.createElement('input');
+        dateInput.type = 'date'; dateInput.name = 'data';
+        dateInput.className = 'form-control form-control-sm';
+        dateInput.style.width = '140px';
+        dateInput.value = rawData;
+        dateInput.min = startDate;
+        dateInput.max = endDate;
+
+        // Create form for amount field
+        const amountForm = document.createElement('form');
+        amountForm.className = 'd-inline inline-edit-form';
+        amountForm.style.display = 'inline-flex';
+        amountForm.style.alignItems = 'center';
+        amountForm.style.flexWrap = 'nowrap';
+
+        const amountInput = document.createElement('input');
+        amountInput.type = 'number'; amountInput.name = 'importo'; amountInput.step = '0.01'; amountInput.min = '0';
+        amountInput.className = 'form-control form-control-sm no-spinner';
+        amountInput.style.width = '120px';
         // Show a consistent numeric value with two decimals in the inline editor
-        input.value = Number(rawImporto || 0).toFixed(2);
+        amountInput.value = Number(rawImporto || 0).toFixed(2);
 
+        // Shared action buttons (only one set for both fields)
         const saveBtn = document.createElement('button');
-        saveBtn.type = 'submit'; saveBtn.className = 'btn btn-sm btn-outline-success ms-2';
+        saveBtn.type = 'button'; saveBtn.className = 'btn btn-sm btn-outline-success ms-2';
         saveBtn.innerHTML = '<i class="fas fa-check" aria-hidden="true"></i>';
 
         const cancelBtn = document.createElement('button');
         cancelBtn.type = 'button'; cancelBtn.className = 'btn btn-sm btn-outline-danger ms-1';
         cancelBtn.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
-        cancelBtn.addEventListener('click', function(e){ e.preventDefault(); amountCell.innerHTML = originalHtml; try{ btn.style.display = ''; }catch(e){} });
+        
+        // Create a separate cell for action buttons (positioned between amount and action buttons)
+        const actionsCell = tds && tds.length >= 6 ? tds[5] : null;
+        let originalActionsHtml = '';
+        
+        const restoreOriginal = function() {
+            dateCell.innerHTML = originalDateHtml;
+            amountCell.innerHTML = originalAmountHtml;
+            if (actionsCell && originalActionsHtml) {
+                actionsCell.innerHTML = originalActionsHtml;
+            }
+            try { btn.style.display = ''; } catch(e) {}
+        };
+        
+        cancelBtn.addEventListener('click', function(e){ e.preventDefault(); restoreOriginal(); });
 
-        form.appendChild(input); form.appendChild(saveBtn); form.appendChild(cancelBtn);
+        // Add inputs to their respective cells
+        amountForm.appendChild(amountInput);
+        dateForm.appendChild(dateInput);
+        
+        // Add action buttons to the actions cell
+        if (actionsCell) {
+            originalActionsHtml = actionsCell.innerHTML;
+            const buttonGroup = document.createElement('div');
+            buttonGroup.className = 'btn-group btn-group-sm me-2';
+            buttonGroup.setAttribute('role', 'group');
+            buttonGroup.appendChild(saveBtn);
+            buttonGroup.appendChild(cancelBtn);
+            actionsCell.insertBefore(buttonGroup, actionsCell.firstChild);
+        }
 
-        form.addEventListener('submit', function(evt){
-            evt.preventDefault(); saveBtn.disabled = true; cancelBtn.disabled = true;
-            const fd = new FormData(); fd.append('importo', input.value);
+        // Save handler - collects both fields
+        const saveHandler = function() {
+            saveBtn.disabled = true; cancelBtn.disabled = true;
+            const fd = new FormData();
+            fd.append('importo', amountInput.value);
+            fd.append('data', dateInput.value);
             postForm(`/dettaglio/${startDate}/${endDate}/modifica_transazione/${id}`, fd)
             .then(function(json){
                 if (!json || json.status !== 'ok') throw new Error('Errore server');
                 // Update summary cards and budget rows if provided
                 try { if (json.summary) applySummary(json.summary); } catch(e) { console && console.error && console.error('applySummary failed', e); }
-                // Update the amount cell locally to reflect the new value
+                // Update cells locally to reflect the new values
                 try {
-                    amountCell.textContent = formatNumber(Number(input.value || 0), 2);
-                    // keep the edit button's data-importo in sync so future inline edits pick the updated value
-                    try { btn.setAttribute('data-importo', Number(input.value || 0).toFixed(2)); } catch(e) {}
-                } catch(e){}
+                    // Update date cell
+                    const dateObj = new Date(dateInput.value + 'T00:00:00');
+                    dateCell.innerHTML = originalDateHtml;
+                    dateCell.textContent = dateObj.toLocaleDateString('it-IT', {day: '2-digit', month: '2-digit', year: 'numeric'});
+                    // Update amount cell
+                    amountCell.innerHTML = originalAmountHtml;
+                    amountCell.textContent = formatNumber(Number(amountInput.value || 0), 2);
+                    // Restore actions cell (remove save/cancel buttons)
+                    if (actionsCell && originalActionsHtml) {
+                        actionsCell.innerHTML = originalActionsHtml;
+                        // Find the edit button in the restored HTML and update its data attributes
+                        const newEditBtn = actionsCell.querySelector('[data-action="modifica-transazione-attr"]');
+                        if (newEditBtn) {
+                            newEditBtn.setAttribute('data-importo', Number(amountInput.value || 0).toFixed(2));
+                            newEditBtn.setAttribute('data-data', JSON.stringify(dateInput.value));
+                        }
+                    }
+                } catch(e){
+                    console.error('Error updating cells:', e);
+                }
+                try { btn.style.display = ''; } catch(e) {}
                 // try { showToast('Modifica salvata', 'success'); } catch(e){}
-            }).catch(function(err){ console.error('Errore salvataggio inline:', err); showToast('Errore nel salvataggio. Riprova.','danger'); amountCell.innerHTML = originalHtml; try { btn.style.display = ''; } catch(e) {} })
+            }).catch(function(err){ 
+                console.error('Errore salvataggio inline:', err); 
+                showToast('Errore nel salvataggio. Riprova.','danger'); 
+                restoreOriginal();
+            })
             .finally(function(){ saveBtn.disabled = false; cancelBtn.disabled = false; });
+        };
+        
+        saveBtn.addEventListener('click', saveHandler);
+        
+        // Allow Enter key on both inputs to save
+        dateInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); saveHandler(); }
+            if (e.key === 'Escape') { e.preventDefault(); restoreOriginal(); }
+        });
+        amountInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); saveHandler(); }
+            if (e.key === 'Escape') { e.preventDefault(); restoreOriginal(); }
         });
 
-        amountCell.innerHTML = ''; amountCell.appendChild(form);
+        // Replace cell contents with forms
+        dateCell.innerHTML = ''; dateCell.appendChild(dateForm);
+        amountCell.innerHTML = ''; amountCell.appendChild(amountForm);
         try { btn.style.display = 'none'; } catch(e) {}
-        input.focus(); input.select();
+        dateInput.focus(); dateInput.select();
     } catch (e) {
         console && console.error && console.error('Errore inline modifica transazione', e);
         try { showToast('Errore durante l\'editing inline','danger'); } catch(e){}
